@@ -1,0 +1,9 @@
+# Go
+tmp/
+*.log
+
+# Node
+web/node_modules/
+web/dist/
+
+config.yaml

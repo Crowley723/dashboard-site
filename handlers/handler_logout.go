@@ -1,0 +1,27 @@
+package handlers
+
+import (
+	"homelab-dashboard/auth"
+	"homelab-dashboard/middlewares"
+	"net/http"
+)
+
+func LogoutHandler(ctx *middlewares.AppContext) {
+	logger := ctx.Logger
+
+	user := &auth.User{}
+	user, _ = auth.GetCurrentUser(ctx)
+
+	err := auth.Logout(ctx)
+	if err != nil {
+		logger.Error("Failed to logout user", "error", err)
+		ctx.SetJSONError(http.StatusInternalServerError, "Failed to logout")
+		return
+	}
+
+	if user != nil {
+		logger.Info("User logged out", "username", user.Username)
+	}
+
+	ctx.SetJSONStatus(http.StatusOK, "OK")
+}

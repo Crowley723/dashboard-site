@@ -3,6 +3,7 @@ package middlewares
 import (
 	"context"
 	"homelab-dashboard/config"
+	"homelab-dashboard/data"
 	"log/slog"
 	"net/http"
 
@@ -19,6 +20,7 @@ type AppContext struct {
 	SessionManager *scs.SessionManager
 	OIDCProvider   *oidc.Provider
 	OauthConfig    *oauth2.Config
+	Cache          *data.Cache
 
 	Request  *http.Request
 	Response http.ResponseWriter
@@ -38,6 +40,7 @@ func AppContextMiddleware(baseCtx *AppContext) func(http.Handler) http.Handler {
 				SessionManager: baseCtx.SessionManager,
 				OIDCProvider:   baseCtx.OIDCProvider,
 				OauthConfig:    baseCtx.OauthConfig,
+				Cache:          baseCtx.Cache,
 				Request:        r,
 				Response:       w,
 			}
@@ -81,7 +84,7 @@ func (ctx *AppContext) Redirect(url string, status int) {
 	http.Redirect(ctx.Response, ctx.Request, url, status)
 }
 
-func NewAppContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, sessionManager *scs.SessionManager, oidcProvider *oidc.Provider, oauthConfig *oauth2.Config) *AppContext {
+func NewAppContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, cache *data.Cache, sessionManager *scs.SessionManager, oidcProvider *oidc.Provider, oauthConfig *oauth2.Config) *AppContext {
 	return &AppContext{
 		Context:        ctx,
 		Config:         cfg,
@@ -89,6 +92,7 @@ func NewAppContext(ctx context.Context, cfg *config.Config, logger *slog.Logger,
 		SessionManager: sessionManager,
 		OIDCProvider:   oidcProvider,
 		OauthConfig:    oauthConfig,
+		Cache:          cache,
 	}
 }
 

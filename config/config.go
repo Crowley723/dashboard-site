@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -62,6 +63,8 @@ func validateConfig(config *Config) error {
 	if err != nil {
 		return err
 	}
+
+	err = validateDataConfig(&config.Data)
 
 	return nil
 }
@@ -194,6 +197,64 @@ func validateSessionConfig(config *SessionConfig) error {
 
 	if config.FixedTimeout == 0 {
 		config.FixedTimeout = DefaultSessionConfig.FixedTimeout
+	}
+
+	return nil
+}
+
+func validateDataConfig(config *DataConfig) (err error) {
+	if config == nil {
+		return fmt.Errorf("data config is required")
+	}
+
+	if config.PrometheusURL == "" {
+		return fmt.Errorf("data.prometheus_url is required")
+	}
+
+	if config.BasicAuth != nil {
+		if config.BasicAuth.Username == "" {
+			return fmt.Errorf("data.basic_auth.username is required")
+		}
+		if config.BasicAuth.Password == "" {
+			return fmt.Errorf("data.basic_auth.password is required")
+		}
+	}
+
+	if config.TimeInterval == 0 {
+		config.TimeInterval, err = time.ParseDuration("1h")
+		if err != nil {
+			return fmt.Errorf("unable to parse default duration: %v", err)
+		}
+	}
+
+	if len(config.Queries) > 0 {
+		if err = validateDataQueriesConfig(config); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func validateDataQueriesConfig(config *DataConfig) (err error) {
+
+	queries := config.Queries
+
+	for i, query := range queries {
+
+		if query.Name == "" {
+			return fmt.Errorf("data.queries[%d].name is required", i)
+		}
+
+		if query.Query == "" {
+			return fmt.Errorf("data.queries[%d].query is required", i)
+		}
+
+		if query.TTL.Seconds() == 0 {
+			query.TTL = config.TimeInterval
+		} else if query.TTL.Seconds() < 30 {
+			return fmt.Errorf("data.queries[%d].ttl cannot be less than 30s", i)
+		}
 	}
 
 	return nil

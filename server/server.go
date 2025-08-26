@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"homelab-dashboard/auth"
 	"homelab-dashboard/config"
+	"homelab-dashboard/data"
 	"homelab-dashboard/middlewares"
 	"log/slog"
 	"net/http"
@@ -28,7 +29,18 @@ func Start(cfg *config.Config) error {
 
 	oidcProvider, oauth2Config, err := auth.NewOIDCProvider(ctx, cfg.OIDC)
 
-	appCtx := middlewares.NewAppContext(ctx, cfg, logger, sessionManager, oidcProvider, oauth2Config)
+	dataService, cache, err := setupDataService(cfg, logger)
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		if err := runBackgroundDataFetching(ctx, dataService, logger, cfg); err != nil {
+			logger.Error("background data fetching stopped", "error", err)
+		}
+	}()
+
+	appCtx := middlewares.NewAppContext(ctx, cfg, logger, cache, sessionManager, oidcProvider, oauth2Config)
 
 	router := setupRouter(appCtx)
 
@@ -96,4 +108,19 @@ func setupLogger(cfg *config.Config) *slog.Logger {
 	}
 
 	return slog.New(handler)
+}
+
+func setupDataService(cfg *config.Config, logger *slog.Logger) (*data.Service, *data.Cache, error) {
+	mimirClient, err := data.NewMimirClient(
+		cfg.Data.PrometheusURL,
+		cfg.Data.BasicAuth.Username,
+		cfg.Data.BasicAuth.Password,
+	)
+
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create new mimir client: %w", err)
+	}
+
+	cache := data.NewCache()
+	return data.NewService(mimirClient, cache, logger, cfg.Data.Queries), cache, nil
 }

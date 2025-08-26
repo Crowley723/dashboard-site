@@ -10,6 +10,7 @@ type Config struct {
 	Log      LogConfig     `yaml:"log"`
 	CORS     CORSConfig    `yaml:"cors"`
 	Sessions SessionConfig `yaml:"sessions"`
+	Data     DataConfig    `yaml:"data"`
 }
 
 type ServerConfig struct {
@@ -72,4 +73,22 @@ var DefaultSessionConfig = SessionConfig{
 	FixedTimeout:   24 * time.Hour,
 	Name:           "session_id",
 	Secure:         true,
+}
+
+type DataConfig struct {
+	PrometheusURL string            `yaml:"prometheus_url"`
+	TimeInterval  time.Duration     `yaml:"time_interval"`
+	BasicAuth     *BasicAuth        `yaml:"basic_auth"`
+	Queries       []PrometheusQuery `yaml:"queries"`
+}
+
+type BasicAuth struct {
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
+}
+
+type PrometheusQuery struct {
+	Name  string        `yaml:"name"`
+	Query string        `yaml:"query"`
+	TTL   time.Duration `yaml:"ttl"`
 }

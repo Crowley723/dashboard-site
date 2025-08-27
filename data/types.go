@@ -10,7 +10,6 @@ type QueryResult struct {
 	Name      string      `json:"name"`
 	Value     model.Value `json:"value"`
 	Timestamp time.Time   `json:"timestamp"`
-	Cached    bool        `json:"cached"`
 }
 
 type DashboardData struct {

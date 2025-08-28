@@ -29,7 +29,7 @@ func CallbackHandler(ctx *middlewares.AppContext) {
 		"email", user.Email,
 	)
 
-	redirectTo := ctx.SessionManager.PopString(ctx.Request.Context(), "redirect_after_login")
+	redirectTo := ctx.SessionManager.GetRedirectAfterLogin(ctx)
 	if redirectTo != "" {
 		ctx.Redirect(redirectTo, http.StatusFound)
 

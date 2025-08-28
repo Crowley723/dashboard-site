@@ -10,9 +10,14 @@ func LogoutHandler(ctx *middlewares.AppContext) {
 	logger := ctx.Logger
 
 	user := &auth.User{}
-	user, _ = auth.GetCurrentUser(ctx)
+	user, ok := ctx.SessionManager.GetUser(ctx)
+	if !ok {
+		logger.Error("Failed to retrieve user session", "error")
+		ctx.SetJSONError(http.StatusInternalServerError, "Failed to logout")
+		return
+	}
 
-	err := auth.Logout(ctx)
+	err := ctx.SessionManager.Logout(ctx)
 	if err != nil {
 		logger.Error("Failed to logout user", "error", err)
 		ctx.SetJSONError(http.StatusInternalServerError, "Failed to logout")

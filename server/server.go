@@ -8,6 +8,7 @@ import (
 	"homelab-dashboard/config"
 	"homelab-dashboard/data"
 	"homelab-dashboard/middlewares"
+	"homelab-dashboard/session"
 	"log/slog"
 	"net/http"
 	"os"
@@ -19,7 +20,7 @@ import (
 func Start(cfg *config.Config) error {
 	logger := setupLogger(cfg)
 
-	sessionManager, err := auth.NewSessionManager(cfg.Sessions)
+	sessionManager, err := session.NewSessionManager(cfg.Sessions)
 	if err != nil {
 		return fmt.Errorf("failed to create session manager: %w", err)
 	}

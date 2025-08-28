@@ -7,7 +7,7 @@ import (
 )
 
 func LoginHandler(ctx *middlewares.AppContext) {
-	if auth.IsAuthenticated(ctx) {
+	if ctx.SessionManager.IsAuthenticated(ctx) {
 		ctx.Logger.Info("User already authenticated, redirecting to home")
 		ctx.SetJSONStatus(http.StatusOK, "ok")
 		return

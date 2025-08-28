@@ -16,7 +16,12 @@ func AuthStatusHandler(ctx *middlewares.AppContext) {
 		Authenticated: false,
 	}
 
-	if user, authenticated := auth.GetCurrentUser(ctx); authenticated {
+	if !ctx.SessionManager.IsUserAuthenticated(ctx) {
+		ctx.WriteJSON(http.StatusUnauthorized, response)
+		return
+	}
+
+	if user, ok := ctx.SessionManager.GetCurrentUser(ctx); ok {
 		response.Authenticated = true
 		response.User = user
 		ctx.WriteJSON(http.StatusOK, response)

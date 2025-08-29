@@ -1,11 +1,13 @@
 package auth
 
 import (
+	"homelab-dashboard/models"
+
 	"github.com/coreos/go-oidc/v3/oidc"
 )
 
 // Extract user information from ID token claims
-func extractUserClaimsFromToken(idToken *oidc.IDToken) (*User, error) {
+func extractUserClaimsFromToken(idToken *oidc.IDToken) (*models.User, error) {
 	var claims struct {
 		Sub               string   `json:"sub"`
 		Iss               string   `json:"iss"`
@@ -19,7 +21,7 @@ func extractUserClaimsFromToken(idToken *oidc.IDToken) (*User, error) {
 		return nil, err
 	}
 
-	user := &User{
+	user := &models.User{
 		Sub:         claims.Sub,
 		Iss:         claims.Iss,
 		Username:    claims.PreferredUsername,

@@ -13,7 +13,7 @@ type CachedData struct {
 	Name          string
 	Value         model.Value
 	Timestamp     time.Time
-	RequireGroup  bool
+	RequireAuth   bool
 	RequiredGroup string
 }
 
@@ -55,7 +55,7 @@ func (d *Cache) ListAll() []string {
 }
 
 // Set sets (or inserts) the value of a query
-func (d *Cache) Set(queryName string, value model.Value, requireGroup bool, requiredGroup string) {
+func (d *Cache) Set(queryName string, value model.Value, requireAuth bool, requiredGroup string) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
@@ -63,7 +63,7 @@ func (d *Cache) Set(queryName string, value model.Value, requireGroup bool, requ
 		Value:         value,
 		Timestamp:     time.Now(),
 		Name:          queryName,
-		RequireGroup:  requireGroup,
+		RequireAuth:   requireAuth,
 		RequiredGroup: requiredGroup,
 	}
 }

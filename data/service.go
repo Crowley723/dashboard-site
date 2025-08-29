@@ -50,7 +50,7 @@ func (s *Service) executeQuery(ctx context.Context, config config.PrometheusQuer
 		ttl = 5 * time.Minute
 	}
 
-	s.cache.Set(config.Name, result, ttl)
+	s.cache.Set(config.Name, result, config.RequireAuth, config.RequiredGroup)
 	s.logger.Debug("cached query result", "query", config.Name, "ttl", ttl)
 
 	return nil

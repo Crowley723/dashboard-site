@@ -52,6 +52,8 @@ func setupRouter(ctx *middlewares.AppContext) *chi.Mux {
 			r.Get("/logout", ctx.HandlerFunc(handlers.LogoutHandler)) //TODO: Remove this
 		})
 
+		r.Get("/data", ctx.HandlerFunc(handlers.GetMetricsGET))
+
 		r.Route("/v1", func(r chi.Router) {
 			r.Get("/health", ctx.HandlerFunc(handlers.HandlerHealth))
 		})

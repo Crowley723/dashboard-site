@@ -88,7 +88,9 @@ type BasicAuth struct {
 }
 
 type PrometheusQuery struct {
-	Name  string        `yaml:"name"`
-	Query string        `yaml:"query"`
-	TTL   time.Duration `yaml:"ttl"`
+	Name          string        `yaml:"name"`
+	Query         string        `yaml:"query"`
+	TTL           time.Duration `yaml:"ttl"`
+	RequireAuth   bool          `yaml:"require_auth"`
+	RequiredGroup string        `yaml:"required_group"`
 }

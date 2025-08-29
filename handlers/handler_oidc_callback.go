@@ -3,6 +3,7 @@ package handlers
 import (
 	"homelab-dashboard/auth"
 	"homelab-dashboard/middlewares"
+	"homelab-dashboard/models"
 	"net/http"
 )
 
@@ -15,7 +16,7 @@ func CallbackHandler(ctx *middlewares.AppContext) {
 		return
 	}
 
-	user := &auth.User{}
+	user := &models.User{}
 	user, err := auth.HandleCallback(ctx)
 	if err != nil {
 		ctx.Logger.Error("Failed to handle OIDC callback", "error", err)

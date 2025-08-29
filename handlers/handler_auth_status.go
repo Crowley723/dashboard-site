@@ -1,14 +1,14 @@
 package handlers
 
 import (
-	"homelab-dashboard/auth"
 	"homelab-dashboard/middlewares"
+	"homelab-dashboard/models"
 	"net/http"
 )
 
 type AuthStatusResponse struct {
-	Authenticated bool       `json:"authenticated"`
-	User          *auth.User `json:"user,omitempty"`
+	Authenticated bool         `json:"authenticated"`
+	User          *models.User `json:"user,omitempty"`
 }
 
 func AuthStatusHandler(ctx *middlewares.AppContext) {

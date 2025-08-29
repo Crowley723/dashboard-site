@@ -18,7 +18,7 @@ func LoginHandler(ctx *middlewares.AppContext) {
 		currentURL = "/"
 	}
 
-	ctx.SessionManager.Put(ctx.Request.Context(), "redirect_after_login", currentURL)
+	ctx.SessionManager.SetRedirectAfterLogin(ctx, currentURL)
 
 	authURL, err := auth.StartLogin(ctx)
 	if err != nil {

@@ -1,15 +1,15 @@
 package handlers
 
 import (
-	"homelab-dashboard/auth"
 	"homelab-dashboard/middlewares"
+	"homelab-dashboard/models"
 	"net/http"
 )
 
 func LogoutHandler(ctx *middlewares.AppContext) {
 	logger := ctx.Logger
 
-	user := &auth.User{}
+	user := &models.User{}
 	user, ok := ctx.SessionManager.GetUser(ctx)
 	if !ok {
 		logger.Error("Failed to retrieve user session", "error")

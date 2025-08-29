@@ -1,11 +1,11 @@
-package session
+package auth
 
 import (
 	"encoding/gob"
 	"fmt"
-	"homelab-dashboard/auth"
 	"homelab-dashboard/config"
 	"homelab-dashboard/middlewares"
+	"homelab-dashboard/models"
 	"net/http"
 	"time"
 
@@ -19,7 +19,7 @@ type SessionManager struct {
 }
 
 func NewSessionManager(cfg config.SessionConfig) (*SessionManager, error) {
-	gob.Register(&auth.User{})
+	gob.Register(&models.User{})
 	sessionManager := scs.New()
 
 	switch cfg.Store {
@@ -40,17 +40,21 @@ func NewSessionManager(cfg config.SessionConfig) (*SessionManager, error) {
 	return &SessionManager{SessionManager: sessionManager}, nil
 }
 
-func (s *SessionManager) SetUser(ctx *middlewares.AppContext, user *auth.User) {
+func (s *SessionManager) LoadAndSave(next http.Handler) http.Handler {
+	return s.SessionManager.LoadAndSave(next)
+}
+
+func (s *SessionManager) SetUser(ctx *middlewares.AppContext, user *models.User) {
 	s.Put(ctx, string(SessionKeyUserData), user)
 }
 
-func (s *SessionManager) GetUser(ctx *middlewares.AppContext) (user *auth.User, ok bool) {
+func (s *SessionManager) GetUser(ctx *middlewares.AppContext) (user *models.User, ok bool) {
 	data := s.Get(ctx, string(SessionKeyUserData))
 	if data == nil {
 		return nil, false
 	}
 
-	if user, ok := data.(*auth.User); ok {
+	if user, ok := data.(*models.User); ok {
 		return user, true
 	}
 
@@ -109,7 +113,19 @@ func (s *SessionManager) GetExpiresAt(ctx *middlewares.AppContext) (time.Time, b
 	return time.Unix(timestamp, 0), true
 }
 
-func (s *SessionManager) CreateSessionWithTokenExpiry(ctx *middlewares.AppContext, idToken *oidc.IDToken, user *auth.User) error {
+func (s *SessionManager) SetOauthState(ctx *middlewares.AppContext, state string) {
+	s.Put(ctx, string(SessionKeyOauthState), state)
+}
+
+func (s *SessionManager) GetOauthState(ctx *middlewares.AppContext) string {
+	return s.GetString(ctx, string(SessionKeyOauthState))
+}
+
+func (s *SessionManager) ClearOauthState(ctx *middlewares.AppContext) {
+	s.Remove(ctx, string(SessionKeyOauthState))
+}
+
+func (s *SessionManager) CreateSessionWithTokenExpiry(ctx *middlewares.AppContext, idToken *oidc.IDToken, user *models.User) error {
 	now := time.Now()
 	tokenExpiry := idToken.Expiry
 	sessionDuration := tokenExpiry.Sub(now)
@@ -149,7 +165,7 @@ func (s *SessionManager) IsUserAuthenticated(ctx *middlewares.AppContext) bool {
 	return true
 }
 
-func (s *SessionManager) GetCurrentUser(ctx *middlewares.AppContext) (*auth.User, bool) {
+func (s *SessionManager) GetCurrentUser(ctx *middlewares.AppContext) (user *models.User, ok bool) {
 	if !s.IsUserAuthenticated(ctx) {
 		return nil, false
 	}

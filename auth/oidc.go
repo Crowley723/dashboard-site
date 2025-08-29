@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"homelab-dashboard/config"
 	"homelab-dashboard/middlewares"
+	"homelab-dashboard/models"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"golang.org/x/oauth2"
@@ -46,17 +47,17 @@ func StartLogin(ctx *middlewares.AppContext) (string, error) {
 	}
 
 	ctx.Logger.Info("Storing OAuth state in session", "state", state)
-	ctx.SessionManager.Put(ctx.Request.Context(), "oauth_state", state)
+	ctx.SessionManager.SetOauthState(ctx, state)
 
-	retrievedState := ctx.SessionManager.GetString(ctx.Request.Context(), "oauth_state")
+	retrievedState := ctx.SessionManager.GetOauthState(ctx)
 	ctx.Logger.Info("Retrieved OAuth state immediately", "state", retrievedState, "matches", state == retrievedState)
 
 	authURL := ctx.OauthConfig.AuthCodeURL(state)
 	return authURL, nil
 }
 
-func HandleCallback(ctx *middlewares.AppContext) (*User, error) {
-	storedState := ctx.SessionManager.GetString(ctx.Request.Context(), "oauth_state")
+func HandleCallback(ctx *middlewares.AppContext) (*models.User, error) {
+	storedState := ctx.SessionManager.GetOauthState(ctx)
 	if storedState == "" {
 		return nil, fmt.Errorf("no oauth state found in session")
 	}
@@ -66,7 +67,7 @@ func HandleCallback(ctx *middlewares.AppContext) (*User, error) {
 		return nil, fmt.Errorf("invalid state parameter")
 	}
 
-	ctx.SessionManager.Remove(ctx.Request.Context(), "oauth_state")
+	ctx.SessionManager.ClearOauthState(ctx)
 
 	code := ctx.Request.URL.Query().Get("code")
 	if code == "" {
@@ -101,7 +102,7 @@ func HandleCallback(ctx *middlewares.AppContext) (*User, error) {
 		enhancedUser = user
 	}
 
-	err = CreateSessionWithTokenExpiry(ctx, idToken, enhancedUser)
+	err = ctx.SessionManager.CreateSessionWithTokenExpiry(ctx, idToken, enhancedUser)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create user session: %w", err)
 	}
@@ -110,13 +111,13 @@ func HandleCallback(ctx *middlewares.AppContext) (*User, error) {
 }
 
 // fetchUserInfo retrieves additional user information from the UserInfo endpoint
-func fetchUserInfo(ctx *middlewares.AppContext, token *oauth2.Token, baseUser *User) (*User, error) {
+func fetchUserInfo(ctx *middlewares.AppContext, token *oauth2.Token, baseUser *models.User) (*models.User, error) {
 	userInfo, err := ctx.OIDCProvider.UserInfo(context.Background(), oauth2.StaticTokenSource(token))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user info: %w", err)
 	}
 
-	enhancedUser := &User{
+	enhancedUser := &models.User{
 		Sub: baseUser.Sub,
 		Iss: baseUser.Iss,
 	}

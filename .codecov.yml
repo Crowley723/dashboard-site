@@ -29,8 +29,9 @@ flags:
   backend:
     paths:
       - "!internal/mocks"
-      - "internal/"
+      - "!internal/testutil"
       - "!internal/**/*_test.go"
+      - "internal/"
   frontend:
     paths:
       - "web/"

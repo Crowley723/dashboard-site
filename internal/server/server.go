@@ -110,7 +110,7 @@ func setupLogger(cfg *config.Config) *slog.Logger {
 	return slog.New(handler)
 }
 
-func setupDataService(cfg *config.Config, logger *slog.Logger) (*data.Service, *data.Cache, error) {
+func setupDataService(cfg *config.Config, logger *slog.Logger) (*data.Service, data.CacheProvider, error) {
 	mimirClient, err := data.NewMimirClient(
 		cfg.Data.PrometheusURL,
 		cfg.Data.BasicAuth.Username,
@@ -121,6 +121,6 @@ func setupDataService(cfg *config.Config, logger *slog.Logger) (*data.Service, *
 		return nil, nil, fmt.Errorf("failed to create new mimir client: %w", err)
 	}
 
-	cache := data.NewCache()
+	cache := data.NewCacheProvider(&cfg.Cache)
 	return data.NewService(mimirClient, cache, logger, cfg.Data.Queries), cache, nil
 }

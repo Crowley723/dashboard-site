@@ -122,6 +122,11 @@ func validateConfig(config *Config) error {
 	}
 
 	err = validateDataConfig(&config.Data)
+	if err != nil {
+		return err
+	}
+
+	err = validateCacheConfig(&config.Cache)
 
 	return nil
 }
@@ -160,7 +165,7 @@ func validateServerConfig(config *ServerConfig) error {
 	}
 
 	if config.Port == 0 {
-		config.Port = 8080
+		config.Port = DefaultServerConfig.Port
 	}
 
 	return nil
@@ -324,6 +329,25 @@ func validateDataQueriesConfig(config *DataConfig) (err error) {
 		} else if query.Type != "" {
 			return fmt.Errorf("invalid query type: %s", query.Type)
 		}
+	}
+
+	return nil
+}
+
+func validateCacheConfig(c *CacheConfig) error {
+	switch c.Type {
+	case "memory":
+		break
+	case "redis":
+		if c.Redis.Address == "" {
+			return fmt.Errorf("redis.address is required")
+		}
+
+		if c.Redis.Password == "" {
+			return fmt.Errorf("redis.password is required")
+		}
+	default:
+		return fmt.Errorf("invalid cache type: %s, must be 'memory' or 'redis'", c.Type)
 	}
 
 	return nil

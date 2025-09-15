@@ -13,12 +13,12 @@ import (
 
 type Service struct {
 	client  *MimirClient
-	cache   *Cache
+	cache   CacheProvider
 	logger  *slog.Logger
 	queries []config.PrometheusQuery
 }
 
-func NewService(client *MimirClient, cache *Cache, logger *slog.Logger, queries []config.PrometheusQuery) *Service {
+func NewService(client *MimirClient, cache CacheProvider, logger *slog.Logger, queries []config.PrometheusQuery) *Service {
 	return &Service{
 		client:  client,
 		cache:   cache,

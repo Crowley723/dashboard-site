@@ -123,14 +123,14 @@ func (ctx *AppContext) WriteJSON(status int, data interface{}) {
 	ctx.Response.Header().Set("Content-Type", "application/json")
 	ctx.Response.WriteHeader(status)
 	if err := json.NewEncoder(ctx.Response).Encode(data); err != nil {
-		ctx.Logger.Error("failed to marshal json", err)
+		ctx.Logger.Error("failed to marshal json", "error", err)
 	}
 }
 
 func (ctx *AppContext) WriteText(status int, text string) {
 	ctx.Response.WriteHeader(status)
 	if _, err := ctx.Response.Write([]byte(text)); err != nil {
-		ctx.Logger.Error("failed to marshal json", err)
+		ctx.Logger.Error("failed to marshal json", "error", err)
 	}
 }
 

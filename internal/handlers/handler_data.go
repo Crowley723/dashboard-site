@@ -56,7 +56,7 @@ func addRecordsIfAuthorized(ctx *middlewares.AppContext, queryNames []string, us
 			if canAccess := slices.Contains(userGroups, entry.RequiredGroup); canAccess {
 				dataRecord, err := convertCachedDataToResultData(&entry)
 				if err != nil {
-					ctx.Logger.Error("failed to add cached data to result", err)
+					ctx.Logger.Error("failed to add cached data to result", "error", err)
 					continue
 				}
 
@@ -65,7 +65,7 @@ func addRecordsIfAuthorized(ctx *middlewares.AppContext, queryNames []string, us
 		} else {
 			dataRecord, err := convertCachedDataToResultData(&entry)
 			if err != nil {
-				ctx.Logger.Error("failed to add cached data to result", err)
+				ctx.Logger.Error("failed to add cached data to result", "error", err)
 				continue
 			}
 

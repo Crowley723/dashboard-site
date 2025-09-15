@@ -12,7 +12,7 @@ func LogoutHandler(ctx *middlewares.AppContext) {
 	user := &models.User{}
 	user, ok := ctx.SessionManager.GetUser(ctx)
 	if !ok {
-		logger.Error("Failed to retrieve user session", "error")
+		logger.Error("Failed to retrieve user session")
 		ctx.SetJSONError(http.StatusInternalServerError, "Failed to logout")
 		return
 	}

@@ -28,10 +28,10 @@ coverage:
 flags:
   backend:
     paths:
+      - "internal/"
       - "!internal/mocks"
       - "!internal/testutil"
       - "!internal/**/*_test.go"
-      - "internal/"
   frontend:
     paths:
       - "web/"

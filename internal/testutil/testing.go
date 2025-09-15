@@ -26,12 +26,15 @@ type TestContext struct {
 	MockController *gomock.Controller
 	MockCache      *mocks.MockCacheProvider
 	MockSession    *mocks.MockSessionProvider
+	LogHandler     *TestLogHandler
 }
 
 // NewTestContext creates a complete test setup with sensible defaults
 func NewTestContext(t *testing.T, method, url string) *TestContext {
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	cfg := &config.Config{}
+
+	logHandler := NewTestLogHandler()
+	logger := slog.New(logHandler)
 
 	// Create mock controller
 	ctrl := gomock.NewController(t)
@@ -98,6 +101,27 @@ func (tc *TestContext) Finish() {
 	if tc.MockController != nil {
 		tc.MockController.Finish()
 	}
+}
+
+func (tc *TestContext) AssertLogContains(t *testing.T, level slog.Level, message string) {
+	if !tc.LogHandler.ContainsMessage(level, message) {
+		t.Errorf("Expected to find log entry with level %v containing message: %s", level, message)
+	}
+}
+
+func (tc *TestContext) AssertLogCount(t *testing.T, level slog.Level, expectedCount int) {
+	count := tc.LogHandler.CountByLevel(level)
+	if count != expectedCount {
+		t.Errorf("Expected %d log entries at level %v, got %d", expectedCount, level, count)
+	}
+}
+
+func (tc *TestContext) GetLogRecords() []TestLogRecord {
+	return tc.LogHandler.GetRecords()
+}
+
+func (tc *TestContext) ClearLogRecords() {
+	tc.LogHandler.Reset()
 }
 
 // CallHandler executes a handler with the test context
@@ -257,5 +281,31 @@ func (tc *TestContext) CreateSample(labels model.LabelSet, value float64, timest
 		Metric:    model.Metric(labels),
 		Value:     model.SampleValue(value),
 		Timestamp: model.Time(timestamp.Unix() * 1000),
+	}
+}
+
+type UnmarshalableValue struct {
+	Channel chan int
+}
+
+func (u UnmarshalableValue) Type() model.ValueType {
+	return model.ValScalar
+}
+
+func (u UnmarshalableValue) String() string {
+	return "unmarshalable"
+}
+
+func (tc *TestContext) CreateCachedDataWithUnmarshalableValue(name string, requireAuth bool, requiredGroup string) data.CachedData {
+	unmarshalableValue := UnmarshalableValue{
+		Channel: make(chan int),
+	}
+
+	return data.CachedData{
+		Name:          name,
+		Value:         unmarshalableValue,
+		RequireAuth:   requireAuth,
+		RequiredGroup: requiredGroup,
+		Timestamp:     time.Now(),
 	}
 }

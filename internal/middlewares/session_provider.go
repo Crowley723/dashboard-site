@@ -8,6 +8,8 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 )
 
+//go:generate mockgen -source=session_provider.go -destination=../mocks/session.go -package=mocks
+
 type SessionProvider interface {
 	SetUser(ctx *AppContext, user *models.User)
 	GetUser(ctx *AppContext) (user *models.User, ok bool)

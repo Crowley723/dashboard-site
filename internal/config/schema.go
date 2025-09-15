@@ -11,6 +11,7 @@ type Config struct {
 	CORS     CORSConfig    `yaml:"cors"`
 	Sessions SessionConfig `yaml:"sessions"`
 	Data     DataConfig    `yaml:"data"`
+	Cache    CacheConfig   `yaml:"cache"`
 }
 
 type ServerConfig struct {
@@ -96,4 +97,15 @@ type PrometheusQuery struct {
 	Step          string        `yaml:"step"`
 	RequireAuth   bool          `yaml:"require_auth"`
 	RequiredGroup string        `yaml:"required_group"`
+}
+
+type CacheConfig struct {
+	Type  string      `yaml:"type"` //  "memory" or "redis"
+	Redis RedisConfig `yaml:"redis"`
+}
+
+type RedisConfig struct {
+	Address  string `yaml:"address"`
+	Password string `yaml:"password"`
+	DBIndex  int    `yaml:"db_index"`
 }

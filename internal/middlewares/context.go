@@ -19,7 +19,7 @@ type AppContext struct {
 	SessionManager SessionProvider
 	OIDCProvider   *oidc.Provider
 	OauthConfig    *oauth2.Config
-	Cache          *data.Cache
+	Cache          data.CacheProvider
 
 	Request  *http.Request
 	Response http.ResponseWriter
@@ -83,7 +83,7 @@ func (ctx *AppContext) Redirect(url string, status int) {
 	http.Redirect(ctx.Response, ctx.Request, url, status)
 }
 
-func NewAppContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, cache *data.Cache, sessionManager SessionProvider, oidcProvider *oidc.Provider, oauthConfig *oauth2.Config) *AppContext {
+func NewAppContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, cache data.CacheProvider, sessionManager SessionProvider, oidcProvider *oidc.Provider, oauthConfig *oauth2.Config) *AppContext {
 	return &AppContext{
 		Context:        ctx,
 		Config:         cfg,

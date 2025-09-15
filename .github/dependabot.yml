@@ -1,16 +1,6 @@
 version: 2
 updates:
-  - package-ecosystem: docker
-    directory: /docker
-    schedule:
-      interval: daily
-
-  - package-ecosystem: gomod
+  - package-ecosystem: github-actions
     directory: /
-    schedule:
-      interval: daily
-
-  - package-ecosystem: npm
-    directory: /web
     schedule:
       interval: daily

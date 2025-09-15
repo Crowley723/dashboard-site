@@ -10,7 +10,7 @@ require (
 	github.com/go-jose/go-jose/v4 v4.0.5
 	github.com/prometheus/client_golang v1.23.0
 	github.com/prometheus/common v0.65.0
-	golang.org/x/oauth2 v0.30.0
+	golang.org/x/oauth2 v0.31.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 

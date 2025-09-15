@@ -216,6 +216,80 @@ func TestGetMetricsGET(t *testing.T) {
 				}
 			},
 		},
+		{
+			name:           "UnmarshalableMetricShouldBeSkippedAndContinue",
+			queries:        []string{"invalid_metric", "cpu_usage"},
+			expectedStatus: 200,
+			expectedCount:  1,
+			setupMocks: func(tc *testutil.TestContext) {
+				invalidData := tc.CreateCachedDataWithUnmarshalableValue("invalid_metrics", false, "")
+				cpuData := tc.CreateCachedDataWithScalar("cpu_usage", 85.5, false, "")
+
+				tc.MockSession.EXPECT().
+					GetCurrentUser(tc.AppContext).
+					Return(nil, false).
+					Times(1)
+
+				tc.MockCache.EXPECT().
+					Get("invalid_metric").
+					Return(invalidData, true).
+					Times(1)
+
+				tc.MockCache.EXPECT().
+					Get("cpu_usage").
+					Return(cpuData, true).
+					Times(1)
+			},
+			validate: func(t *testing.T, results []interface{}) {
+				if len(results) != 1 {
+					t.Errorf("Expected 1 result (invalid metric should be skipped), got %d", len(results))
+				}
+
+				if len(results) > 0 {
+					metric := results[0].(map[string]interface{})
+					if metric["query_name"] != "cpu_usage" {
+						t.Errorf("Expected query_name 'cpu_usage', got %v", metric["query_name"])
+					}
+				}
+			},
+		},
+		{
+			name:           "UnmarshalableMetricWithAuthRequiredShouldBeSkippedAndContinue",
+			queries:        []string{"invalid_metric", "cpu_usage"},
+			expectedStatus: 200,
+			expectedCount:  1,
+			setupMocks: func(tc *testutil.TestContext) {
+				invalidData := tc.CreateCachedDataWithUnmarshalableValue("invalid_metrics", true, "admin")
+				cpuData := tc.CreateCachedDataWithScalar("cpu_usage", 85.5, false, "")
+
+				tc.MockSession.EXPECT().
+					GetCurrentUser(tc.AppContext).
+					Return(&models.User{Groups: []string{"admin"}}, true).
+					Times(1)
+
+				tc.MockCache.EXPECT().
+					Get("invalid_metric").
+					Return(invalidData, true).
+					Times(1)
+
+				tc.MockCache.EXPECT().
+					Get("cpu_usage").
+					Return(cpuData, true).
+					Times(1)
+			},
+			validate: func(t *testing.T, results []interface{}) {
+				if len(results) != 1 {
+					t.Errorf("Expected 1 result (invalid metric should be skipped), got %d", len(results))
+				}
+
+				if len(results) > 0 {
+					metric := results[0].(map[string]interface{})
+					if metric["query_name"] != "cpu_usage" {
+						t.Errorf("Expected query_name 'cpu_usage', got %v", metric["query_name"])
+					}
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {

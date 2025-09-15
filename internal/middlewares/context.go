@@ -2,8 +2,8 @@ package middlewares
 
 import (
 	"context"
-	"homelab-dashboard/config"
-	"homelab-dashboard/data"
+	"homelab-dashboard/internal/config"
+	"homelab-dashboard/internal/data"
 	"log/slog"
 	"net/http"
 

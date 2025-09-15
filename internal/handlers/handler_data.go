@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"homelab-dashboard/data"
-	"homelab-dashboard/middlewares"
+	"homelab-dashboard/internal/data"
+	"homelab-dashboard/internal/middlewares"
 	"net/http"
 	"slices"
 	"strings"

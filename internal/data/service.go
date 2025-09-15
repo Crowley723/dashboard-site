@@ -3,10 +3,11 @@ package data
 import (
 	"context"
 	"fmt"
-	"homelab-dashboard/config"
+	"homelab-dashboard/internal/config"
 	"log/slog"
 	"time"
 
+	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
 )
 
@@ -39,19 +40,50 @@ func (s *Service) ExecuteQueries(ctx context.Context) error {
 }
 
 func (s *Service) executeQuery(ctx context.Context, config config.PrometheusQuery) error {
-	result, err := s.client.Query(ctx, config.Query, time.Now())
+	var result model.Value
+	var err error
+
+	switch config.Type {
+	case "range":
+		rangeDuration, err := time.ParseDuration(config.Range)
+		if err != nil {
+			return fmt.Errorf("invalid range duration %s: %w", config.Range, err)
+		}
+
+		// Parse step duration
+		stepDuration, err := time.ParseDuration(config.Step)
+		if err != nil {
+			return fmt.Errorf("invalid step duration %s: %w", config.Step, err)
+		}
+
+		// Create range
+		end := time.Now()
+		start := end.Add(-rangeDuration)
+
+		r := v1.Range{
+			Start: start,
+			End:   end,
+			Step:  stepDuration,
+		}
+
+		result, err = s.client.QueryRange(ctx, config.Query, r)
+
+	default:
+		result, err = s.client.Query(ctx, config.Query, time.Now())
+
+	}
+
 	if err != nil {
 		return fmt.Errorf("failed to execute query %s: %w", config.Name, err)
 	}
 
-	// Cache result with default TTL if not specified
 	ttl := config.TTL
 	if ttl == 0 {
 		ttl = 5 * time.Minute
 	}
 
 	s.cache.Set(config.Name, result, config.RequireAuth, config.RequiredGroup)
-	s.logger.Debug("cached query result", "query", config.Name, "ttl", ttl)
+	s.logger.Debug("cached query result", "query", config.Name, "type", config.Type, "ttl", ttl)
 
 	return nil
 }

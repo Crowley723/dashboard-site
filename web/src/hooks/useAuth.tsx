@@ -10,7 +10,6 @@ export const useAuth = () => {
     retry: false,
   });
 
-  // Extract the user and auth status
   const user = authResponse?.user || null;
   const isAuthenticated = authResponse?.authenticated || false;
 

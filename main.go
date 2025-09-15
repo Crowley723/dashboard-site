@@ -1,8 +1,8 @@
 package main
 
 import (
-	"homelab-dashboard/config"
-	"homelab-dashboard/server"
+	"homelab-dashboard/internal/config"
+	"homelab-dashboard/internal/server"
 	"log"
 )
 

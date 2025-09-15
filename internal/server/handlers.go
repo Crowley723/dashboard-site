@@ -1,8 +1,8 @@
 package server
 
 import (
-	"homelab-dashboard/handlers"
-	"homelab-dashboard/middlewares"
+	"homelab-dashboard/internal/handlers"
+	"homelab-dashboard/internal/middlewares"
 	"net/http"
 	"strings"
 	"time"
@@ -34,13 +34,15 @@ func setupRouter(ctx *middlewares.AppContext) *chi.Mux {
 		MaxAge:           ctx.Config.CORS.MaxAgeSeconds,
 	}))
 
+	r.Handle("/assets/*", http.StripPrefix("/assets/", http.FileServer(http.Dir("web/dist/assets"))))
+	r.Handle("/favicon.ico", http.FileServer(http.Dir("web/dist")))
+
 	r.Get("/*", func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/") {
 			http.NotFound(w, r)
 			return
 		}
-
-		http.ServeFile(w, r, "static/index.html")
+		http.ServeFile(w, r, "web/dist/index.html")
 	})
 
 	r.Route("/api", func(r chi.Router) {

@@ -2,8 +2,8 @@ package server
 
 import (
 	"context"
-	"homelab-dashboard/config"
-	"homelab-dashboard/data"
+	"homelab-dashboard/internal/config"
+	"homelab-dashboard/internal/data"
 	"log/slog"
 	"time"
 )
@@ -16,7 +16,6 @@ func runBackgroundDataFetching(ctx context.Context, dataService *data.Service, l
 
 	logger.Info("starting background data fetching", "interval", interval)
 
-	// Run once immediately
 	if err := dataService.ExecuteQueries(ctx); err != nil {
 		logger.Error("initial query execution failed", "error", err)
 	}

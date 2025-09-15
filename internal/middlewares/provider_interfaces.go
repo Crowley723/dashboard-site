@@ -1,7 +1,7 @@
 package middlewares
 
 import (
-	"homelab-dashboard/models"
+	"homelab-dashboard/internal/models"
 	"net/http"
 	"time"
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strconv"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -30,11 +31,67 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("failed to parse config: %w", err)
 	}
 
+	applyEnvironmentOverrides(&config)
+
 	if err := validateConfig(&config); err != nil {
 		return nil, fmt.Errorf("config validation failed: %w", err)
 	}
 
 	return &config, nil
+}
+
+var (
+	EnvOIDCClientID          = "DASHBOARD_OIDC_CLIENT_ID"
+	EnvOIDCClientSecret      = "DASHBOARD_OIDC_CLIENT_SECRET"
+	EnvOIDCIssuerURL         = "DASHBOARD_OIDC_ISSUER_URL"
+	EnvOIDCRedirectURL       = "DASHBOARD_OIDC_REDIRECT_URL"
+	EnvDataPrometheusURL     = "DASHBOARD_DATA_PROMETHEUS_URL"
+	EnvDataBasicAuthUsername = "DASHBOARD_DATA_BASIC_AUTH_USERNAME"
+	EnvDataBasicAuthPassword = "DASHBOARD_DATA_BASIC_AUTH_PASSWORD"
+)
+
+func applyEnvironmentOverrides(config *Config) {
+	if clientID := os.Getenv(EnvOIDCClientID); clientID != "" {
+		if p, err := strconv.Atoi(clientID); err == nil {
+			config.Server.Port = p
+		}
+	}
+
+	if clientID := os.Getenv(EnvOIDCClientSecret); clientID != "" {
+		if p, err := strconv.Atoi(clientID); err == nil {
+			config.Server.Port = p
+		}
+	}
+
+	if clientID := os.Getenv(EnvOIDCIssuerURL); clientID != "" {
+		if p, err := strconv.Atoi(clientID); err == nil {
+			config.Server.Port = p
+		}
+	}
+
+	if clientID := os.Getenv(EnvOIDCRedirectURL); clientID != "" {
+		if p, err := strconv.Atoi(clientID); err == nil {
+			config.Server.Port = p
+		}
+	}
+
+	if clientID := os.Getenv(EnvDataPrometheusURL); clientID != "" {
+		if p, err := strconv.Atoi(clientID); err == nil {
+			config.Server.Port = p
+		}
+	}
+
+	if clientID := os.Getenv(EnvDataBasicAuthUsername); clientID != "" {
+		if p, err := strconv.Atoi(clientID); err == nil {
+			config.Server.Port = p
+		}
+	}
+
+	if clientID := os.Getenv(EnvDataBasicAuthPassword); clientID != "" {
+		if p, err := strconv.Atoi(clientID); err == nil {
+			config.Server.Port = p
+		}
+	}
 }
 
 func validateConfig(config *Config) error {
@@ -254,6 +311,18 @@ func validateDataQueriesConfig(config *DataConfig) (err error) {
 			query.TTL = config.TimeInterval
 		} else if query.TTL.Seconds() < 30 {
 			return fmt.Errorf("data.queries[%d].ttl cannot be less than 30s", i)
+		}
+
+		if query.Type == "range" {
+			if query.Range == "" {
+				return fmt.Errorf("data.queries[%d].range is required for range queries", i)
+			}
+
+			if query.Step == "" {
+				return fmt.Errorf("data.queries[%d].step is required for range queries", i)
+			}
+		} else if query.Type != "" {
+			return fmt.Errorf("invalid query type: %s", query.Type)
 		}
 	}
 

@@ -1,14 +1,17 @@
 export interface Annotations {
+  node: string;
   __name__: string;
   app: string;
   cluster: string;
   component: string;
   container: string;
+  job: string;
   k8s_cluster_name: string;
   namespace: string;
   pod: string;
   source: string;
-  workload: string;
+  status: boolean;
+  workload?: string;
 }
 export interface ValScalar {
   timestamp: number;
@@ -19,13 +22,13 @@ export interface ValScalar {
 export interface ValVector {
   timestamp: number;
   metric: Annotations;
-  value: ValScalar;
+  value: [number, number];
 }
 
 export interface ValMatrix {
   timestamp: number;
-  metric: Annotations;
-  value: ValVector[];
+  metrics: Annotations;
+  value: [number, number][];
 }
 
 export type PrometheusData = ValScalar | ValVector[] | ValMatrix[];

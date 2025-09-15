@@ -5,9 +5,9 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"homelab-dashboard/config"
-	"homelab-dashboard/middlewares"
-	"homelab-dashboard/models"
+	"homelab-dashboard/internal/config"
+	"homelab-dashboard/internal/middlewares"
+	"homelab-dashboard/internal/models"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"golang.org/x/oauth2"

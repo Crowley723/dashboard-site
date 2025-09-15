@@ -51,6 +51,19 @@ func (m *MimirClient) Query(ctx context.Context, query string, timestamp time.Ti
 	return result, nil
 }
 
+func (m *MimirClient) QueryRange(ctx context.Context, query string, r v1.Range) (model.Value, error) {
+	result, warnings, err := m.api.QueryRange(ctx, query, r)
+	if err != nil {
+		return nil, fmt.Errorf("range query failed: %w", err)
+	}
+
+	if len(warnings) > 0 {
+		fmt.Printf("range query warnings: %v\n", warnings)
+	}
+
+	return result, nil
+}
+
 type BasicAuthTransport struct {
 	Username string
 	Password string

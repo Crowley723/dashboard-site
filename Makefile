@@ -28,3 +28,6 @@ dev-debug:
 	($(MAKE) dev-backend-debug) & \
 	($(MAKE) dev-frontend) & \
 	wait
+
+build:
+	docker build -t dashboard-site:latest -f docker/Dockerfile .

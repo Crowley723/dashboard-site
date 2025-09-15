@@ -3,9 +3,9 @@ package auth
 import (
 	"encoding/gob"
 	"fmt"
-	"homelab-dashboard/config"
-	"homelab-dashboard/middlewares"
-	"homelab-dashboard/models"
+	"homelab-dashboard/internal/config"
+	"homelab-dashboard/internal/middlewares"
+	"homelab-dashboard/internal/models"
 	"net/http"
 	"time"
 

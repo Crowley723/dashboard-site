@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"homelab-dashboard/models"
+	"homelab-dashboard/internal/models"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 )

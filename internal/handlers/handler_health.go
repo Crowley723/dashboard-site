@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"homelab-dashboard/middlewares"
+	"homelab-dashboard/internal/middlewares"
 )
 
 func HandlerHealth(ctx *middlewares.AppContext) {

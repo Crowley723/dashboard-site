@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"homelab-dashboard/auth"
-	"homelab-dashboard/middlewares"
+	"homelab-dashboard/internal/auth"
+	"homelab-dashboard/internal/middlewares"
 	"net/http"
 )
 

@@ -1,5 +1,5 @@
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
-import { LoginForm } from '@/components/login-form';
+import { LoginForm } from '@/components/LoginForm';
 import { useState } from 'react';
 
 interface LoginDialogProps {

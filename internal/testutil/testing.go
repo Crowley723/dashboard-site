@@ -1,4 +1,3 @@
-// internal/testutil/testutil.go
 package testutil
 
 import (
@@ -103,6 +102,7 @@ func NewTestContextWithURL(t *testing.T, method, url string) *TestContext {
 		MockController: ctrl,
 		MockCache:      mockCache,
 		MockSession:    mockSession,
+		LogHandler:     logHandler,
 	}
 }
 

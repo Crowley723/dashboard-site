@@ -32,7 +32,7 @@ func TestLogoutHandler_ShouldDestroySession(t *testing.T) {
 	tc.AssertJSONField(t, "status", "OK")
 }
 
-func TestLogoutHandler_Should400AnonymousUsers(t *testing.T) {
+func TestLogoutHandler_Should401AnonymousUsers(t *testing.T) {
 	tc := testutil.NewTestContextWithURL(t, "POST", "/api/auth/logout")
 	defer tc.Finish()
 
@@ -81,5 +81,5 @@ func TestLogoutHandler_Should500OnLogoutFail(t *testing.T) {
 	tc.AssertStatus(t, http.StatusInternalServerError)
 	tc.AssertContentType(t, "application/json")
 	tc.AssertJSONField(t, "error", "Internal Server Error")
-	tc.LogHandler.ContainsMessage(slog.LevelError, "Failed to logout user")
+	tc.AssertLogsContainMessage(t, slog.LevelError, "Failed to logout user")
 }

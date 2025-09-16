@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -20,13 +21,14 @@ import (
 
 // TestContext holds everything needed for testing
 type TestContext struct {
-	AppContext     *middlewares.AppContext
-	Request        *http.Request
-	Response       *httptest.ResponseRecorder
-	MockController *gomock.Controller
-	MockCache      *mocks.MockCacheProvider
-	MockSession    *mocks.MockSessionProvider
-	LogHandler     *TestLogHandler
+	AppContext       *middlewares.AppContext
+	Request          *http.Request
+	Response         *httptest.ResponseRecorder
+	MockController   *gomock.Controller
+	MockCache        *mocks.MockCacheProvider
+	MockSession      *mocks.MockSessionProvider
+	MockOidcProvider *mocks.MockOIDCProvider
+	LogHandler       *TestLogHandler
 }
 
 func NewTestContext(t *testing.T) *TestContext {
@@ -35,12 +37,11 @@ func NewTestContext(t *testing.T) *TestContext {
 	logHandler := NewTestLogHandler()
 	logger := slog.New(logHandler)
 
-	// Create mock controller
 	ctrl := gomock.NewController(t)
 
-	// Create mocks
 	mockCache := mocks.NewMockCacheProvider(ctrl)
 	mockSession := mocks.NewMockSessionProvider(ctrl)
+	mockOIDCProvider := mocks.NewMockOIDCProvider(ctrl)
 
 	rr := httptest.NewRecorder()
 
@@ -49,20 +50,20 @@ func NewTestContext(t *testing.T) *TestContext {
 		Config:         cfg,
 		Logger:         logger,
 		SessionManager: mockSession,
-		OIDCProvider:   nil,
-		OauthConfig:    nil,
+		OIDCProvider:   mockOIDCProvider,
 		Cache:          mockCache,
 		Request:        nil,
 		Response:       rr,
 	}
 
 	return &TestContext{
-		AppContext:     appCtx,
-		Request:        nil,
-		Response:       rr,
-		MockController: ctrl,
-		MockCache:      mockCache,
-		MockSession:    mockSession,
+		AppContext:       appCtx,
+		Request:          nil,
+		Response:         rr,
+		MockController:   ctrl,
+		MockCache:        mockCache,
+		MockSession:      mockSession,
+		MockOidcProvider: mockOIDCProvider,
 	}
 }
 
@@ -73,12 +74,11 @@ func NewTestContextWithURL(t *testing.T, method, url string) *TestContext {
 	logHandler := NewTestLogHandler()
 	logger := slog.New(logHandler)
 
-	// Create mock controller
 	ctrl := gomock.NewController(t)
 
-	// Create mocks
 	mockCache := mocks.NewMockCacheProvider(ctrl)
 	mockSession := mocks.NewMockSessionProvider(ctrl)
+	mockOIDCProvider := mocks.NewMockOIDCProvider(ctrl)
 
 	req := httptest.NewRequest(method, url, nil)
 	rr := httptest.NewRecorder()
@@ -88,21 +88,21 @@ func NewTestContextWithURL(t *testing.T, method, url string) *TestContext {
 		Config:         cfg,
 		Logger:         logger,
 		SessionManager: mockSession,
-		OIDCProvider:   nil,
-		OauthConfig:    nil,
+		OIDCProvider:   mockOIDCProvider,
 		Cache:          mockCache,
 		Request:        req,
 		Response:       rr,
 	}
 
 	return &TestContext{
-		AppContext:     appCtx,
-		Request:        req,
-		Response:       rr,
-		MockController: ctrl,
-		MockCache:      mockCache,
-		MockSession:    mockSession,
-		LogHandler:     logHandler,
+		AppContext:       appCtx,
+		Request:          req,
+		Response:         rr,
+		MockController:   ctrl,
+		MockCache:        mockCache,
+		MockSession:      mockSession,
+		MockOidcProvider: mockOIDCProvider,
+		LogHandler:       logHandler,
 	}
 }
 
@@ -121,7 +121,6 @@ func NewTestContextWithRealCache(method, url string) *TestContext {
 		Logger:         logger,
 		SessionManager: nil,
 		OIDCProvider:   nil,
-		OauthConfig:    nil,
 		Cache:          cache,
 		Request:        req,
 		Response:       rr,
@@ -354,7 +353,6 @@ func (tc *TestContext) WithSessionManager(sm middlewares.SessionProvider) *TestC
 	return tc
 }
 
-// Helper to add query parameters to the request
 func (tc *TestContext) WithQueryParam(key, value string) *TestContext {
 	q := tc.Request.URL.Query()
 	q.Add(key, value)
@@ -362,13 +360,24 @@ func (tc *TestContext) WithQueryParam(key, value string) *TestContext {
 	return tc
 }
 
-// Helper to add headers
+func (tc *TestContext) AssertLocationHeader(t *testing.T, url string) {
+	location := tc.Response.Header().Get("Location")
+	if !strings.Contains(location, url) {
+		t.Errorf("Expected redirect to contain error, got: '%s'", location)
+	}
+}
+
+func (tc *TestContext) AssertLogsContainMessage(t *testing.T, level slog.Level, message string) {
+	if !tc.LogHandler.ContainsMessage(level, message) {
+		t.Errorf("Expected logs to contain '%s'", message)
+	}
+}
+
 func (tc *TestContext) WithHeader(key, value string) *TestContext {
 	tc.Request.Header.Set(key, value)
 	return tc
 }
 
-// Assertion helpers for common patterns
 func (tc *TestContext) AssertJSONArrayLength(t *testing.T, expected int) {
 	response := tc.GetJSONResponseArray(t)
 	if len(response) != expected {

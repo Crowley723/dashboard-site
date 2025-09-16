@@ -294,7 +294,7 @@ func TestGetMetricsGET(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tc := testutil.NewTestContext(t, "GET", "/api/metrics")
+			tc := testutil.NewTestContextWithURL(t, "GET", "/api/metrics")
 			defer tc.Finish()
 
 			if len(tt.queries) > 1 {

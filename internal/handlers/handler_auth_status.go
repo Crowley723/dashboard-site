@@ -11,7 +11,7 @@ type AuthStatusResponse struct {
 	User          *models.User `json:"user,omitempty"`
 }
 
-func AuthStatusHandler(ctx *middlewares.AppContext) {
+func GETAuthStatusHandler(ctx *middlewares.AppContext) {
 	response := AuthStatusResponse{
 		Authenticated: false,
 	}
@@ -21,7 +21,13 @@ func AuthStatusHandler(ctx *middlewares.AppContext) {
 		return
 	}
 
-	if user, ok := ctx.SessionManager.GetCurrentUser(ctx); ok {
+	user, ok := ctx.SessionManager.GetCurrentUser(ctx)
+	if user == nil {
+		ctx.WriteJSON(http.StatusUnauthorized, response)
+		return
+	}
+
+	if ok {
 		response.Authenticated = true
 		response.User = user
 		ctx.WriteJSON(http.StatusOK, response)

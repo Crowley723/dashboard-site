@@ -1,14 +1,13 @@
 package handlers
 
 import (
-	"homelab-dashboard/internal/auth"
 	"homelab-dashboard/internal/middlewares"
 	"net/http"
 )
 
-func LoginHandler(ctx *middlewares.AppContext) {
+func GETLoginHandler(ctx *middlewares.AppContext) {
 	if ctx.SessionManager.IsAuthenticated(ctx) {
-		ctx.Logger.Info("User already authenticated, redirecting to home")
+		ctx.Logger.Info("User already authenticated")
 		ctx.SetJSONStatus(http.StatusOK, "ok")
 		return
 	}
@@ -20,10 +19,10 @@ func LoginHandler(ctx *middlewares.AppContext) {
 
 	ctx.SessionManager.SetRedirectAfterLogin(ctx, currentURL)
 
-	authURL, err := auth.StartLogin(ctx)
+	authURL, err := ctx.OIDCProvider.StartLogin(ctx)
 	if err != nil {
 		ctx.Logger.Error("Failed to start login", "error", err)
-		ctx.SetJSONError(http.StatusInternalServerError, "Failed to initiate login")
+		ctx.SetJSONError(http.StatusInternalServerError, "Internal Server Error")
 		return
 	}
 

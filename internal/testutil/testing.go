@@ -1,7 +1,7 @@
-// internal/testutil/testutil.go
 package testutil
 
 import (
+	"context"
 	"encoding/json"
 	"homelab-dashboard/internal/config"
 	"homelab-dashboard/internal/data"
@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -20,28 +21,64 @@ import (
 
 // TestContext holds everything needed for testing
 type TestContext struct {
-	AppContext     *middlewares.AppContext
-	Request        *http.Request
-	Response       *httptest.ResponseRecorder
-	MockController *gomock.Controller
-	MockCache      *mocks.MockCacheProvider
-	MockSession    *mocks.MockSessionProvider
-	LogHandler     *TestLogHandler
+	AppContext       *middlewares.AppContext
+	Request          *http.Request
+	Response         *httptest.ResponseRecorder
+	MockController   *gomock.Controller
+	MockCache        *mocks.MockCacheProvider
+	MockSession      *mocks.MockSessionProvider
+	MockOidcProvider *mocks.MockOIDCProvider
+	LogHandler       *TestLogHandler
 }
 
-// NewTestContext creates a complete test setup with sensible defaults
-func NewTestContext(t *testing.T, method, url string) *TestContext {
+func NewTestContext(t *testing.T) *TestContext {
 	cfg := &config.Config{}
 
 	logHandler := NewTestLogHandler()
 	logger := slog.New(logHandler)
 
-	// Create mock controller
 	ctrl := gomock.NewController(t)
 
-	// Create mocks
 	mockCache := mocks.NewMockCacheProvider(ctrl)
 	mockSession := mocks.NewMockSessionProvider(ctrl)
+	mockOIDCProvider := mocks.NewMockOIDCProvider(ctrl)
+
+	rr := httptest.NewRecorder()
+
+	appCtx := &middlewares.AppContext{
+		Context:        context.Background(),
+		Config:         cfg,
+		Logger:         logger,
+		SessionManager: mockSession,
+		OIDCProvider:   mockOIDCProvider,
+		Cache:          mockCache,
+		Request:        nil,
+		Response:       rr,
+	}
+
+	return &TestContext{
+		AppContext:       appCtx,
+		Request:          nil,
+		Response:         rr,
+		MockController:   ctrl,
+		MockCache:        mockCache,
+		MockSession:      mockSession,
+		MockOidcProvider: mockOIDCProvider,
+	}
+}
+
+// NewTestContextWithURL creates a complete test setup with sensible defaults
+func NewTestContextWithURL(t *testing.T, method, url string) *TestContext {
+	cfg := &config.Config{}
+
+	logHandler := NewTestLogHandler()
+	logger := slog.New(logHandler)
+
+	ctrl := gomock.NewController(t)
+
+	mockCache := mocks.NewMockCacheProvider(ctrl)
+	mockSession := mocks.NewMockSessionProvider(ctrl)
+	mockOIDCProvider := mocks.NewMockOIDCProvider(ctrl)
 
 	req := httptest.NewRequest(method, url, nil)
 	rr := httptest.NewRecorder()
@@ -51,20 +88,21 @@ func NewTestContext(t *testing.T, method, url string) *TestContext {
 		Config:         cfg,
 		Logger:         logger,
 		SessionManager: mockSession,
-		OIDCProvider:   nil,
-		OauthConfig:    nil,
+		OIDCProvider:   mockOIDCProvider,
 		Cache:          mockCache,
 		Request:        req,
 		Response:       rr,
 	}
 
 	return &TestContext{
-		AppContext:     appCtx,
-		Request:        req,
-		Response:       rr,
-		MockController: ctrl,
-		MockCache:      mockCache,
-		MockSession:    mockSession,
+		AppContext:       appCtx,
+		Request:          req,
+		Response:         rr,
+		MockController:   ctrl,
+		MockCache:        mockCache,
+		MockSession:      mockSession,
+		MockOidcProvider: mockOIDCProvider,
+		LogHandler:       logHandler,
 	}
 }
 
@@ -83,7 +121,6 @@ func NewTestContextWithRealCache(method, url string) *TestContext {
 		Logger:         logger,
 		SessionManager: nil,
 		OIDCProvider:   nil,
-		OauthConfig:    nil,
 		Cache:          cache,
 		Request:        req,
 		Response:       rr,
@@ -162,16 +199,134 @@ func (tc *TestContext) GetJSONResponseArray(t *testing.T) []interface{} {
 }
 
 // AssertJSONField checks a specific field in a JSON response
-func (tc *TestContext) AssertJSONField(t *testing.T, field, expected string) {
+func (tc *TestContext) AssertJSONField(t *testing.T, field string, expected any) {
 	response := tc.GetJSONResponse(t)
-	if actual, ok := response[field].(string); !ok || actual != expected {
+	if actual, ok := response[field]; !ok || actual != expected {
 		t.Errorf("Expected %s to be %s, got %v", field, expected, response[field])
 	}
 }
 
-// GetResponseBody returns the response body as a string
-func (tc *TestContext) GetResponseBody() string {
-	return tc.Response.Body.String()
+func (tc *TestContext) AssertJSONBool(t *testing.T, field string, expected bool) {
+	response := tc.GetJSONResponse(t)
+	actual, exists := response[field]
+
+	if !exists {
+		t.Errorf("Field %s not found in response", field)
+		return
+	}
+
+	actualBool, ok := actual.(bool)
+	if !ok {
+		t.Errorf("Expected %s to be a boolean, got %T", field, actual)
+		return
+	}
+
+	if actualBool != expected {
+		t.Errorf("Expected %s to be %v, got %v", field, expected, actualBool)
+	}
+}
+
+// AssertJSONString checks a specific string field in a JSON response
+func (tc *TestContext) AssertJSONString(t *testing.T, field string, expected string) {
+	response := tc.GetJSONResponse(t)
+	actual, exists := response[field]
+
+	if !exists {
+		t.Errorf("Field %s not found in response", field)
+		return
+	}
+
+	actualString, ok := actual.(string)
+	if !ok {
+		t.Errorf("Expected %s to be a string, got %T", field, actual)
+		return
+	}
+
+	if actualString != expected {
+		t.Errorf("Expected %s to be %q, got %q", field, expected, actualString)
+	}
+}
+
+// AssertJSONObject validates an object field with expected key-value pairs
+func (tc *TestContext) AssertJSONObject(t *testing.T, field string, expectedFields map[string]interface{}) {
+	response := tc.GetJSONResponse(t)
+	actual, exists := response[field]
+
+	if !exists {
+		t.Errorf("Field %s not found in response", field)
+		return
+	}
+
+	actualObj, ok := actual.(map[string]interface{})
+	if !ok {
+		t.Errorf("Expected %s to be an object, got %T", field, actual)
+		return
+	}
+
+	for key, expectedValue := range expectedFields {
+		if actualValue, keyExists := actualObj[key]; !keyExists {
+			t.Errorf("Expected field %s.%s to exist", field, key)
+		} else if actualValue != expectedValue {
+			t.Errorf("Expected %s.%s to be %v, got %v", field, key, expectedValue, actualValue)
+		}
+	}
+}
+
+// AssertUser validates a user object in the JSON response
+func (tc *TestContext) AssertUser(t *testing.T, field string, expectedUser interface{}) {
+	response := tc.GetJSONResponse(t)
+	actual, exists := response[field]
+
+	if !exists {
+		t.Errorf("Field %s not found in response", field)
+		return
+	}
+
+	user, ok := actual.(map[string]interface{})
+	if !ok {
+		t.Errorf("Expected %s to be a user object, got %T", field, actual)
+		return
+	}
+
+	// Handle different user types - you'll need to import your models package
+	switch u := expectedUser.(type) {
+	case map[string]interface{}:
+		// Compare as key-value pairs
+		for key, expectedValue := range u {
+			if actualValue, keyExists := user[key]; !keyExists {
+				t.Errorf("Expected field %s.%s to exist", field, key)
+			} else if actualValue != expectedValue {
+				t.Errorf("Expected %s.%s to be %v, got %v", field, key, expectedValue, actualValue)
+			}
+		}
+	default:
+		// For any struct type, convert to map for comparison
+		userBytes, err := json.Marshal(expectedUser)
+		if err != nil {
+			t.Errorf("Failed to marshal expected user: %v", err)
+			return
+		}
+
+		var expectedUserMap map[string]interface{}
+		if err := json.Unmarshal(userBytes, &expectedUserMap); err != nil {
+			t.Errorf("Failed to unmarshal expected user: %v", err)
+			return
+		}
+
+		// Compare only non-empty/non-nil fields from expected user
+		for key, expectedValue := range expectedUserMap {
+			// Skip nil values and empty strings unless they're explicitly set
+			if expectedValue == nil || expectedValue == "" {
+				continue
+			}
+
+			if actualValue, keyExists := user[key]; !keyExists {
+				t.Errorf("Expected field %s.%s to exist", field, key)
+			} else if actualValue != expectedValue {
+				t.Errorf("Expected %s.%s to be %v, got %v", field, key, expectedValue, actualValue)
+			}
+		}
+	}
 }
 
 // WithConfig allows you to override the default config for specific tests
@@ -198,7 +353,6 @@ func (tc *TestContext) WithSessionManager(sm middlewares.SessionProvider) *TestC
 	return tc
 }
 
-// Helper to add query parameters to the request
 func (tc *TestContext) WithQueryParam(key, value string) *TestContext {
 	q := tc.Request.URL.Query()
 	q.Add(key, value)
@@ -206,13 +360,24 @@ func (tc *TestContext) WithQueryParam(key, value string) *TestContext {
 	return tc
 }
 
-// Helper to add headers
+func (tc *TestContext) AssertLocationHeader(t *testing.T, url string) {
+	location := tc.Response.Header().Get("Location")
+	if !strings.Contains(location, url) {
+		t.Errorf("Expected redirect to contain error, got: '%s'", location)
+	}
+}
+
+func (tc *TestContext) AssertLogsContainMessage(t *testing.T, level slog.Level, message string) {
+	if !tc.LogHandler.ContainsMessage(level, message) {
+		t.Errorf("Expected logs to contain '%s'", message)
+	}
+}
+
 func (tc *TestContext) WithHeader(key, value string) *TestContext {
 	tc.Request.Header.Set(key, value)
 	return tc
 }
 
-// Assertion helpers for common patterns
 func (tc *TestContext) AssertJSONArrayLength(t *testing.T, expected int) {
 	response := tc.GetJSONResponseArray(t)
 	if len(response) != expected {
@@ -220,14 +385,13 @@ func (tc *TestContext) AssertJSONArrayLength(t *testing.T, expected int) {
 	}
 }
 
-func (tc *TestContext) AssertEmpty(t *testing.T) {
-	body := tc.GetResponseBody()
-	if body != "" && body != "null" && body != "[]" && body != "{}" {
-		t.Errorf("Expected empty response, got: %s", body)
-	}
+// WithRequest allows you to set a custom request (useful for tests that don't use URL constructor)
+func (tc *TestContext) WithRequest(req *http.Request) *TestContext {
+	tc.Request = req
+	tc.AppContext.Request = req
+	tc.AppContext.Context = req.Context()
+	return tc
 }
-
-// Convenience methods for setting up common mock expectations
 
 // ExpectCacheGet sets up an expectation for cache.Get()
 func (tc *TestContext) ExpectCacheGet(queryName string, returnData data.CachedData, found bool) *gomock.Call {

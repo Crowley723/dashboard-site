@@ -8,7 +8,7 @@ import (
 )
 
 func TestHandlerHealth(t *testing.T) {
-	tc := testutil.NewTestContext(t, "GET", "/health")
+	tc := testutil.NewTestContextWithURL(t, "GET", "/health")
 
 	tc.CallHandler(HandlerHealth)
 
@@ -18,7 +18,7 @@ func TestHandlerHealth(t *testing.T) {
 }
 
 func TestHandlerError(t *testing.T) {
-	tc := testutil.NewTestContext(t, "GET", "/error")
+	tc := testutil.NewTestContextWithURL(t, "GET", "/error")
 
 	errorHandler := func(ctx *middlewares.AppContext) {
 		ctx.SetJSONError(400, "Bad Request")
@@ -28,22 +28,4 @@ func TestHandlerError(t *testing.T) {
 
 	tc.AssertStatus(t, 400)
 	tc.AssertJSONField(t, "error", "Bad Request")
-}
-
-func TestHandlerCustom(t *testing.T) {
-	tc := testutil.NewTestContext(t, "GET", "/custom")
-
-	tc.CallHandler(HandlerHealth)
-
-	tc.AssertStatus(t, 200)
-
-	response := tc.GetJSONResponse(t)
-	if len(response) != 1 {
-		t.Errorf("Expected 1 field in response, got %d", len(response))
-	}
-
-	body := tc.GetResponseBody()
-	if body == "" {
-		t.Error("Expected non-empty response body")
-	}
 }

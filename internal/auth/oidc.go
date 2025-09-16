@@ -13,10 +13,11 @@ import (
 	"golang.org/x/oauth2"
 )
 
-func NewOIDCProvider(ctx context.Context, cfg config.OIDCConfig) (*oidc.Provider, *oauth2.Config, error) {
+// NewRealOIDCProvider creates a new instance of the real OIDC provider with initialized config
+func NewRealOIDCProvider(ctx context.Context, cfg config.OIDCConfig) (middlewares.OIDCProvider, error) {
 	provider, err := oidc.NewProvider(ctx, cfg.IssuerURL)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create OIDC provider: %w", err)
+		return nil, fmt.Errorf("failed to create OIDC provider: %w", err)
 	}
 
 	oauth2Config := &oauth2.Config{
@@ -27,10 +28,26 @@ func NewOIDCProvider(ctx context.Context, cfg config.OIDCConfig) (*oidc.Provider
 		RedirectURL:  cfg.RedirectURI,
 	}
 
-	return provider, oauth2Config, err
+	return &RealOIDCProvider{
+		provider:     provider,
+		oauth2Config: oauth2Config,
+	}, nil
 }
 
-func GenerateState() (string, error) {
+type RealOIDCProvider struct {
+	provider     *oidc.Provider
+	oauth2Config *oauth2.Config
+}
+
+func (r *RealOIDCProvider) GetProvider() *oidc.Provider {
+	return r.provider
+}
+
+func (r *RealOIDCProvider) GetOAuth2Config() *oauth2.Config {
+	return r.oauth2Config
+}
+
+func (r *RealOIDCProvider) GenerateState() (string, error) {
 	b := make([]byte, 32)
 	_, err := rand.Read(b)
 	if err != nil {
@@ -40,8 +57,8 @@ func GenerateState() (string, error) {
 	return base64.URLEncoding.EncodeToString(b), nil
 }
 
-func StartLogin(ctx *middlewares.AppContext) (string, error) {
-	state, err := GenerateState()
+func (r *RealOIDCProvider) StartLogin(ctx *middlewares.AppContext) (string, error) {
+	state, err := r.GenerateState()
 	if err != nil {
 		return "", err
 	}
@@ -52,11 +69,11 @@ func StartLogin(ctx *middlewares.AppContext) (string, error) {
 	retrievedState := ctx.SessionManager.GetOauthState(ctx)
 	ctx.Logger.Info("Retrieved OAuth state immediately", "state", retrievedState, "matches", state == retrievedState)
 
-	authURL := ctx.OauthConfig.AuthCodeURL(state)
+	authURL := ctx.OIDCProvider.GetOAuth2Config().AuthCodeURL(state)
 	return authURL, nil
 }
 
-func HandleCallback(ctx *middlewares.AppContext) (*models.User, error) {
+func (r *RealOIDCProvider) HandleCallback(ctx *middlewares.AppContext) (*models.User, error) {
 	storedState := ctx.SessionManager.GetOauthState(ctx)
 	if storedState == "" {
 		return nil, fmt.Errorf("no oauth state found in session")
@@ -74,7 +91,7 @@ func HandleCallback(ctx *middlewares.AppContext) (*models.User, error) {
 		return nil, fmt.Errorf("no authorization code received")
 	}
 
-	token, err := ctx.OauthConfig.Exchange(ctx.Request.Context(), code)
+	token, err := ctx.OIDCProvider.GetOAuth2Config().Exchange(ctx.Request.Context(), code)
 	if err != nil {
 		return nil, fmt.Errorf("failed to exchange code for token: %w", err)
 	}
@@ -84,7 +101,7 @@ func HandleCallback(ctx *middlewares.AppContext) (*models.User, error) {
 		return nil, fmt.Errorf("no id_token found in oauth2 token")
 	}
 
-	verifier := ctx.OIDCProvider.Verifier(&oidc.Config{ClientID: ctx.OauthConfig.ClientID})
+	verifier := ctx.OIDCProvider.GetProvider().Verifier(&oidc.Config{ClientID: ctx.OIDCProvider.GetOAuth2Config().ClientID})
 
 	idToken, err := verifier.Verify(ctx.Request.Context(), rawIDToken)
 	if err != nil {
@@ -112,7 +129,7 @@ func HandleCallback(ctx *middlewares.AppContext) (*models.User, error) {
 
 // fetchUserInfo retrieves additional user information from the UserInfo endpoint
 func fetchUserInfo(ctx *middlewares.AppContext, token *oauth2.Token, baseUser *models.User) (*models.User, error) {
-	userInfo, err := ctx.OIDCProvider.UserInfo(context.Background(), oauth2.StaticTokenSource(token))
+	userInfo, err := ctx.OIDCProvider.GetProvider().UserInfo(context.Background(), oauth2.StaticTokenSource(token))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user info: %w", err)
 	}

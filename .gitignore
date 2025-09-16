@@ -6,5 +6,7 @@ tmp/
 web/node_modules/
 web/dist/
 
+coverage.*
+
 config.yaml
 .env

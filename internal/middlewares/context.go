@@ -7,9 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/go-jose/go-jose/v4/json"
-	"golang.org/x/oauth2"
 )
 
 type AppContext struct {
@@ -17,8 +15,7 @@ type AppContext struct {
 	Config         *config.Config
 	Logger         *slog.Logger
 	SessionManager SessionProvider
-	OIDCProvider   *oidc.Provider
-	OauthConfig    *oauth2.Config
+	OIDCProvider   OIDCProvider
 	Cache          data.CacheProvider
 
 	Request  *http.Request
@@ -38,7 +35,6 @@ func AppContextMiddleware(baseCtx *AppContext) func(http.Handler) http.Handler {
 				Logger:         baseCtx.Logger,
 				SessionManager: baseCtx.SessionManager,
 				OIDCProvider:   baseCtx.OIDCProvider,
-				OauthConfig:    baseCtx.OauthConfig,
 				Cache:          baseCtx.Cache,
 				Request:        r,
 				Response:       w,
@@ -83,14 +79,13 @@ func (ctx *AppContext) Redirect(url string, status int) {
 	http.Redirect(ctx.Response, ctx.Request, url, status)
 }
 
-func NewAppContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, cache data.CacheProvider, sessionManager SessionProvider, oidcProvider *oidc.Provider, oauthConfig *oauth2.Config) *AppContext {
+func NewAppContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, cache data.CacheProvider, sessionManager SessionProvider, oidcProvider OIDCProvider) *AppContext {
 	return &AppContext{
 		Context:        ctx,
 		Config:         cfg,
 		Logger:         logger,
 		SessionManager: sessionManager,
 		OIDCProvider:   oidcProvider,
-		OauthConfig:    oauthConfig,
 		Cache:          cache,
 	}
 }

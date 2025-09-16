@@ -2,30 +2,27 @@ package handlers
 
 import (
 	"homelab-dashboard/internal/middlewares"
-	"homelab-dashboard/internal/models"
 	"net/http"
 )
 
-func LogoutHandler(ctx *middlewares.AppContext) {
-	logger := ctx.Logger
+func POSTLogoutHandler(ctx *middlewares.AppContext) {
+	if !ctx.SessionManager.IsUserAuthenticated(ctx) {
+		ctx.SetJSONError(http.StatusBadRequest, "Bad Request")
+		return
+	}
 
-	user := &models.User{}
 	user, ok := ctx.SessionManager.GetUser(ctx)
-	if !ok {
-		logger.Error("Failed to retrieve user session")
-		ctx.SetJSONError(http.StatusInternalServerError, "Failed to logout")
+	if !ok || user == nil {
+		ctx.Logger.Error("Failed to retrieve user session")
+		ctx.SetJSONError(http.StatusInternalServerError, "Internal Server Error")
 		return
 	}
 
 	err := ctx.SessionManager.Logout(ctx)
 	if err != nil {
-		logger.Error("Failed to logout user", "error", err)
-		ctx.SetJSONError(http.StatusInternalServerError, "Failed to logout")
+		ctx.Logger.Error("Failed to logout user", "error", err)
+		ctx.SetJSONError(http.StatusInternalServerError, "Internal Server Error")
 		return
-	}
-
-	if user != nil {
-		logger.Info("User logged out", "username", user.Username)
 	}
 
 	ctx.SetJSONStatus(http.StatusOK, "OK")

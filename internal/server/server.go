@@ -27,7 +27,7 @@ func Start(cfg *config.Config) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	oidcProvider, oauth2Config, err := auth.NewOIDCProvider(ctx, cfg.OIDC)
+	oidcProvider, err := auth.NewRealOIDCProvider(ctx, cfg.OIDC)
 
 	dataService, cache, err := setupDataService(cfg, logger)
 	if err != nil {
@@ -40,7 +40,7 @@ func Start(cfg *config.Config) error {
 		}
 	}()
 
-	appCtx := middlewares.NewAppContext(ctx, cfg, logger, cache, sessionManager, oidcProvider, oauth2Config)
+	appCtx := middlewares.NewAppContext(ctx, cfg, logger, cache, sessionManager, oidcProvider)
 
 	router := setupRouter(appCtx)
 

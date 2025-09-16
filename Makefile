@@ -31,3 +31,14 @@ dev-debug:
 
 build:
 	docker build -t dashboard-site:latest -f docker/Dockerfile .
+
+coverage:
+	go test -cover -v ./...
+
+coverage-html:
+	go test -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage report generated: coverage.html"
+
+mocks:
+	go generate ./...

@@ -47,7 +47,7 @@ func setupRouter(ctx *middlewares.AppContext) *chi.Mux {
 
 	r.Route("/api", func(r chi.Router) {
 		r.Route("/auth", func(r chi.Router) {
-			r.Get("/status", ctx.HandlerFunc(handlers.AuthStatusHandler))
+			r.Get("/status", ctx.HandlerFunc(handlers.GETAuthStatusHandler))
 			r.Get("/login", ctx.HandlerFunc(handlers.LoginHandler))
 			r.Get("/callback", ctx.HandlerFunc(handlers.CallbackHandler))
 			r.Post("/logout", ctx.HandlerFunc(handlers.LogoutHandler))

@@ -15,6 +15,11 @@ jobs:
         with:
           egress-policy: 'audit'
 
+      - name: Install Buildah
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y buildah
+
       - name: 'Checkout'
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 

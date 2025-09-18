@@ -26,7 +26,6 @@ WORKDIR /app
 COPY --from=backend-build /app/dashboard-site .
 COPY --from=frontend-build /app/web/dist ./web/dist
 
-COPY config.yaml ./
 RUN chown -R app:app /app
 
 USER app

@@ -8,17 +8,17 @@ on:
 
 jobs:
   build:
-    runs-on: buildah-runners
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
     steps:
       - name: 'Harden Runner'
         uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
         with:
           egress-policy: 'audit'
-
-      - name: Debug DNS Resolution
-        run: |
-          nslookup registry.crowleybrynn.com
-          curl -v https://registry.crowleybrynn.com/v2/
 
       - name: 'Checkout'
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -34,19 +34,26 @@ jobs:
             type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Log in to Registry
+      - name: Login to Registry
         if: github.event_name != 'pull_request'
-        uses: redhat-actions/podman-login@4934294ad0449894bcd1e9f191899d7292469603 # v1.7
+        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
         with:
           registry: ${{ secrets.REGISTRY_URL }}
-          username: ${{ secrets.HARBOR_USERNAME }}
-          password: ${{ secrets.HARBOR_PASSWORD }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+#      - name: Log in to Registry
+#        if: github.event_name != 'pull_request'
+#        uses: redhat-actions/podman-login@4934294ad0449894bcd1e9f191899d7292469603 # v1.7
+#        with:
+#          registry: ${{ secrets.REGISTRY_URL }}
+#          username: ${{ secrets.HARBOR_USERNAME }}
+#          password: ${{ secrets.HARBOR_PASSWORD }}
 
       - name: Build Image with Buildah
         id: build-image
         uses: redhat-actions/buildah-build@7a95fa7ee0f02d552a32753e7414641a04307056 # v2.13
         with:
-          image: crowley723/dashboard-site
+          image: dashboard-site
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           containerfiles: |

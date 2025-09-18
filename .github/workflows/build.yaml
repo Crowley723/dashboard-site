@@ -29,8 +29,8 @@ jobs:
         with:
           images: crowley723/dashboard-site
           tags: |
-            type=ref,event=branch,prefix=:
-            type=ref,event=pr,prefix=:
+            type=ref,event=branch
+            type=ref,event=pr
 
       - name: Login to Registry
         uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0

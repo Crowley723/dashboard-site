@@ -29,42 +29,24 @@ jobs:
         with:
           images: crowley723/dashboard-site
           tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=sha,prefix={{branch}}-
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch,prefix=:
+            type=ref,event=pr,prefix=:
 
       - name: Login to Registry
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
         with:
           registry: ${{ secrets.REGISTRY_URL }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-#      - name: Log in to Registry
-#        if: github.event_name != 'pull_request'
-#        uses: redhat-actions/podman-login@4934294ad0449894bcd1e9f191899d7292469603 # v1.7
-#        with:
-#          registry: ${{ secrets.REGISTRY_URL }}
-#          username: ${{ secrets.HARBOR_USERNAME }}
-#          password: ${{ secrets.HARBOR_PASSWORD }}
 
-      - name: Build Image with Buildah
-        id: build-image
-        uses: redhat-actions/buildah-build@7a95fa7ee0f02d552a32753e7414641a04307056 # v2.13
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
         with:
-          image: dashboard-site
+          push: true  # Always push
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          containerfiles: |
-            ./docker/Dockerfile
-          context: .
-
-      - name: Push To Registry
-        if: github.event_name != 'pull_request'
-        id: push-to-registry
-        uses: redhat-actions/push-to-registry@5ed88d269cf581ea9ef6dd6806d01562096bee9c # v2.8
-        with:
-          image: ${{ steps.build-image.outputs.image }}
-          registry: ${{ secrets.REGISTRY_URL }}
-          tags: ${{ steps.build-image.outputs.tags }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          provenance: true
+          sbom: true

@@ -1,0 +1,150 @@
+{{- if (include "dashboard.generate.configMap" .) }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "dashboard.name" . }}
+  namespace: {{ template "dashboard.namespace" . }}
+  labels: {{ include "dashboard.labels" (merge (dict "Labels" .Values.configMap.labels) .) | nindent 4 }}
+  {{- with $annotations := include "dashboard.annotations" (merge (dict "Annotations" .Values.configMap.annotations) .) }}
+  annotations: {{ $annotations | nindent 4 }}
+  {{- end }}
+data:
+  {{ .Values.configMap.key | default "config.yaml" }}: |
+    ---
+    server:
+      port: {{ .Values.config.server.port | default 8080 }}
+
+    {{- with .Values.config.oidc }}
+    oidc:
+      client_id: {{ .client_id | quote }}
+      client_secret: {{ .client_secret | quote }}
+      issuer_url: {{ .issuer_url | quote }}
+      redirect_url: {{ .redirect_url | quote }}
+      {{- if .scopes }}
+      scopes:
+        {{- range .scopes }}
+        - {{ . | quote }}
+        {{- end }}
+      {{- else }}
+      scopes:
+        - "openid"
+        - "profile"
+        - "email"
+        - "groups"
+      {{- end }}
+    {{- end }}
+
+    log:
+      level: {{ .Values.config.log.level | default "info" | quote }}
+      format: {{ .Values.config.log.format | default "text" | quote }}
+
+    {{- with .Values.config.cors }}
+    cors:
+      {{- if .allowed_origins }}
+      allowed_origins:
+        {{- range .allowed_origins }}
+        - {{ . | quote }}
+        {{- end }}
+      {{- else }}
+      allowed_origins:
+        - "http://localhost:5173"
+      {{- end }}
+      {{- if .allowed_methods }}
+      allowed_methods:
+        {{- range .allowed_methods }}
+        - {{ . | quote }}
+        {{- end }}
+      {{- else }}
+      allowed_methods:
+        - "GET"
+        - "POST"
+        - "PUT"
+        - "DELETE"
+        - "OPTIONS"
+      {{- end }}
+      {{- if .allowed_headers }}
+      allowed_headers:
+        {{- range .allowed_headers }}
+        - {{ . | quote }}
+        {{- end }}
+      {{- else }}
+      allowed_headers:
+        - "*"
+      {{- end }}
+      {{- if .exposed_headers }}
+      exposed_headers:
+        {{- range .exposed_headers }}
+        - {{ . | quote }}
+        {{- end }}
+      {{- end }}
+      allow_credentials: {{ .allow_credentials | default false }}
+      max_age_seconds: {{ .max_age_seconds | default 300 }}
+    {{- else }}
+    cors:
+      allowed_origins:
+        - "http://localhost:5173"
+      allowed_methods:
+        - "GET"
+        - "POST"
+        - "PUT"
+        - "DELETE"
+        - "OPTIONS"
+      allowed_headers:
+        - "*"
+      allow_credentials: false
+      max_age_seconds: 300
+    {{- end }}
+
+    sessions:
+      store: {{ .Values.config.sessions.store | default "memory" | quote }}
+      duration_source: {{ .Values.config.sessions.duration_source | default "fixed" | quote }}
+      fixed_timeout: {{ .Values.config.sessions.fixed_timeout | default "24h" | quote }}
+      name: {{ .Values.config.sessions.name | default "session_id" | quote }}
+      secure: {{ .Values.config.sessions.secure | default true }}
+
+    {{- with .Values.config.data }}
+    data:
+      prometheus_url: {{ .prometheus_url | quote }}
+      {{- if .time_interval }}
+      time_interval: {{ .time_interval | quote }}
+      {{- end }}
+      {{- if .basic_auth }}
+      basic_auth:
+        username: {{ .basic_auth.username | quote }}
+        password: {{ .basic_auth.password | quote }}
+      {{- end }}
+      {{- if .queries }}
+      queries:
+        {{- range .queries }}
+        - name: {{ .name | quote }}
+          query: {{ .query | quote }}
+          type: {{ .type | quote }}
+          {{- if .ttl }}
+          ttl: {{ .ttl | quote }}
+          {{- end }}
+          {{- if .range }}
+          range: {{ .range | quote }}
+          {{- end }}
+          {{- if .step }}
+          step: {{ .step | quote }}
+          {{- end }}
+          require_auth: {{ .require_auth | default false }}
+          {{- if .required_group }}
+          required_group: {{ .required_group | quote }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+
+    cache:
+      type: {{ .Values.config.cache.type | default "memory" | quote }}
+      {{- if and .Values.config.cache.redis (eq (.Values.config.cache.type | default "memory") "redis") }}
+      redis:
+        address: {{ .Values.config.cache.redis.address | quote }}
+        {{- if .Values.config.cache.redis.password }}
+        password: {{ .Values.config.cache.redis.password | quote }}
+        {{- end }}
+        db_index: {{ .Values.config.cache.redis.db_index | default 0 }}
+      {{- end }}
+{{- end }}

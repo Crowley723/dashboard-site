@@ -139,7 +139,7 @@ spec:
         {{- end }}
         {{- if .Values.deployment.container.resources }}
           resources:
-          {{- toYaml .Values.deployment.container.resources | nindent 10 }}
+            {{- toYaml .Values.deployment.container.resources | nindent 12 }}
         {{- end }}
         {{- if .Values.deployment.container.securityContext }}
           securityContext:

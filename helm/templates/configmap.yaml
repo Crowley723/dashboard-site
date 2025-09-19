@@ -96,12 +96,12 @@ data:
       max_age_seconds: 300
     {{- end }}
 
-    sessions:
-      store: {{ .Values.config.sessions.store | default "memory" | quote }}
-      duration_source: {{ .Values.config.sessions.duration_source | default "fixed" | quote }}
-      fixed_timeout: {{ .Values.config.sessions.fixed_timeout | default "24h" | quote }}
-      name: {{ .Values.config.sessions.name | default "session_id" | quote }}
-      secure: {{ .Values.config.sessions.secure | default true }}
+    session:
+      store: {{ .Values.config.session.store | default "memory" | quote }}
+      duration_source: {{ .Values.config.session.duration_source | default "fixed" | quote }}
+      fixed_timeout: {{ .Values.config.session.fixed_timeout | default "24h" | quote }}
+      name: {{ .Values.config.session.name | default "session_id" | quote }}
+      secure: {{ .Values.config.session.secure | default true }}
 
     {{- with .Values.config.data }}
     data:

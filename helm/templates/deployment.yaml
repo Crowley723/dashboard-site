@@ -97,16 +97,14 @@ spec:
                 name: {{ template "dashboard.name" . }}
         {{- end }}
         {{- if .Values.deployment.container.envFrom }}
-        {{- range .Values.deployment.container.envFrom }}
-            - {{ . | toYaml | nindent 10 }}
-        {{- end }}
+        {{- toYaml .Values.deployment.container.envFrom | nindent 12 }}
         {{- end }}
         {{- end }}
         {{- if .Values.deployment.container.volumeMounts }}
           volumeMounts:
         {{- if include "dashboard.generate.configMap" . }}
             - name: config
-              mountPath: /etc/dashboard/config.yaml
+              mountPath: /app/config.yaml
               subPath: {{ .Values.configMap.key | default "config.yaml" }}
               readOnly: true
         {{- end }}
@@ -123,7 +121,7 @@ spec:
         {{- else if include "dashboard.generate.configMap" . }}
           volumeMounts:
             - name: config
-              mountPath: /etc/dashboard/config.yaml
+              mountPath: /app/config.yaml
               subPath: {{ .Values.configMap.key | default "config.yaml" }}
               readOnly: true
         {{- end }}

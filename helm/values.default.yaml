@@ -8,7 +8,7 @@ deployment:
       maxUnavailable: 0
 
   image:
-    repository: "dashboard"
+    repository: "ghcr.io/crowley723"
     tag: ""  # defaults to Chart.AppVersion
     pullPolicy: "IfNotPresent"
 

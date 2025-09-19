@@ -1,0 +1,4 @@
+*/*.enc.yaml
+*/*.sops.yaml
+*/*.sealed.yaml
+

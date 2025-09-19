@@ -1,0 +1,164 @@
+{{- if .Values.ingressRoute.enabled }}
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: {{ template "dashboard.name" . }}
+  namespace: {{ template "dashboard.namespace" . }}
+  labels: {{ include "dashboard.labels" (merge (dict "Labels" .Values.ingressRoute.labels) .) | nindent 4 }}
+  {{- with $annotations := include "dashboard.annotations" (merge (dict "Annotations" .Values.ingressRoute.annotations) .) }}
+  annotations: {{ $annotations | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.ingressRoute.entryPoints }}
+  entryPoints:
+    {{- range .Values.ingressRoute.entryPoints }}
+    - {{ . }}
+    {{- end }}
+  {{- end }}
+  routes:
+    {{- range .Values.ingressRoute.routes }}
+    - match: {{ .match | quote }}
+      kind: Rule
+      {{- if .priority }}
+      priority: {{ .priority }}
+      {{- end }}
+      {{- if .middlewares }}
+      middlewares:
+        {{- range .middlewares }}
+        - name: {{ .name }}
+          {{- if .namespace }}
+          namespace: {{ .namespace }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+      services:
+        - name: {{ template "dashboard.name" $ }}
+          port: {{ .servicePort | default $.Values.service.port | default 80 }}
+          {{- if .scheme }}
+          scheme: {{ .scheme }}
+          {{- end }}
+          {{- if .strategy }}
+          strategy: {{ .strategy }}
+          {{- end }}
+          {{- if .weight }}
+          weight: {{ .weight }}
+          {{- end }}
+          {{- if .sticky }}
+          sticky:
+            {{- toYaml .sticky | nindent 12 }}
+          {{- end }}
+          {{- if .healthCheck }}
+          healthCheck:
+            {{- toYaml .healthCheck | nindent 12 }}
+          {{- end }}
+    {{- end }}
+  {{- if .Values.ingressRoute.tls }}
+  tls:
+    {{- if .Values.ingressRoute.tls.secretName }}
+    secretName: {{ .Values.ingressRoute.tls.secretName }}
+    {{- end }}
+    {{- if .Values.ingressRoute.tls.store }}
+    store:
+      name: {{ .Values.ingressRoute.tls.store.name }}
+      {{- if .Values.ingressRoute.tls.store.namespace }}
+      namespace: {{ .Values.ingressRoute.tls.store.namespace }}
+      {{- end }}
+    {{- end }}
+    {{- if .Values.ingressRoute.tls.options }}
+    options:
+      name: {{ .Values.ingressRoute.tls.options.name }}
+      {{- if .Values.ingressRoute.tls.options.namespace }}
+      namespace: {{ .Values.ingressRoute.tls.options.namespace }}
+      {{- end }}
+    {{- end }}
+    {{- if .Values.ingressRoute.tls.certResolver }}
+    certResolver: {{ .Values.ingressRoute.tls.certResolver }}
+    {{- end }}
+    {{- if .Values.ingressRoute.tls.domains }}
+    domains:
+      {{- range .Values.ingressRoute.tls.domains }}
+      - main: {{ .main | quote }}
+        {{- if .sans }}
+        sans:
+          {{- range .sans }}
+          - {{ . | quote }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+
+{{- if and .Values.ingressRoute.enabled .Values.ingressRoute.tcpRoute.enabled }}
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRouteTCP
+metadata:
+  name: {{ template "dashboard.name" . }}-tcp
+  namespace: {{ template "dashboard.namespace" . }}
+  labels: {{ include "dashboard.labels" (merge (dict "Labels" .Values.ingressRoute.labels) .) | nindent 4 }}
+  {{- with $annotations := include "dashboard.annotations" (merge (dict "Annotations" .Values.ingressRoute.annotations) .) }}
+  annotations: {{ $annotations | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.ingressRoute.tcpRoute.entryPoints }}
+  entryPoints:
+    {{- range .Values.ingressRoute.tcpRoute.entryPoints }}
+    - {{ . }}
+    {{- end }}
+  {{- end }}
+  routes:
+    {{- range .Values.ingressRoute.tcpRoute.routes }}
+    - match: {{ .match | quote }}
+      {{- if .priority }}
+      priority: {{ .priority }}
+      {{- end }}
+      {{- if .middlewares }}
+      middlewares:
+        {{- range .middlewares }}
+        - name: {{ .name }}
+          {{- if .namespace }}
+          namespace: {{ .namespace }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+      services:
+        - name: {{ template "dashboard.name" $ }}
+          port: {{ .servicePort | default $.Values.service.port | default 80 }}
+          {{- if .weight }}
+          weight: {{ .weight }}
+          {{- end }}
+    {{- end }}
+  {{- if .Values.ingressRoute.tcpRoute.tls }}
+  tls:
+    {{- if .Values.ingressRoute.tcpRoute.tls.secretName }}
+    secretName: {{ .Values.ingressRoute.tcpRoute.tls.secretName }}
+    {{- end }}
+    {{- if .Values.ingressRoute.tcpRoute.tls.passthrough }}
+    passthrough: {{ .Values.ingressRoute.tcpRoute.tls.passthrough }}
+    {{- end }}
+    {{- if .Values.ingressRoute.tcpRoute.tls.options }}
+    options:
+      name: {{ .Values.ingressRoute.tcpRoute.tls.options.name }}
+      {{- if .Values.ingressRoute.tcpRoute.tls.options.namespace }}
+      namespace: {{ .Values.ingressRoute.tcpRoute.tls.options.namespace }}
+      {{- end }}
+    {{- end }}
+    {{- if .Values.ingressRoute.tcpRoute.tls.certResolver }}
+    certResolver: {{ .Values.ingressRoute.tcpRoute.tls.certResolver }}
+    {{- end }}
+    {{- if .Values.ingressRoute.tcpRoute.tls.domains }}
+    domains:
+      {{- range .Values.ingressRoute.tcpRoute.tls.domains }}
+      - main: {{ .main | quote }}
+        {{- if .sans }}
+        sans:
+          {{- range .sans }}
+          - {{ . | quote }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}

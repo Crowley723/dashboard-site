@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"strconv"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -52,45 +51,37 @@ var (
 
 func applyEnvironmentOverrides(config *Config) {
 	if clientID := os.Getenv(EnvOIDCClientID); clientID != "" {
-		if p, err := strconv.Atoi(clientID); err == nil {
-			config.Server.Port = p
-		}
+		config.OIDC.ClientID = clientID
 	}
 
-	if clientID := os.Getenv(EnvOIDCClientSecret); clientID != "" {
-		if p, err := strconv.Atoi(clientID); err == nil {
-			config.Server.Port = p
-		}
+	if clientSecret := os.Getenv(EnvOIDCClientSecret); clientSecret != "" {
+		config.OIDC.ClientSecret = clientSecret
 	}
 
-	if clientID := os.Getenv(EnvOIDCIssuerURL); clientID != "" {
-		if p, err := strconv.Atoi(clientID); err == nil {
-			config.Server.Port = p
-		}
+	if issuerURL := os.Getenv(EnvOIDCIssuerURL); issuerURL != "" {
+		config.OIDC.IssuerURL = issuerURL
 	}
 
-	if clientID := os.Getenv(EnvOIDCRedirectURL); clientID != "" {
-		if p, err := strconv.Atoi(clientID); err == nil {
-			config.Server.Port = p
-		}
+	if redirectURL := os.Getenv(EnvOIDCRedirectURL); redirectURL != "" {
+		config.OIDC.RedirectURI = redirectURL
 	}
 
-	if clientID := os.Getenv(EnvDataPrometheusURL); clientID != "" {
-		if p, err := strconv.Atoi(clientID); err == nil {
-			config.Server.Port = p
-		}
+	if prometheusURL := os.Getenv(EnvDataPrometheusURL); prometheusURL != "" {
+		config.Data.PrometheusURL = prometheusURL
 	}
 
-	if clientID := os.Getenv(EnvDataBasicAuthUsername); clientID != "" {
-		if p, err := strconv.Atoi(clientID); err == nil {
-			config.Server.Port = p
+	if username := os.Getenv(EnvDataBasicAuthUsername); username != "" {
+		if config.Data.BasicAuth == nil {
+			config.Data.BasicAuth = &BasicAuth{}
 		}
+		config.Data.BasicAuth.Username = username
 	}
 
-	if clientID := os.Getenv(EnvDataBasicAuthPassword); clientID != "" {
-		if p, err := strconv.Atoi(clientID); err == nil {
-			config.Server.Port = p
+	if password := os.Getenv(EnvDataBasicAuthPassword); password != "" {
+		if config.Data.BasicAuth == nil {
+			config.Data.BasicAuth = &BasicAuth{}
 		}
+		config.Data.BasicAuth.Password = password
 	}
 }
 

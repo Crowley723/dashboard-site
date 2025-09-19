@@ -1,12 +1,66 @@
-# Go
-tmp/
-*.log
-
-# Node
 web/node_modules/
 web/dist/
 
 coverage.*
 
 config.yaml
+*.tar.gz
+.vscode/rendered/
+vault/rendered/
+
+# Helm chart packages
+*.tgz
+
+# Helm dependency artifacts
+charts/
+Chart.lock
+
+# Helm output files
+*.yaml.bak
+*.yml.bak
+
+# Temporary files from helm operations
+.helm/
+helm-*-*.log
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+
+# Environment files (may contain secrets)
 .env
+.env.local
+.env.*.local
+
+# ArgoCD/GitOps temporary files
+*.tmp
+*.backup
+
+# Block files with "secret" that don't also have "sealed"
+*secret*.yaml
+!*sealed*secret*.yaml
+!*secret*sealed*.yaml
+
+# SOPS encrypted files (allow these)
+!*secret*.enc.yaml
+!*secret*.sops.yaml

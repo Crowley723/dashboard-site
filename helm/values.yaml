@@ -27,21 +27,12 @@ deployment:
 
   container:
     name: "dashboard"
-    command: [ "sleep" ]
-    args: [ "infinity" ]
+#    command: [ "sleep" ]
+#    args: [ "infinity" ]
 
     envFrom:
       - secretRef:
           name: dashboard-secrets
-
-    livenessProbe:
-      httpGet:
-        path: /api/v1/health
-        port: http
-      initialDelaySeconds: 2
-      periodSeconds: 2
-      timeoutSeconds: 2
-      failureThreshold: 3
 
     resources:
       limits:

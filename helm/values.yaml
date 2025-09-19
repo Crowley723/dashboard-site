@@ -75,8 +75,8 @@ config:
 
   cors:
     allowed_origins:
-      - "https://crowleybrynn.com"
-      - "https://www.crowleybrynn.com"
+      - "https://crowleybrynn.com/api/auth/callback"
+      - "https://www.crowleybrynn.com/api/auth/callback"
     allowCredentials: true
     maxAge: 300
 

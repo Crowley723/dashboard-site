@@ -71,10 +71,16 @@ func applyEnvironmentOverrides(config *Config) {
 	}
 
 	if username := os.Getenv(EnvDataBasicAuthUsername); username != "" {
+		if config.Data.BasicAuth == nil {
+			config.Data.BasicAuth = &BasicAuth{}
+		}
 		config.Data.BasicAuth.Username = username
 	}
 
 	if password := os.Getenv(EnvDataBasicAuthPassword); password != "" {
+		if config.Data.BasicAuth == nil {
+			config.Data.BasicAuth = &BasicAuth{}
+		}
 		config.Data.BasicAuth.Password = password
 	}
 }

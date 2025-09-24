@@ -29,8 +29,26 @@ export function ClusterAvgCPUCard() {
 
   const cpuData = rawData.map(([timestamp, value]) => ({
     timestamp: Number(timestamp) * 1000,
-    cpu: Number(value).toFixed(2),
+    cpu: value,
   }));
+
+  const dataMax = Math.max(...cpuData.map((item) => item.cpu));
+  const dataMin = Math.min(...cpuData.map((item) => item.cpu));
+  const padding = (dataMax - dataMin) * 0.1;
+  const yAxisMax = dataMax + padding;
+  const yAxisMin = Math.max(0, dataMin - padding);
+  const generateTicks = (min: number, max: number) => {
+    const range = max - min;
+    const step = Math.ceil(range / 5); // Aim for ~5 ticks
+    const ticks = [];
+
+    for (let i = Math.floor(min); i <= Math.ceil(max); i += step) {
+      ticks.push(i);
+    }
+    return ticks;
+  };
+
+  const ticks = generateTicks(yAxisMin, yAxisMax);
 
   return (
     <div className={'flex-grow rounded-md border'}>
@@ -61,8 +79,10 @@ export function ClusterAvgCPUCard() {
             }}
           />
           <YAxis
-            tickLine={false}
-            axisLine={false}
+            domain={[yAxisMin, yAxisMax]}
+            ticks={ticks}
+            tickLine={true}
+            axisLine={true}
             tickMargin={8}
             tickFormatter={(value) => `${value.toFixed(1)}% `}
           />
@@ -75,6 +95,8 @@ export function ClusterAvgCPUCard() {
                 hour: '2-digit',
                 minute: '2-digit',
               });
+
+              const cpuValue = Number(payload[0].value).toFixed(1);
 
               return (
                 <div className="rounded-lg border bg-background p-2 shadow-md">
@@ -89,7 +111,7 @@ export function ClusterAvgCPUCard() {
                       <span className="text-[0.70rem] uppercase text-muted-foreground">
                         CPU Usage
                       </span>
-                      <span className="font-bold">{payload[0].value}%</span>
+                      <span className="font-bold">{cpuValue}%</span>
                     </div>
                   </div>
                 </div>

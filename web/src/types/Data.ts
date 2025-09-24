@@ -28,7 +28,7 @@ export interface ValVector {
 export interface ValMatrix {
   timestamp: number;
   metrics: Annotations;
-  value: [number, number][];
+  values: [number, number][];
 }
 
 export type PrometheusData = ValScalar | ValVector[] | ValMatrix[];

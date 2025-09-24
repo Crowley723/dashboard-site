@@ -5,8 +5,14 @@ import { Card } from '@/components/ui/card.tsx';
 export function PodUptimeCards() {
   const { data: metrics, isLoading, error, isError } = useMetricsQuery(['up']);
 
-  if (isLoading) return <div>Loading specific metrics...</div>;
-  if (isError) return <div>Error loading metrics: {error.message}</div>;
+  if (isLoading)
+    return <div className={'p4 text-center'}>Loading specific metrics...</div>;
+  if (isError)
+    return (
+      <div className={'p4 text-center text-red-600'}>
+        Error loading metrics: {error.message}
+      </div>
+    );
 
   const allPods =
     metrics?.flatMap((processedResult) => {
@@ -66,7 +72,7 @@ export function PodUptimeCards() {
   });
 
   return (
-    <ScrollArea className="h-152 w-96 rounded-md border">
+    <ScrollArea className="h-72 rounded-md border">
       <div className="p-4">
         <h4 className="mb-4 text-sm leading-none font-medium">
           Pod Groups ({podGroups.length})

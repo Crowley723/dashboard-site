@@ -1,12 +1,17 @@
 import { useMetricsQuery } from '@/hooks/useMetrics.tsx';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  ResponsiveContainer,
-} from 'recharts';
+  type ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+} from '@/components/ui/chart.tsx';
+
+const chartConfig = {
+  cpu: {
+    label: 'CPU Usage  ',
+    color: 'var(--chart-1)',
+  },
+} satisfies ChartConfig;
 
 export function ClusterAvgCPUCard() {
   const {
@@ -19,51 +24,87 @@ export function ClusterAvgCPUCard() {
   if (isLoading) return <div>Loading CPU metrics...</div>;
   if (isError) return <div>Error loading metrics: {error.message}</div>;
 
-  // Get the first matrix data (your CPU data)
   const matrixResult = metrics?.find((m) => m?.type === 'matrix');
-  const cpuData = matrixResult?.processed?.[0]?.value || [];
+  const rawData = matrixResult?.processed?.[0]?.values || [];
+
+  const cpuData = rawData.map(([timestamp, value]) => ({
+    timestamp: Number(timestamp) * 1000,
+    cpu: Number(value).toFixed(2),
+  }));
 
   return (
-    <div className="p-4">
-      <h4 className="mb-4 text-sm font-medium">
-        CPU Usage ({cpuData.length} points)
-      </h4>
+    <div className={'flex-grow rounded-md border'}>
+      <h4 className="p-4 text-sm font-medium">CPU Usage (%)</h4>
 
-      <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={cpuData}>
-          <CartesianGrid strokeDasharray="3 3" />
+      <ChartContainer config={chartConfig} className={'  pr-[30px]'}>
+        <LineChart
+          accessibilityLayer
+          data={cpuData}
+          margin={{
+            left: 12,
+            right: 12,
+          }}
+        >
+          <CartesianGrid vertical={false} />
           <XAxis
-            dataKey={0} // Use index 0 for timestamp
-            type="number"
-            scale="time"
-            domain={['dataMin', 'dataMax']}
-            tickFormatter={(timestamp) =>
-              new Date(timestamp * 1000).toLocaleTimeString()
-            }
+            dataKey="timestamp"
+            tickLine={true}
+            axisLine={true}
+            tickMargin={8}
+            interval="equidistantPreserveStart"
+            tickFormatter={(timestamp) => {
+              const date = new Date(Number(timestamp));
+              return date.toLocaleString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+              });
+            }}
           />
           <YAxis
-            dataKey={1} // Use index 1 for CPU value
-            domain={['dataMin', 'dataMax']}
-            tickFormatter={(value) => `${value.toFixed(1)}%`}
+            tickLine={false}
+            axisLine={false}
+            tickMargin={8}
+            tickFormatter={(value) => `${value.toFixed(1)}% `}
           />
-          {/*<Tooltip*/}
-          {/*  labelFormatter={(timestamp) =>*/}
-          {/*    new Date(timestamp * 1000).toLocaleString()*/}
-          {/*  }*/}
-          {/*  formatter={(value) => [*/}
-          {/*    `${parseFloat(value).toFixed(2)}%`,*/}
-          {/*    'CPU Usage',*/}
-          {/*  ]}*/}
-          {/*/>*/}
+          <ChartTooltip
+            content={({ active, payload, label }) => {
+              if (!active || !payload || !payload.length) return null;
+
+              const date = new Date(Number(label));
+              const formattedTime = date.toLocaleString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+              });
+
+              return (
+                <div className="rounded-lg border bg-background p-2 shadow-md">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex flex-col">
+                      <span className="text-[0.70rem] uppercase text-muted-foreground">
+                        Time
+                      </span>
+                      <span className="font-bold">{formattedTime}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[0.70rem] uppercase text-muted-foreground">
+                        CPU Usage
+                      </span>
+                      <span className="font-bold">{payload[0].value}%</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            }}
+          />
           <Line
+            dataKey={'cpu'}
             type="monotone"
-            dataKey={1} // Use index 1 for the CPU percentage values
-            stroke="#8884d8"
+            stroke={`var(--color-cpu)`}
             strokeWidth={2}
             dot={false}
           />
         </LineChart>
-      </ResponsiveContainer>
+      </ChartContainer>
     </div>
   );
 }

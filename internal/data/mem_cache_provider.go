@@ -15,6 +15,7 @@ func NewCacheProvider(config *config.CacheConfig) CacheProvider {
 	case "redis":
 		panic("redis data cache is not implemented yet")
 	case "memory":
+		fallthrough
 	default:
 		return &MemCache{
 			cache: make(map[string]CachedData),

@@ -77,13 +77,16 @@ func (s *Service) executeQuery(ctx context.Context, config config.PrometheusQuer
 		return fmt.Errorf("failed to execute query %s: %w", config.Name, err)
 	}
 
-	ttl := config.TTL
-	if ttl == 0 {
-		ttl = 5 * time.Minute
+	if s.cache != nil {
+		ttl := config.TTL
+		if ttl == 0 {
+			ttl = 5 * time.Minute
+		}
+		s.cache.Set(config.Name, result, config.RequireAuth, config.RequiredGroup)
+		s.logger.Debug("cached query result", "query", config.Name, "type", config.Type, "ttl", ttl)
+	} else {
+		s.logger.Warn("cache is nil, skipping cache storage", "query", config.Name)
 	}
-
-	s.cache.Set(config.Name, result, config.RequireAuth, config.RequiredGroup)
-	s.logger.Debug("cached query result", "query", config.Name, "type", config.Type, "ttl", ttl)
 
 	return nil
 }

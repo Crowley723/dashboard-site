@@ -7,7 +7,7 @@ deployment:
 
   image:
     repository: "ghcr.io/crowley723/dashboard-site"
-    tag: "pr-47"
+    tag: "main"
     pullPolicy: "Always"
 
   affinity:

@@ -15,6 +15,8 @@ func TestRedactEmail(t *testing.T) {
 		{"ShouldRedactEmail", "james.dean@example.com", "j********n@example.com"},
 		{"ShouldRedactShortEmail", "me@example.com", "**@example.com"},
 		{"ShouldRedactInvalidEmail", "invalidEmail.com", ""},
+		{"ShouldRedactUnicode", "søren@example.com", "s***n@example.com"},
+		{"ShouldReturnUnicodeInRedactedEmail", "øpenme@example.com", "ø****e@example.com"},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.testName, func(t *testing.T) {

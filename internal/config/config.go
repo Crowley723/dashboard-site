@@ -297,7 +297,7 @@ func validateDataQueriesConfig(config *DataConfig) (err error) {
 		}
 
 		if query.TTL.Seconds() == 0 {
-			query.TTL = 10 * time.Minute
+			queries[i].TTL = 30 * time.Second
 		} else if query.TTL.Seconds() < 30 {
 			return fmt.Errorf("data.queries[%d].ttl cannot be less than 30s", i)
 		}

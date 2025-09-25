@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
+	"homelab-dashboard/internal/auth"
 	"homelab-dashboard/internal/middlewares"
 	"homelab-dashboard/internal/models"
 	"net/http"
@@ -34,6 +36,13 @@ func GETCallbackHandler(ctx *middlewares.AppContext) {
 	user := &models.User{}
 	user, err := ctx.OIDCProvider.HandleCallback(ctx)
 	if err != nil {
+		var oidcErr *auth.OIDCError
+		if errors.As(err, &oidcErr) && oidcErr.RedirectURL != "" {
+			ctx.Logger.Warn("OIDC callback error handled with redirect", "message", oidcErr.Message)
+			ctx.Redirect(oidcErr.RedirectURL, http.StatusFound)
+			return
+		}
+
 		ctx.Logger.Error("Failed to handle OIDC callback", "error", err)
 		errorURL := fmt.Sprintf("/error?error=%s&error_description=%s", url.QueryEscape("server error"), url.QueryEscape("authentication failed"))
 		ctx.Redirect(errorURL, http.StatusFound)

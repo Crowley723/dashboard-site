@@ -64,7 +64,7 @@ func (r *RealOIDCProvider) StartLogin(ctx *middlewares.AppContext) (string, erro
 		return "", err
 	}
 
-	ctx.Logger.Info("Storing OAuth state in session", "state", state)
+	ctx.Logger.Info("Storing OAuth state in session")
 	ctx.SessionManager.SetOauthState(ctx, state)
 
 	authURL := ctx.OIDCProvider.GetOAuth2Config().AuthCodeURL(state,

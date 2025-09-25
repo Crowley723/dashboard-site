@@ -6,11 +6,16 @@ import (
 	"homelab-dashboard/internal/testutil"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"testing"
 )
 
 var (
-	failedAuth = "auth_failed"
+	failedAuth              = "authentication failed"
+	exampleErrorDescription = "This is the detailed description of the error!"
+	exampleErrorUri         = "https://error.com/error_code/123456"
+	exampleErrorState       = "abcdefg1234567"
+	serverError             = "server error"
 )
 
 func TestGetCallbackHandler_ShouldRedirectOnSuccess(t *testing.T) {
@@ -40,14 +45,22 @@ func TestGetCallbackHandler_ShouldRedirectOnSuccess(t *testing.T) {
 func TestGetCallbackHandler_ShouldErrorOnError(t *testing.T) {
 	tc := testutil.NewTestContextWithURL(t, "GET", "/api/auth/callback")
 	tc.WithQueryParam("error", failedAuth)
-	tc.WithQueryParam("error_description", failedAuth)
+	tc.WithQueryParam("error_description", exampleErrorDescription)
+	tc.WithQueryParam("error_uri", exampleErrorUri)
+	tc.WithQueryParam("state", exampleErrorState)
 	defer tc.Finish()
 
 	tc.CallHandler(GETCallbackHandler)
 
+	expectedRedirect := fmt.Sprintf("/error?error=%s&error_description=%s&error_uri=%s&state=%s",
+		url.QueryEscape(failedAuth),
+		url.QueryEscape(exampleErrorDescription),
+		url.QueryEscape(exampleErrorUri),
+		url.QueryEscape(exampleErrorState))
+
 	tc.AssertStatus(t, http.StatusFound)
 	tc.AssertContentType(t, "text/html; charset=utf-8")
-	tc.AssertLocationHeader(t, fmt.Sprintf("/callback?error=%s", failedAuth))
+	tc.AssertLocationHeader(t, expectedRedirect)
 	tc.AssertLogsContainMessage(t, slog.LevelWarn, "OIDC callback error")
 }
 
@@ -59,9 +72,13 @@ func TestGetCallbackHandler_ShouldErrorOnCallbackError(t *testing.T) {
 
 	tc.CallHandler(GETCallbackHandler)
 
+	expectedRedirect := fmt.Sprintf("/error?error=%s&error_description=%s",
+		url.QueryEscape(serverError),
+		url.QueryEscape(failedAuth))
+
 	tc.AssertStatus(t, http.StatusFound)
 	tc.AssertContentType(t, "text/html; charset=utf-8")
-	tc.AssertLocationHeader(t, fmt.Sprintf("/callback?error=%s", failedAuth))
+	tc.AssertLocationHeader(t, expectedRedirect)
 	tc.AssertLogsContainMessage(t, slog.LevelError, "Failed to handle OIDC callback")
 }
 

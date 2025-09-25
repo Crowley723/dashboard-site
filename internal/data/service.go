@@ -50,13 +50,11 @@ func (s *Service) executeQuery(ctx context.Context, config config.PrometheusQuer
 			return fmt.Errorf("invalid range duration %s: %w", config.Range, err)
 		}
 
-		// Parse step duration
 		stepDuration, err := time.ParseDuration(config.Step)
 		if err != nil {
 			return fmt.Errorf("invalid step duration %s: %w", config.Step, err)
 		}
 
-		// Create range
 		end := time.Now()
 		start := end.Add(-rangeDuration)
 

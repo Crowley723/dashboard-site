@@ -14,7 +14,7 @@ export function ClusterAvgCPUCard() {
 
   const cpuData = rawData.map(([timestamp, value]) => ({
     timestamp: Number(timestamp) * 1000,
-    cpu: value,
+    cpu: Number(value),
   }));
 
   return (
@@ -26,7 +26,7 @@ export function ClusterAvgCPUCard() {
       isError={isError}
       error={error || undefined}
       unit="%"
-      color="var(--chart-5"
+      color="var(--chart-5)"
     />
   );
 }

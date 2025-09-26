@@ -9,8 +9,9 @@ import (
 )
 
 func runBackgroundDataFetching(ctx context.Context, dataService *data.Service, logger *slog.Logger, interval time.Duration) error {
-	if interval == 0 {
+	if interval <= 0 {
 		logger.Error("initial query execution failed: ticker interval must not be zero")
+		return fmt.Errorf("non-positive ticker interval: %s", interval)
 	}
 
 	ticker := time.NewTicker(interval)

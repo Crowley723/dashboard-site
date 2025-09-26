@@ -29,11 +29,14 @@ export interface ChartCardProps {
 
 const generateTicks = (min: number, max: number, count: number = 5) => {
   const range = max - min;
-  const step = Math.ceil(range / count);
-  const ticks = [];
+  if (!isFinite(range) || range <= 0 || count <= 1) {
+    return [Number(min), Number(max)];
+  }
+  const step = range / (count - 1);
+  const ticks: number[] = [];
 
-  for (let i = Math.floor(min); i <= Math.ceil(max); i += step) {
-    ticks.push(i);
+  for (let i = 0; i < count; i++) {
+    ticks.push(Number((min + step * i).toFixed(2)));
   }
   return ticks;
 };

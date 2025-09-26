@@ -78,7 +78,6 @@ var DefaultSessionConfig = SessionConfig{
 
 type DataConfig struct {
 	PrometheusURL string            `yaml:"prometheus_url"`
-	TimeInterval  time.Duration     `yaml:"time_interval"`
 	BasicAuth     *BasicAuth        `yaml:"basic_auth"`
 	Queries       []PrometheusQuery `yaml:"queries"`
 }

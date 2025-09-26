@@ -2,14 +2,17 @@ package server
 
 import (
 	"context"
-	"homelab-dashboard/internal/config"
+	"fmt"
 	"homelab-dashboard/internal/data"
 	"log/slog"
 	"time"
 )
 
-func runBackgroundDataFetching(ctx context.Context, dataService *data.Service, logger *slog.Logger, cfg *config.Config) error {
-	interval := cfg.Data.TimeInterval
+func runBackgroundDataFetching(ctx context.Context, dataService *data.Service, logger *slog.Logger, interval time.Duration) error {
+	if interval <= 0 {
+		logger.Error("initial query execution failed: ticker interval must not be zero")
+		return fmt.Errorf("non-positive ticker interval: %s", interval)
+	}
 
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
@@ -24,7 +27,7 @@ func runBackgroundDataFetching(ctx context.Context, dataService *data.Service, l
 		select {
 		case <-ticker.C:
 			if err := dataService.ExecuteQueries(ctx); err != nil {
-				logger.Error("background query execution failed", "error", err)
+				logger.Error(fmt.Sprintf("background query execution failed: trying again in %s", interval.String()), "error", err)
 			}
 		case <-ctx.Done():
 			logger.Info("background data fetching stopped")

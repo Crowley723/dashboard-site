@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -360,10 +359,10 @@ func (tc *TestContext) WithQueryParam(key, value string) *TestContext {
 	return tc
 }
 
-func (tc *TestContext) AssertLocationHeader(t *testing.T, url string) {
+func (tc *TestContext) AssertLocationHeader(t *testing.T, expectedURL string) {
 	location := tc.Response.Header().Get("Location")
-	if !strings.Contains(location, url) {
-		t.Errorf("Expected redirect to contain error, got: '%s'", location)
+	if location != expectedURL {
+		t.Errorf("Expected redirect Location header to be '%s', got '%s'", expectedURL, location)
 	}
 }
 

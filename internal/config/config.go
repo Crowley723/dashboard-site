@@ -273,13 +273,6 @@ func validateDataConfig(config *DataConfig) (err error) {
 		}
 	}
 
-	if config.TimeInterval == 0 {
-		config.TimeInterval, err = time.ParseDuration("1h")
-		if err != nil {
-			return fmt.Errorf("unable to parse default duration: %v", err)
-		}
-	}
-
 	if len(config.Queries) > 0 {
 		if err = validateDataQueriesConfig(config); err != nil {
 			return err
@@ -304,7 +297,7 @@ func validateDataQueriesConfig(config *DataConfig) (err error) {
 		}
 
 		if query.TTL.Seconds() == 0 {
-			query.TTL = config.TimeInterval
+			queries[i].TTL = 30 * time.Second
 		} else if query.TTL.Seconds() < 30 {
 			return fmt.Errorf("data.queries[%d].ttl cannot be less than 30s", i)
 		}

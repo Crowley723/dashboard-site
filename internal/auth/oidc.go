@@ -8,6 +8,7 @@ import (
 	"homelab-dashboard/internal/config"
 	"homelab-dashboard/internal/middlewares"
 	"homelab-dashboard/internal/models"
+	"net/url"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"golang.org/x/oauth2"
@@ -63,54 +64,96 @@ func (r *RealOIDCProvider) StartLogin(ctx *middlewares.AppContext) (string, erro
 		return "", err
 	}
 
-	ctx.Logger.Info("Storing OAuth state in session", "state", state)
+	ctx.Logger.Info("Storing OAuth state in session")
 	ctx.SessionManager.SetOauthState(ctx, state)
 
-	retrievedState := ctx.SessionManager.GetOauthState(ctx)
-	ctx.Logger.Info("Retrieved OAuth state immediately", "state", retrievedState, "matches", state == retrievedState)
-
-	authURL := ctx.OIDCProvider.GetOAuth2Config().AuthCodeURL(state)
+	authURL := ctx.OIDCProvider.GetOAuth2Config().AuthCodeURL(state,
+		oauth2.SetAuthURLParam("prompt", "login"),
+	)
 	return authURL, nil
 }
 
 func (r *RealOIDCProvider) HandleCallback(ctx *middlewares.AppContext) (*models.User, error) {
+	// Check for error parameters first
+	if errorParam := ctx.Request.URL.Query().Get("error"); errorParam != "" {
+		errorDescription := ctx.Request.URL.Query().Get("error_description")
+		errorURI := ctx.Request.URL.Query().Get("error_uri")
+		state := ctx.Request.URL.Query().Get("state")
+
+		// Redirect to error page with parameters
+		errorURL := fmt.Sprintf("/error?error=%s", url.QueryEscape(errorParam))
+		if errorDescription != "" {
+			errorURL += "&error_description=" + url.QueryEscape(errorDescription)
+		}
+		if errorURI != "" {
+			errorURL += "&error_uri=" + url.QueryEscape(errorURI)
+		}
+		if state != "" {
+			errorURL += "&state=" + url.QueryEscape(state)
+		}
+
+		// You'll need to handle this redirect in your handler
+		return nil, &OIDCError{RedirectURL: errorURL, Message: errorParam}
+	}
+
 	storedState := ctx.SessionManager.GetOauthState(ctx)
 	if storedState == "" {
-		return nil, fmt.Errorf("no oauth state found in session")
+		return nil, &OIDCError{
+			RedirectURL: "/error?error=invalid_request&error_description=" + url.QueryEscape("No oauth state found in session"),
+			Message:     "no oauth state found in session",
+		}
 	}
 
 	receivedState := ctx.Request.URL.Query().Get("state")
 	if receivedState != storedState {
-		return nil, fmt.Errorf("invalid state parameter")
+		return nil, &OIDCError{
+			RedirectURL: "/error?error=invalid_request&error_description=" + url.QueryEscape("Invalid state parameter"),
+			Message:     "invalid state parameter",
+		}
 	}
 
 	ctx.SessionManager.ClearOauthState(ctx)
 
 	code := ctx.Request.URL.Query().Get("code")
 	if code == "" {
-		return nil, fmt.Errorf("no authorization code received")
+		return nil, &OIDCError{
+			RedirectURL: "/error?error=invalid_request&error_description=" + url.QueryEscape("No authorization code received"),
+			Message:     "no authorization code received",
+		}
 	}
 
 	token, err := ctx.OIDCProvider.GetOAuth2Config().Exchange(ctx.Request.Context(), code)
 	if err != nil {
-		return nil, fmt.Errorf("failed to exchange code for token: %w", err)
+		return nil, &OIDCError{
+			RedirectURL: "/error?error=invalid_grant&error_description=" + url.QueryEscape("Failed to exchange code for token"),
+			Message:     fmt.Sprintf("failed to exchange code for token: %v", err),
+		}
 	}
 
 	rawIDToken, ok := token.Extra("id_token").(string)
 	if !ok {
-		return nil, fmt.Errorf("no id_token found in oauth2 token")
+		return nil, &OIDCError{
+			RedirectURL: "/error?error=invalid_token&error_description=" + url.QueryEscape("No id_token found in oauth2 token"),
+			Message:     "no id_token found in oauth2 token",
+		}
 	}
 
 	verifier := ctx.OIDCProvider.GetProvider().Verifier(&oidc.Config{ClientID: ctx.OIDCProvider.GetOAuth2Config().ClientID})
 
 	idToken, err := verifier.Verify(ctx.Request.Context(), rawIDToken)
 	if err != nil {
-		return nil, fmt.Errorf("failed to verify ID Token: %w", err)
+		return nil, &OIDCError{
+			RedirectURL: "/error?error=invalid_token&error_description=" + url.QueryEscape("Failed to verify ID Token"),
+			Message:     fmt.Sprintf("failed to verify ID Token: %v", err),
+		}
 	}
 
 	user, err := extractUserClaimsFromToken(idToken)
 	if err != nil {
-		return nil, fmt.Errorf("failed to extract user from ID Token: %w", err)
+		return nil, &OIDCError{
+			RedirectURL: "/error?error=server_error&error_description=" + url.QueryEscape("Failed to extract user from ID Token"),
+			Message:     fmt.Sprintf("failed to extract user from ID Token: %v", err),
+		}
 	}
 
 	enhancedUser, err := fetchUserInfo(ctx, token, user)
@@ -121,7 +164,10 @@ func (r *RealOIDCProvider) HandleCallback(ctx *middlewares.AppContext) (*models.
 
 	err = ctx.SessionManager.CreateSessionWithTokenExpiry(ctx, idToken, enhancedUser)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create user session: %w", err)
+		return nil, &OIDCError{
+			RedirectURL: "/error?error=server_error&error_description=" + url.QueryEscape("Failed to create user session"),
+			Message:     fmt.Sprintf("failed to create user session: %v", err),
+		}
 	}
 
 	return enhancedUser, nil

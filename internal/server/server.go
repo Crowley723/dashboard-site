@@ -34,8 +34,9 @@ func Start(cfg *config.Config) error {
 		return err
 	}
 
+	timeInterval := calculateFetchInterval(cfg, 10*time.Minute)
 	go func() {
-		if err := runBackgroundDataFetching(ctx, dataService, logger, cfg); err != nil {
+		if err := runBackgroundDataFetching(ctx, dataService, logger, timeInterval); err != nil {
 			logger.Error("background data fetching stopped", "error", err)
 		}
 	}()
@@ -123,4 +124,29 @@ func setupDataService(cfg *config.Config, logger *slog.Logger) (*data.Service, d
 
 	cache := data.NewCacheProvider(&cfg.Cache)
 	return data.NewService(mimirClient, cache, logger, cfg.Data.Queries), cache, nil
+}
+
+// calculateFetchInterval determines how often the background data fetching should happen, based completely on the shortest configured ttl, falling back to the default if there are no ttl configured.
+func calculateFetchInterval(cfg *config.Config, defaultInterval time.Duration) time.Duration {
+	var minTTL time.Duration
+
+	for _, q := range cfg.Data.Queries {
+		if q.TTL <= 0 {
+			continue
+		}
+
+		if q.TTL == 0 || q.TTL < minTTL {
+			minTTL = q.TTL
+		}
+	}
+
+	if minTTL == 0 {
+		minTTL = defaultInterval
+	}
+
+	if minTTL < time.Second {
+		minTTL = time.Second
+	}
+
+	return minTTL
 }

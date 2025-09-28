@@ -44,12 +44,11 @@ func (m *MockOIDCProvider) EXPECT() *MockOIDCProviderMockRecorder {
 }
 
 // GenerateRandString mocks base method.
-func (m *MockOIDCProvider) GenerateRandString(bytes int) (string, error) {
+func (m *MockOIDCProvider) GenerateRandString(bytes int) string {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GenerateRandString", bytes)
 	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	return ret0
 }
 
 // GenerateRandString indicates an expected call of GenerateRandString.

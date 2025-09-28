@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"homelab-dashboard/internal/config"
+	"homelab-dashboard/internal/utils"
 	"log/slog"
 	"time"
 
@@ -29,6 +30,11 @@ func NewService(client *MimirClient, cache CacheProvider, logger *slog.Logger, q
 
 func (s *Service) ExecuteQueries(ctx context.Context) error {
 	for _, queryConfig := range s.queries {
+
+		if queryConfig.Disabled {
+			continue
+		}
+
 		if err := s.executeQuery(ctx, queryConfig); err != nil {
 			s.logger.Error("failed to execute query",
 				"query", queryConfig.Name,
@@ -45,12 +51,12 @@ func (s *Service) executeQuery(ctx context.Context, config config.PrometheusQuer
 
 	switch config.Type {
 	case "range":
-		rangeDuration, err := time.ParseDuration(config.Range)
+		rangeDuration, err := utils.ParseDurationString(config.Range)
 		if err != nil {
 			return fmt.Errorf("invalid range duration %s: %w", config.Range, err)
 		}
 
-		stepDuration, err := time.ParseDuration(config.Step)
+		stepDuration, err := utils.ParseDurationString(config.Step)
 		if err != nil {
 			return fmt.Errorf("invalid step duration %s: %w", config.Step, err)
 		}

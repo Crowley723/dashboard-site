@@ -10,18 +10,12 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ErrorRouteImport } from './routes/error'
-import { Route as BlogRouteImport } from './routes/blog'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 
 const ErrorRoute = ErrorRouteImport.update({
   id: '/error',
   path: '/error',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BlogRoute = BlogRouteImport.update({
-  id: '/blog',
-  path: '/blog',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AboutRoute = AboutRouteImport.update({
@@ -38,34 +32,30 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/blog': typeof BlogRoute
   '/error': typeof ErrorRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/blog': typeof BlogRoute
   '/error': typeof ErrorRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/blog': typeof BlogRoute
   '/error': typeof ErrorRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/blog' | '/error'
+  fullPaths: '/' | '/about' | '/error'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/blog' | '/error'
-  id: '__root__' | '/' | '/about' | '/blog' | '/error'
+  to: '/' | '/about' | '/error'
+  id: '__root__' | '/' | '/about' | '/error'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
-  BlogRoute: typeof BlogRoute
   ErrorRoute: typeof ErrorRoute
 }
 
@@ -76,13 +66,6 @@ declare module '@tanstack/react-router' {
       path: '/error'
       fullPath: '/error'
       preLoaderRoute: typeof ErrorRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/blog': {
-      id: '/blog'
-      path: '/blog'
-      fullPath: '/blog'
-      preLoaderRoute: typeof BlogRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/about': {
@@ -105,7 +88,6 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
-  BlogRoute: BlogRoute,
   ErrorRoute: ErrorRoute,
 }
 export const routeTree = rootRouteImport

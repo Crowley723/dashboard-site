@@ -75,3 +75,29 @@ func addRecordsIfAuthorized(ctx *middlewares.AppContext, queryNames []string, us
 
 	return resultData
 }
+
+func GetQueriesGET(ctx *middlewares.AppContext) {
+	queryParam := ctx.Request.URL.Query().Get("queries")
+	queries := strings.Split(queryParam, ",")
+	user, userExists := ctx.SessionManager.GetCurrentUser(ctx)
+
+	var userGroups []string
+	if userExists {
+		userGroups = user.Groups
+	}
+
+	var resultData []ResultData
+	if queryParam == "" {
+		resultData = addRecordsIfAuthorized(ctx, ctx.Cache.ListAll(), userGroups)
+	} else {
+		resultData = addRecordsIfAuthorized(ctx, queries, userGroups)
+
+	}
+
+	dataNames := make([]string, 0, len(resultData))
+	for _, query := range resultData {
+		dataNames = append(dataNames, query.QueryName)
+	}
+
+	ctx.WriteJSON(http.StatusOK, dataNames)
+}

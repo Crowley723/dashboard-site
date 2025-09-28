@@ -1,7 +1,7 @@
 import { useMetricsQuery } from '@/hooks/useMetrics.tsx';
 import { ChartCard } from '@/components/LineChartCard.tsx';
 
-export function TraefikAvgReqPerSecCard() {
+export function TraefikAvgReqPerSecHourCard() {
   const {
     data: metrics,
     isLoading,
@@ -19,13 +19,14 @@ export function TraefikAvgReqPerSecCard() {
 
   return (
     <ChartCard
-      title="Average Requests Per Second"
+      title="Average Requests Per Second (1 hour)"
       data={data}
       dataKey="requests"
       isLoading={isLoading}
       isError={isError}
       error={error || undefined}
       unit=""
+      valueDecimals={1}
       color="var(--chart-1)"
     />
   );

@@ -1,13 +1,13 @@
 import { useMetricsQuery } from '@/hooks/useMetrics.tsx';
 import { ChartCard } from '@/components/LineChartCard.tsx';
 
-export function ClusterAvgCPUCard() {
+export function ClusterAvgCPUWeekCard() {
   const {
     data: metrics,
     isLoading,
     error,
     isError,
-  } = useMetricsQuery(['total_cluster_cpu_perc']);
+  } = useMetricsQuery(['total_cluster_cpu_perc_7d']);
 
   const matrixResult = metrics?.find((m) => m?.type === 'matrix');
   const rawData = matrixResult?.processed?.[0]?.values || [];
@@ -19,7 +19,7 @@ export function ClusterAvgCPUCard() {
 
   return (
     <ChartCard
-      title="CPU Usage (%)"
+      title="CPU Usage (%) (1 day)"
       data={cpuData}
       dataKey="cpu"
       isLoading={isLoading}

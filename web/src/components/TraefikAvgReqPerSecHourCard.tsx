@@ -1,13 +1,13 @@
 import { useMetricsQuery } from '@/hooks/useMetrics.tsx';
 import { ChartCard } from '@/components/LineChartCard.tsx';
 
-export function TraefikTotalRequestsCard() {
+export function TraefikAvgReqPerSecHourCard() {
   const {
     data: metrics,
     isLoading,
     error,
     isError,
-  } = useMetricsQuery(['traefik_requests_total']);
+  } = useMetricsQuery(['traefik_requests_5m_avg']);
 
   const matrixResult = metrics?.find((m) => m?.type === 'matrix');
   const rawData = matrixResult?.processed?.[0]?.values || [];
@@ -19,14 +19,15 @@ export function TraefikTotalRequestsCard() {
 
   return (
     <ChartCard
-      title="Total Requests"
+      title="Average Requests Per Second (1 hour)"
       data={data}
       dataKey="requests"
       isLoading={isLoading}
       isError={isError}
       error={error || undefined}
       unit=""
-      color="var(--chart-2)"
+      valueDecimals={1}
+      color="var(--chart-1)"
     />
   );
 }

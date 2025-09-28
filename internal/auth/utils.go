@@ -7,7 +7,7 @@ import (
 )
 
 // Extract user information from ID token claims
-func extractUserClaimsFromToken(idToken *oidc.IDToken) (*models.User, error) {
+func extractUserClaimsFromToken(idToken *oidc.IDToken) (*models.User, string, error) {
 	var claims struct {
 		Sub               string   `json:"sub"`
 		Iss               string   `json:"iss"`
@@ -15,10 +15,11 @@ func extractUserClaimsFromToken(idToken *oidc.IDToken) (*models.User, error) {
 		Name              string   `json:"name"`
 		Email             string   `json:"email"`
 		Groups            []string `json:"groups"`
+		Nonce             string   `json:"nonce"`
 	}
 
 	if err := idToken.Claims(&claims); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	user := &models.User{
@@ -30,5 +31,5 @@ func extractUserClaimsFromToken(idToken *oidc.IDToken) (*models.User, error) {
 		Groups:      claims.Groups,
 	}
 
-	return user, nil
+	return user, claims.Nonce, nil
 }

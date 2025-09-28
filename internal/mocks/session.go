@@ -44,6 +44,30 @@ func (m *MockSessionProvider) EXPECT() *MockSessionProviderMockRecorder {
 	return m.recorder
 }
 
+// ClearOauthCodeVerifier mocks base method.
+func (m *MockSessionProvider) ClearOauthCodeVerifier(ctx *middlewares.AppContext) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "ClearOauthCodeVerifier", ctx)
+}
+
+// ClearOauthCodeVerifier indicates an expected call of ClearOauthCodeVerifier.
+func (mr *MockSessionProviderMockRecorder) ClearOauthCodeVerifier(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClearOauthCodeVerifier", reflect.TypeOf((*MockSessionProvider)(nil).ClearOauthCodeVerifier), ctx)
+}
+
+// ClearOauthNonce mocks base method.
+func (m *MockSessionProvider) ClearOauthNonce(ctx *middlewares.AppContext) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "ClearOauthNonce", ctx)
+}
+
+// ClearOauthNonce indicates an expected call of ClearOauthNonce.
+func (mr *MockSessionProviderMockRecorder) ClearOauthNonce(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClearOauthNonce", reflect.TypeOf((*MockSessionProvider)(nil).ClearOauthNonce), ctx)
+}
+
 // ClearOauthState mocks base method.
 func (m *MockSessionProvider) ClearOauthState(ctx *middlewares.AppContext) {
 	m.ctrl.T.Helper()
@@ -113,6 +137,34 @@ func (m *MockSessionProvider) GetExpiresAt(ctx *middlewares.AppContext) (time.Ti
 func (mr *MockSessionProviderMockRecorder) GetExpiresAt(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetExpiresAt", reflect.TypeOf((*MockSessionProvider)(nil).GetExpiresAt), ctx)
+}
+
+// GetOauthCodeVerifier mocks base method.
+func (m *MockSessionProvider) GetOauthCodeVerifier(ctx *middlewares.AppContext) string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetOauthCodeVerifier", ctx)
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// GetOauthCodeVerifier indicates an expected call of GetOauthCodeVerifier.
+func (mr *MockSessionProviderMockRecorder) GetOauthCodeVerifier(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOauthCodeVerifier", reflect.TypeOf((*MockSessionProvider)(nil).GetOauthCodeVerifier), ctx)
+}
+
+// GetOauthNonce mocks base method.
+func (m *MockSessionProvider) GetOauthNonce(ctx *middlewares.AppContext) string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetOauthNonce", ctx)
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// GetOauthNonce indicates an expected call of GetOauthNonce.
+func (mr *MockSessionProviderMockRecorder) GetOauthNonce(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOauthNonce", reflect.TypeOf((*MockSessionProvider)(nil).GetOauthNonce), ctx)
 }
 
 // GetOauthState mocks base method.
@@ -277,6 +329,30 @@ func (m *MockSessionProvider) SetExpiresAt(ctx *middlewares.AppContext, expiresA
 func (mr *MockSessionProviderMockRecorder) SetExpiresAt(ctx, expiresAt any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetExpiresAt", reflect.TypeOf((*MockSessionProvider)(nil).SetExpiresAt), ctx, expiresAt)
+}
+
+// SetOauthCodeVerifier mocks base method.
+func (m *MockSessionProvider) SetOauthCodeVerifier(ctx *middlewares.AppContext, verifier string) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetOauthCodeVerifier", ctx, verifier)
+}
+
+// SetOauthCodeVerifier indicates an expected call of SetOauthCodeVerifier.
+func (mr *MockSessionProviderMockRecorder) SetOauthCodeVerifier(ctx, verifier any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetOauthCodeVerifier", reflect.TypeOf((*MockSessionProvider)(nil).SetOauthCodeVerifier), ctx, verifier)
+}
+
+// SetOauthNonce mocks base method.
+func (m *MockSessionProvider) SetOauthNonce(ctx *middlewares.AppContext, state string) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetOauthNonce", ctx, state)
+}
+
+// SetOauthNonce indicates an expected call of SetOauthNonce.
+func (mr *MockSessionProviderMockRecorder) SetOauthNonce(ctx, state any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetOauthNonce", reflect.TypeOf((*MockSessionProvider)(nil).SetOauthNonce), ctx, state)
 }
 
 // SetOauthState mocks base method.

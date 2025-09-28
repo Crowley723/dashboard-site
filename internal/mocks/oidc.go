@@ -43,19 +43,18 @@ func (m *MockOIDCProvider) EXPECT() *MockOIDCProviderMockRecorder {
 	return m.recorder
 }
 
-// GenerateState mocks base method.
-func (m *MockOIDCProvider) GenerateState() (string, error) {
+// GenerateRandString mocks base method.
+func (m *MockOIDCProvider) GenerateRandString(bytes int) string {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GenerateState")
+	ret := m.ctrl.Call(m, "GenerateRandString", bytes)
 	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	return ret0
 }
 
-// GenerateState indicates an expected call of GenerateState.
-func (mr *MockOIDCProviderMockRecorder) GenerateState() *gomock.Call {
+// GenerateRandString indicates an expected call of GenerateRandString.
+func (mr *MockOIDCProviderMockRecorder) GenerateRandString(bytes any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateState", reflect.TypeOf((*MockOIDCProvider)(nil).GenerateState))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateRandString", reflect.TypeOf((*MockOIDCProvider)(nil).GenerateRandString), bytes)
 }
 
 // GetOAuth2Config mocks base method.

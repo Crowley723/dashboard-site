@@ -287,6 +287,9 @@ func validateDataQueriesConfig(config *DataConfig) (err error) {
 	queries := config.Queries
 
 	for i, query := range queries {
+		if query.Disabled {
+			continue
+		}
 
 		if query.Name == "" {
 			return fmt.Errorf("data.queries[%d].name is required", i)

@@ -24,6 +24,12 @@ type SessionProvider interface {
 	SetOauthState(ctx *AppContext, state string)
 	GetOauthState(ctx *AppContext) string
 	ClearOauthState(ctx *AppContext)
+	SetOauthNonce(ctx *AppContext, state string)
+	GetOauthNonce(ctx *AppContext) string
+	ClearOauthNonce(ctx *AppContext)
+	SetOauthCodeVerifier(ctx *AppContext, verifier string)
+	GetOauthCodeVerifier(ctx *AppContext) string
+	ClearOauthCodeVerifier(ctx *AppContext)
 	SetExpiresAt(ctx *AppContext, expiresAt time.Time)
 	GetExpiresAt(ctx *AppContext) (time.Time, bool)
 	CreateSessionWithTokenExpiry(ctx *AppContext, idToken *oidc.IDToken, user *models.User) error

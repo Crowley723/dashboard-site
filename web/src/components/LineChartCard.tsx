@@ -19,12 +19,15 @@ export interface ChartCardProps {
   error?: Error;
   loadingText?: string;
   unit?: string; // e.g., '%', 'MB', 'GB', etc.
+  valueDecimals?: number;
   color?: string; // CSS variable or color value
   strokeWidth?: number;
   showDots?: boolean;
   tickCount?: number;
   className?: string;
   chartClassName?: string;
+  // Optional: override automatic time formatting
+  timeFormat?: 'auto' | 'minutes' | 'hours' | 'days' | 'months';
 }
 
 const generateTicks = (min: number, max: number, count: number = 5) => {
@@ -41,6 +44,87 @@ const generateTicks = (min: number, max: number, count: number = 5) => {
   return ticks;
 };
 
+const determineTimeFormat = (timestamps: number[]) => {
+  if (timestamps.length < 2) return 'minutes';
+
+  const minTime = Math.min(...timestamps);
+  const maxTime = Math.max(...timestamps);
+  const rangeMs = maxTime - minTime;
+
+  // Convert to different time units
+  //const rangeMinutes = rangeMs / (1000 * 60);
+  const rangeHours = rangeMs / (1000 * 60 * 60);
+  const rangeDays = rangeMs / (1000 * 60 * 60 * 24);
+  const rangeMonths = rangeMs / (1000 * 60 * 60 * 24 * 30);
+
+  if (rangeMonths > 2) return 'months';
+  if (rangeDays > 7) return 'days';
+  if (rangeHours > 6) return 'hours';
+  return 'minutes';
+};
+
+const formatTimestamp = (timestamp: number, format: string) => {
+  const date = new Date(Number(timestamp));
+
+  switch (format) {
+    case 'months':
+      return date.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      });
+    case 'days':
+      return date.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      });
+    case 'hours':
+      return date.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      });
+    case 'minutes':
+    default:
+      return date.toLocaleString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+  }
+};
+
+const formatTooltipTimestamp = (timestamp: number, format: string) => {
+  const date = new Date(Number(timestamp));
+
+  switch (format) {
+    case 'months':
+      return date.toLocaleString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    case 'days':
+      return date.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    case 'hours':
+      return date.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    case 'minutes':
+    default:
+      return date.toLocaleString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
+  }
+};
+
 export function ChartCard({
   title,
   data,
@@ -50,12 +134,14 @@ export function ChartCard({
   error,
   loadingText = `Loading ${title.toLowerCase()}...`,
   unit = '%',
+  valueDecimals = 2,
   color = 'var(--chart-1)',
   strokeWidth = 2,
   showDots = false,
   tickCount = 5,
   className = '',
   chartClassName = 'pr-[30px]',
+  timeFormat = 'auto',
 }: ChartCardProps) {
   if (isLoading) return <div>Loading {loadingText}...</div>;
   if (isError)
@@ -79,7 +165,10 @@ export function ChartCard({
 
   const ticks = generateTicks(yAxisMin, yAxisMax, tickCount);
 
-  // Create chart config dynamically
+  const timestamps = data.map((item) => item.timestamp);
+  const actualTimeFormat =
+    timeFormat === 'auto' ? determineTimeFormat(timestamps) : timeFormat;
+
   const chartConfig = {
     [dataKey]: {
       label: title,
@@ -106,14 +195,10 @@ export function ChartCard({
             tickLine={true}
             axisLine={true}
             tickMargin={8}
-            interval="equidistantPreserveStart"
-            tickFormatter={(timestamp) => {
-              const date = new Date(Number(timestamp));
-              return date.toLocaleString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit',
-              });
-            }}
+            interval={Math.ceil(data.length / 5) - 1}
+            tickFormatter={(timestamp) =>
+              formatTimestamp(timestamp, actualTimeFormat)
+            }
           />
           <YAxis
             domain={[yAxisMin, yAxisMax]}
@@ -121,19 +206,17 @@ export function ChartCard({
             tickLine={true}
             axisLine={true}
             tickMargin={8}
-            tickFormatter={(value) => `${value.toFixed(1)}${unit}`}
+            tickFormatter={(value) => `${value.toFixed(valueDecimals)}${unit}`}
           />
           <ChartTooltip
             content={({ active, payload, label }) => {
               if (!active || !payload || !payload.length) return null;
 
-              const date = new Date(Number(label));
-              const formattedTime = date.toLocaleString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit',
-              });
-
-              const value = Number(payload[0].value).toFixed(1);
+              const formattedTime = formatTooltipTimestamp(
+                Number(label),
+                actualTimeFormat
+              );
+              const value = Number(payload[0].value).toFixed(valueDecimals);
 
               return (
                 <div className="rounded-lg border bg-background p-2 shadow-md w-64">

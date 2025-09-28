@@ -25,11 +25,6 @@ export function Header() {
             </NavigationMenuItem>
             <NavigationMenuItem>
               <NavigationMenuLink asChild>
-                <Link to={'/blog'}>Blog</Link>
-              </NavigationMenuLink>
-            </NavigationMenuItem>
-            <NavigationMenuItem>
-              <NavigationMenuLink asChild>
                 <Link to={'/about'}>About</Link>
               </NavigationMenuLink>
             </NavigationMenuItem>

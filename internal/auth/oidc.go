@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 	"homelab-dashboard/internal/config"
@@ -48,39 +49,53 @@ func (r *RealOIDCProvider) GetOAuth2Config() *oauth2.Config {
 	return r.oauth2Config
 }
 
-func (r *RealOIDCProvider) GenerateState() (string, error) {
-	b := make([]byte, 32)
-	_, err := rand.Read(b)
-	if err != nil {
-		return "", err
+func (r *RealOIDCProvider) GenerateRandString(bytes int) string {
+	if bytes <= 0 {
+		bytes = 32
 	}
 
-	return base64.URLEncoding.EncodeToString(b), nil
+	b := make([]byte, bytes)
+	_, _ = rand.Read(b)
+
+	return base64.URLEncoding.EncodeToString(b)
+}
+
+func (r *RealOIDCProvider) GenerateCodeVerifier() (string, string) {
+	b := make([]byte, 56)
+	_, _ = rand.Read(b)
+
+	codeVerifier := base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(b)
+	hash := sha256.Sum256([]byte(codeVerifier))
+	codeChallenge := base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(hash[:])
+	return codeVerifier, codeChallenge
 }
 
 func (r *RealOIDCProvider) StartLogin(ctx *middlewares.AppContext) (string, error) {
-	state, err := r.GenerateState()
-	if err != nil {
-		return "", err
-	}
+	state := r.GenerateRandString(32)
+	nonce := r.GenerateRandString(32)
+	codeVerifier, codeChallenge := r.GenerateCodeVerifier()
 
-	ctx.Logger.Info("Storing OAuth state in session")
+	ctx.SessionManager.SetOauthNonce(ctx, nonce)
 	ctx.SessionManager.SetOauthState(ctx, state)
+	ctx.SessionManager.SetOauthCodeVerifier(ctx, codeVerifier)
 
 	authURL := ctx.OIDCProvider.GetOAuth2Config().AuthCodeURL(state,
+		oauth2.SetAuthURLParam("nonce", nonce),
 		oauth2.SetAuthURLParam("prompt", "login"),
+		oauth2.SetAuthURLParam("response_type", "code"),
+		oauth2.SetAuthURLParam("code_challenge", codeChallenge),
+		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
 	)
+
 	return authURL, nil
 }
 
 func (r *RealOIDCProvider) HandleCallback(ctx *middlewares.AppContext) (*models.User, error) {
-	// Check for error parameters first
 	if errorParam := ctx.Request.URL.Query().Get("error"); errorParam != "" {
 		errorDescription := ctx.Request.URL.Query().Get("error_description")
 		errorURI := ctx.Request.URL.Query().Get("error_uri")
 		state := ctx.Request.URL.Query().Get("state")
 
-		// Redirect to error page with parameters
 		errorURL := fmt.Sprintf("/error?error=%s", url.QueryEscape(errorParam))
 		if errorDescription != "" {
 			errorURL += "&error_description=" + url.QueryEscape(errorDescription)
@@ -92,7 +107,6 @@ func (r *RealOIDCProvider) HandleCallback(ctx *middlewares.AppContext) (*models.
 			errorURL += "&state=" + url.QueryEscape(state)
 		}
 
-		// You'll need to handle this redirect in your handler
 		return nil, &OIDCError{RedirectURL: errorURL, Message: errorParam}
 	}
 
@@ -122,7 +136,10 @@ func (r *RealOIDCProvider) HandleCallback(ctx *middlewares.AppContext) (*models.
 		}
 	}
 
-	token, err := ctx.OIDCProvider.GetOAuth2Config().Exchange(ctx.Request.Context(), code)
+	verifierCode := ctx.SessionManager.GetOauthCodeVerifier(ctx)
+	ctx.SessionManager.ClearOauthCodeVerifier(ctx)
+
+	token, err := ctx.OIDCProvider.GetOAuth2Config().Exchange(ctx.Request.Context(), code, oauth2.VerifierOption(verifierCode))
 	if err != nil {
 		return nil, &OIDCError{
 			RedirectURL: "/error?error=invalid_grant&error_description=" + url.QueryEscape("Failed to exchange code for token"),
@@ -148,13 +165,22 @@ func (r *RealOIDCProvider) HandleCallback(ctx *middlewares.AppContext) (*models.
 		}
 	}
 
-	user, err := extractUserClaimsFromToken(idToken)
+	user, nonce, err := extractUserClaimsFromToken(idToken)
 	if err != nil {
 		return nil, &OIDCError{
 			RedirectURL: "/error?error=server_error&error_description=" + url.QueryEscape("Failed to extract user from ID Token"),
 			Message:     fmt.Sprintf("failed to extract user from ID Token: %v", err),
 		}
 	}
+
+	if nonce != ctx.SessionManager.GetOauthNonce(ctx) {
+		return nil, &OIDCError{
+			RedirectURL: "/error?error=server_error&error_description=" + url.QueryEscape("Invalid Nonce"),
+			Message:     fmt.Sprintf("nonce in ID Token is invalid"),
+		}
+	}
+
+	ctx.SessionManager.ClearOauthNonce(ctx)
 
 	enhancedUser, err := fetchUserInfo(ctx, token, user)
 	if err != nil {

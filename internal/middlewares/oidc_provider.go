@@ -10,7 +10,7 @@ import (
 //go:generate mockgen -source=oidc_provider.go -destination=../mocks/oidc.go -package=mocks
 
 type OIDCProvider interface {
-	GenerateState() (string, error)
+	GenerateRandString(bytes int) string
 	StartLogin(ctx *AppContext) (string, error)
 	HandleCallback(ctx *AppContext) (*models.User, error)
 	GetProvider() *oidc.Provider

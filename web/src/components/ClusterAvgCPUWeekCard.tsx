@@ -1,32 +1,32 @@
 import { useMetricsQuery } from '@/hooks/useMetrics.tsx';
 import { ChartCard } from '@/components/LineChartCard.tsx';
 
-export function TraefikAvgReqPerSecCard() {
+export function ClusterAvgCPUWeekCard() {
   const {
     data: metrics,
     isLoading,
     error,
     isError,
-  } = useMetricsQuery(['traefik_requests_5m_avg']);
+  } = useMetricsQuery(['total_cluster_cpu_perc_7d']);
 
   const matrixResult = metrics?.find((m) => m?.type === 'matrix');
   const rawData = matrixResult?.processed?.[0]?.values || [];
 
-  const data = rawData.map(([timestamp, value]) => ({
+  const cpuData = rawData.map(([timestamp, value]) => ({
     timestamp: Number(timestamp) * 1000,
-    requests: value,
+    cpu: Number(value),
   }));
 
   return (
     <ChartCard
-      title="Average Requests Per Second"
-      data={data}
-      dataKey="requests"
+      title="CPU Usage (%) (1 week)"
+      data={cpuData}
+      dataKey="cpu"
       isLoading={isLoading}
       isError={isError}
       error={error || undefined}
-      unit=""
-      color="var(--chart-1)"
+      unit="%"
+      color="var(--chart-5)"
     />
   );
 }

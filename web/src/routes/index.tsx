@@ -2,9 +2,12 @@ import { createFileRoute } from '@tanstack/react-router';
 import { PodUptimeCards } from '@/components/PodUptimeCards.tsx';
 import { NodeStatusCard } from '@/components/NodeStatusCard.tsx';
 import { PodsPerNamespaceCard } from '@/components/PodsPerNamespaceCard.tsx';
-import { ClusterAvgCPUCard } from '@/components/ClusterAvgCPUCard.tsx';
-import { TraefikAvgReqPerSecCard } from '@/components/TraefikAvgReqPerSecCard.tsx';
-import { TraefikTotalRequestsCard } from '@/components/TraefikTotalRequestsCard.tsx';
+import { ClusterAvgCPUHourCard } from '@/components/ClusterAvgCPUHourCard.tsx';
+import { TraefikAvgReqPerSecHourCard } from '@/components/TraefikAvgReqPerSecHourCard.tsx';
+import { TraefikTotalRequestsHourCard } from '@/components/TraefikTotalRequestsHourCard.tsx';
+import { TraefikAvgReqPerSecWeekCard } from '@/components/TraefikAvgReqPerSecWeekCard.tsx';
+import { TraefikTotalRequestsWeekCard } from '@/components/TraefikTotalRequestsWeekCard.tsx';
+import { ClusterAvgCPUWeekCard } from '@/components/ClusterAvgCPUWeekCard.tsx';
 
 export const Route = createFileRoute('/')({
   component: Index,
@@ -22,14 +25,24 @@ function Index() {
       <div className="col-span-1 sm:col-span-1 lg:col-span-1 lg:row-span-1">
         <PodsPerNamespaceCard />
       </div>
+      <div className="col-span-1 sm:col-span-1 lg:col-span-1 lg:row-span-1"></div>
       <div className="col-span-1 sm:col-span-1 lg:col-span-1 lg:row-span-1">
-        <ClusterAvgCPUCard />
+        <ClusterAvgCPUHourCard />
       </div>
       <div className="col-span-1 sm:col-span-1 lg:col-span-1 lg:row-span-1">
-        <TraefikAvgReqPerSecCard />
+        <ClusterAvgCPUWeekCard />
       </div>
       <div className="col-span-1 sm:col-span-1 lg:col-span-1 lg:row-span-1">
-        <TraefikTotalRequestsCard />
+        <TraefikAvgReqPerSecHourCard />
+      </div>
+      <div className="col-span-1 sm:col-span-1 lg:col-span-1 lg:row-span-1">
+        <TraefikAvgReqPerSecWeekCard />
+      </div>
+      <div className="col-span-1 sm:col-span-1 lg:col-span-1 lg:row-span-1">
+        <TraefikTotalRequestsHourCard />
+      </div>
+      <div className="col-span-1 sm:col-span-1 lg:col-span-1 lg:row-span-1">
+        <TraefikTotalRequestsWeekCard />
       </div>
     </div>
   );

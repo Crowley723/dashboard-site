@@ -7,7 +7,7 @@ export function TraefikTotalRequestsWeekCard() {
     isLoading,
     error,
     isError,
-  } = useMetricsQuery(['traefik_requests_total_24h']);
+  } = useMetricsQuery(['traefik_requests_total_7d']);
 
   const matrixResult = metrics?.find((m) => m?.type === 'matrix');
   const rawData = matrixResult?.processed?.[0]?.values || [];

@@ -165,12 +165,10 @@ export function ChartCard({
 
   const ticks = generateTicks(yAxisMin, yAxisMax, tickCount);
 
-  // Determine time format
   const timestamps = data.map((item) => item.timestamp);
   const actualTimeFormat =
     timeFormat === 'auto' ? determineTimeFormat(timestamps) : timeFormat;
 
-  // Create chart config dynamically
   const chartConfig = {
     [dataKey]: {
       label: title,

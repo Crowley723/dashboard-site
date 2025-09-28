@@ -19,7 +19,7 @@ export function ClusterAvgCPUWeekCard() {
 
   return (
     <ChartCard
-      title="CPU Usage (%) (1 day)"
+      title="CPU Usage (%) (1 week)"
       data={cpuData}
       dataKey="cpu"
       isLoading={isLoading}

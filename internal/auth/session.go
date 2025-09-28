@@ -125,6 +125,30 @@ func (s *SessionManager) ClearOauthState(ctx *middlewares.AppContext) {
 	s.Remove(ctx, string(SessionKeyOauthState))
 }
 
+func (s *SessionManager) SetOauthNonce(ctx *middlewares.AppContext, state string) {
+	s.Put(ctx, string(SessionKeyOauthNonce), state)
+}
+
+func (s *SessionManager) GetOauthNonce(ctx *middlewares.AppContext) string {
+	return s.GetString(ctx, string(SessionKeyOauthNonce))
+}
+
+func (s *SessionManager) ClearOauthNonce(ctx *middlewares.AppContext) {
+	s.Remove(ctx, string(SessionKeyOauthNonce))
+}
+
+func (s *SessionManager) SetOauthCodeVerifier(ctx *middlewares.AppContext, verifier string) {
+	s.Put(ctx, string(SessionKeyOauthCodeVerifier), verifier)
+}
+
+func (s *SessionManager) GetOauthCodeVerifier(ctx *middlewares.AppContext) string {
+	return s.GetString(ctx, string(SessionKeyOauthCodeVerifier))
+}
+
+func (s *SessionManager) ClearOauthCodeVerifier(ctx *middlewares.AppContext) {
+	s.Remove(ctx, string(SessionKeyOauthCodeVerifier))
+}
+
 func (s *SessionManager) CreateSessionWithTokenExpiry(ctx *middlewares.AppContext, idToken *oidc.IDToken, user *models.User) error {
 	now := time.Now()
 	tokenExpiry := idToken.Expiry

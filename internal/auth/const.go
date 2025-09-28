@@ -8,4 +8,6 @@ var (
 	SessionKeyExpiresAt          SessionKey = "expires_at"
 	SessionKeyRedirectAfterLogin SessionKey = "redirect_after_login"
 	SessionKeyOauthState         SessionKey = "oauth_state"
+	SessionKeyOauthCodeVerifier  SessionKey = "oauth_code_verifier"
+	SessionKeyOauthNonce         SessionKey = "oauth_nonce"
 )

@@ -1,0 +1,52 @@
+name: Cleanup Old Package Versions
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 2 AM
+  workflow_dispatch:
+  pull_request:
+    types: [closed]
+
+permissions:
+  packages: write
+
+jobs:
+  cleanup-untagged:
+    name: Delete all untagged versions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete untagged versions
+        uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5.0.0
+        with:
+          package-name: ${{ github.event.repository.name }}
+          package-type: 'container'
+          delete-only-untagged-versions: 'true'
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  cleanup-closed-pr:
+    name: Delete package for closed PR
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    steps:
+      - name: Delete closed PR package
+        uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5.0.0
+        with:
+          package-name: ${{ github.event.repository.name }}
+          package-type: 'container'
+          ignore-versions: '^(?!pr-${{ github.event.pull_request.number }}$).*'
+          num-old-versions-to-delete: 1
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  cleanup-old-prs:
+    name: Delete PR packages older than 30 days
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Delete old PR versions
+        uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5.0.0
+        with:
+          package-name: ${{ github.event.repository.name }}
+          package-type: 'container'
+          min-versions-to-keep: 50
+          ignore-versions: '^main$'
+          token: ${{ secrets.GITHUB_TOKEN }}

@@ -15,6 +15,10 @@ jobs:
     name: Delete all untagged versions
     runs-on: ubuntu-latest
     steps:
+      - name: 'Harden Runner'
+        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
+        with:
+          egress-policy: 'audit'
       - name: Delete untagged versions
         uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5.0.0
         with:
@@ -26,8 +30,12 @@ jobs:
   cleanup-closed-pr:
     name: Delete package for closed PR
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.action == 'merged'
     steps:
+      - name: 'Harden Runner'
+        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
+        with:
+          egress-policy: 'audit'
       - name: Delete closed PR package
         uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5.0.0
         with:
@@ -42,11 +50,15 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     steps:
+      - name: 'Harden Runner'
+        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
+        with:
+          egress-policy: 'audit'
       - name: Delete old PR versions
         uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5.0.0
         with:
           package-name: ${{ github.event.repository.name }}
           package-type: 'container'
-          min-versions-to-keep: 50
+          min-versions-to-keep: 10
           ignore-versions: '^main$'
           token: ${{ secrets.GITHUB_TOKEN }}

@@ -2,6 +2,7 @@ package data
 
 import (
 	"homelab-dashboard/internal/config"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -9,34 +10,17 @@ import (
 	"github.com/prometheus/common/model"
 )
 
-// NewCacheProvider returns a new CacheProvider
-func NewCacheProvider(config *config.CacheConfig) CacheProvider {
-	switch config.Type {
-	case "redis":
-		panic("redis data cache is not implemented yet")
-	case "memory":
-		fallthrough
-	default:
-		return &MemCache{
-			cache: make(map[string]CachedData),
-		}
+func NewMemCache(cfg *config.Config, logger *slog.Logger) *MemCache {
+	return &MemCache{
+		cache:  make(map[string]CachedData),
+		logger: logger,
 	}
-
-	return nil
-}
-
-// CachedData represents a cache entry of the data for a single query.
-type CachedData struct {
-	Name          string
-	Value         model.Value
-	Timestamp     time.Time
-	RequireAuth   bool
-	RequiredGroup string
 }
 
 type MemCache struct {
-	cache map[string]CachedData
-	mutex sync.RWMutex
+	cache  map[string]CachedData
+	mutex  sync.RWMutex
+	logger *slog.Logger
 }
 
 // Get returns the data for a currently cached query

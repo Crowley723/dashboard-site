@@ -12,6 +12,7 @@ type Config struct {
 	Sessions SessionConfig `yaml:"sessions"`
 	Data     DataConfig    `yaml:"data"`
 	Cache    CacheConfig   `yaml:"cache"`
+	Redis    *RedisConfig  `yaml:"redis"`
 }
 
 type ServerConfig struct {
@@ -100,12 +101,17 @@ type PrometheusQuery struct {
 }
 
 type CacheConfig struct {
-	Type  string      `yaml:"type"` //  "memory" or "redis"
-	Redis RedisConfig `yaml:"redis"`
+	Type string `yaml:"type"` //  "memory" or "redis"
 }
 
 type RedisConfig struct {
-	Address  string `yaml:"address"`
-	Password string `yaml:"password"`
-	DBIndex  int    `yaml:"db_index"`
+	Address      string `yaml:"address"`
+	Password     string `yaml:"password"`
+	SessionIndex int    `yaml:"session_index"`
+	CacheIndex   int    `yaml:"cache_index"`
+}
+
+var DefaultRedisConfig = RedisConfig{
+	SessionIndex: 0,
+	CacheIndex:   1,
 }

@@ -32,6 +32,27 @@ dev-debug:
 build:
 	docker build -t dashboard-site:latest -f docker/Dockerfile .
 
+# Docker development commands
+dev-docker:
+	@echo "Starting Docker development environment..."
+	cd docker && docker compose up --build
+
+dev-docker-debug:
+	@echo "Starting Docker development environment with debugger..."
+	cd docker && docker compose run --rm --service-ports dashboard-app /usr/local/bin/start-debug.sh
+
+dev-docker-down:
+	@echo "Stopping Docker development environment..."
+	cd docker && docker compose down
+
+dev-docker-logs:
+	@echo "Following Docker development logs..."
+	cd docker && docker compose logs -f
+
+dev-docker-rebuild:
+	@echo "Rebuilding Docker development environment..."
+	cd docker && docker compose down && docker compose up --build
+
 coverage:
 	go test -cover -v ./...
 

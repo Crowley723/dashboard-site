@@ -1,17 +1,25 @@
 services:
-#  dashboard-app:
-#    image: dashboard-site:latest
-#    container_name: dashboard-site
-#    ports:
-#      - "127.0.0.1:8080:8080"
-#    environment:
-#      TZ: America/Los_Angeles
-#    env_file: ".env"
-#    volumes:
-#      - /home/brynn/Documents/dashboard-site/config.yaml:/app/config.yaml
+  dashboard-app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    container_name: dashboard-site-dev
+    ports:
+      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:5173:5173"
+      - "127.0.0.1:2345:2345"
+    environment:
+      TZ: America/Los_Angeles
+      GO_ENV: development
+    volumes:
+      - ..:/app
+      - /app/node_modules
+      - /app/web/node_modules
+    depends_on:
+      - redis
+    working_dir: /app
+    command: ["/bin/sh", "/usr/local/bin/start-dev.sh"]
   redis:
     command: 'redis-server --save 60 1 --loglevel warning'
     image: redis
     container_name: dashboard-redis-0
-    ports:
-      - '127.0.1.50:6379:6379'

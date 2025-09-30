@@ -1,11 +1,17 @@
 services:
-  dashboard-app:
-    image: dashboard-site:latest
-    container_name: dashboard-site
+#  dashboard-app:
+#    image: dashboard-site:latest
+#    container_name: dashboard-site
+#    ports:
+#      - "127.0.0.1:8080:8080"
+#    environment:
+#      TZ: America/Los_Angeles
+#    env_file: ".env"
+#    volumes:
+#      - /home/brynn/Documents/dashboard-site/config.yaml:/app/config.yaml
+  redis:
+    command: 'redis-server --save 60 1 --loglevel warning'
+    image: redis
+    container_name: dashboard-redis-0
     ports:
-      - "127.0.0.1:8080:8080"
-    environment:
-      TZ: America/Los_Angeles
-    env_file: ".env"
-    volumes:
-      - /home/brynn/Documents/dashboard-site/config.yaml:/app/config.yaml
+      - '127.0.1.50:6379:6379'

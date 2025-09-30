@@ -3,6 +3,7 @@ module homelab-dashboard
 go 1.25.0
 
 require (
+	github.com/alexedwards/scs/redisstore v0.0.0-20250927115722-fb8d6f122cfb
 	github.com/alexedwards/scs/v2 v2.9.0
 	github.com/coreos/go-oidc/v3 v3.15.0
 	github.com/go-chi/chi/v5 v5.2.3
@@ -18,6 +19,7 @@ require (
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/gomodule/redigo v1.8.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect

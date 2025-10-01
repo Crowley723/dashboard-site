@@ -3,7 +3,7 @@ module homelab-dashboard
 go 1.25.0
 
 require (
-	github.com/alexedwards/scs/redisstore v0.0.0-20250930194851-fd9810000aff
+	github.com/alexedwards/scs/redisstore v0.0.0-20251001152029-20477ae1fec6
 	github.com/alexedwards/scs/v2 v2.9.0
 	github.com/coreos/go-oidc/v3 v3.15.0
 	github.com/go-chi/chi/v5 v5.2.3

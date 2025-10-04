@@ -5,24 +5,24 @@ install:
 	go mod download
 	cd web && bash -c "source ~/.nvm/nvm.sh && pnpm install"
 
-dev-frontend:
+dev-frontend-bare:
 	cd web && bash -c "source ~/.nvm/nvm.sh && pnpm run dev"
 
-dev-backend:
+dev-backend-bare:
 	GO_ENV=development reflex -r '\.go$$' -s -- go run ./main.go -c config.yaml
 
 
-dev-backend-debug:
+dev-backend-debug-bare:
 	GO_ENV=development reflex -r '\.go$$' -s -- dlv debug --headless --listen=:2345 --api-version=2 --accept-multiclient ./main.go -- -c config.yaml
 
-dev:
+dev-bare:
 	@echo "Starting development servers..."
 	@trap 'kill 0' INT TERM EXIT; \
 	($(MAKE) dev-backend) & \
 	($(MAKE) dev-frontend) & \
 	wait
 
-dev-debug:
+dev-debug-bare:
 	@echo "Starting development servers with debug..."
 	@trap 'kill 0' INT TERM EXIT; \
 	($(MAKE) dev-backend-debug) & \
@@ -31,6 +31,27 @@ dev-debug:
 
 build:
 	docker build -t dashboard-site:latest -f docker/Dockerfile .
+
+# Docker development commands
+dev:
+	@echo "Starting Docker development environment..."
+	cd docker && docker compose up --build
+
+dev-debug:
+	@echo "Starting Docker development environment with debugger..."
+	cd docker && docker compose run --rm --service-ports dashboard-app /usr/local/bin/start-debug.sh
+
+dev-stop:
+	@echo "Stopping Docker development environment..."
+	cd docker && docker compose down
+
+dev-logs:
+	@echo "Following Docker development logs..."
+	cd docker && docker compose logs -f
+
+dev-rebuild:
+	@echo "Rebuilding Docker development environment..."
+	cd docker && docker compose down && docker compose up --build
 
 coverage:
 	go test -cover -v ./...

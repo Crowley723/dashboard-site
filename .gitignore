@@ -4,6 +4,7 @@ web/dist/
 coverage.*
 
 config.yaml
+config.docker.yaml
 *.tar.gz
 .vscode/rendered/
 vault/rendered/

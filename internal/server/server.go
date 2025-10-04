@@ -19,13 +19,13 @@ import (
 func Start(cfg *config.Config) error {
 	logger := setupLogger(cfg)
 
-	sessionManager, err := auth.NewSessionManager(cfg.Sessions)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sessionManager, err := auth.NewSessionManager(cfg)
 	if err != nil {
 		return fmt.Errorf("failed to create session manager: %w", err)
 	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	oidcProvider, err := auth.NewRealOIDCProvider(ctx, cfg.OIDC)
 
@@ -81,36 +81,6 @@ func Start(cfg *config.Config) error {
 	return nil
 }
 
-func setupLogger(cfg *config.Config) *slog.Logger {
-	var handler slog.Handler
-
-	var level slog.Level
-	switch cfg.Log.Level {
-	case "debug":
-		level = slog.LevelDebug
-	case "info":
-		level = slog.LevelInfo
-	case "warn":
-		level = slog.LevelWarn
-	case "error":
-		level = slog.LevelError
-	default:
-		level = slog.LevelInfo
-	}
-
-	opts := &slog.HandlerOptions{
-		Level: level,
-	}
-
-	if cfg.Log.Format == "json" {
-		handler = slog.NewJSONHandler(os.Stderr, opts)
-	} else {
-		handler = slog.NewTextHandler(os.Stderr, opts)
-	}
-
-	return slog.New(handler)
-}
-
 func setupDataService(cfg *config.Config, logger *slog.Logger) (*data.Service, data.CacheProvider, error) {
 	mimirClient, err := data.NewMimirClient(
 		cfg.Data.PrometheusURL,
@@ -122,7 +92,7 @@ func setupDataService(cfg *config.Config, logger *slog.Logger) (*data.Service, d
 		return nil, nil, fmt.Errorf("failed to create new mimir client: %w", err)
 	}
 
-	cache := data.NewCacheProvider(&cfg.Cache)
+	cache := data.NewCacheProvider(cfg, logger)
 	return data.NewService(mimirClient, cache, logger, cfg.Data.Queries), cache, nil
 }
 

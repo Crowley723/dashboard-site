@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
 	"time"
 
@@ -87,194 +88,186 @@ func applyEnvironmentOverrides(config *Config) {
 
 func validateConfig(config *Config) error {
 
-	err := validateServerConfig(&config.Server)
+	err := config.validateServerConfig()
 	if err != nil {
 		return err
 	}
 
-	err = validateOIDCConfig(&config.OIDC)
+	err = config.validateOIDCConfig()
 	if err != nil {
 		return err
 	}
 
-	err = validateLogConfig(&config.Log)
+	err = config.validateLogConfig()
 	if err != nil {
 		return err
 	}
 
-	err = validateCORSConfig(&config.CORS)
+	err = config.validateCORSConfig()
 	if err != nil {
 		return err
 	}
 
-	err = validateSessionConfig(&config.Sessions)
+	err = config.validateSessionConfig()
 	if err != nil {
 		return err
 	}
 
-	err = validateDataConfig(&config.Data)
+	err = config.validateDataConfig()
 	if err != nil {
 		return err
 	}
 
-	err = validateCacheConfig(&config.Cache)
+	err = config.validateCacheConfig()
+	if err != nil {
+		return err
+	}
 
+	err = config.validateRedisConfig()
 	return nil
 }
 
-func validateOIDCConfig(oidcConfig *OIDCConfig) error {
-	if oidcConfig == nil {
-		return fmt.Errorf("oidc config is required")
-	}
-
-	if oidcConfig.ClientID == "" {
+func (c *Config) validateOIDCConfig() error {
+	if c.OIDC.ClientID == "" {
 		return fmt.Errorf("oidc client id is required")
 	}
 
-	if oidcConfig.ClientSecret == "" {
+	if c.OIDC.ClientSecret == "" {
 		return fmt.Errorf("OIDC clientSecret is required")
 	}
 
-	if err := validateURL(oidcConfig.IssuerURL, "issuer_url"); err != nil {
+	if err := validateURL(c.OIDC.IssuerURL, "issuer_url"); err != nil {
 		return err
 	}
 
-	if err := validateURL(oidcConfig.RedirectURI, "redirect_url"); err != nil {
+	if err := validateURL(c.OIDC.RedirectURI, "redirect_url"); err != nil {
 		return err
 	}
 
-	if len(oidcConfig.Scopes) == 0 {
-		oidcConfig.Scopes = DefaultOIDCConfig.Scopes
+	if len(c.OIDC.Scopes) == 0 {
+		c.OIDC.Scopes = DefaultOIDCConfig.Scopes
 	}
 
 	return nil
 }
 
-func validateServerConfig(config *ServerConfig) error {
-	if config == nil {
-		return fmt.Errorf("server config is required")
-	}
-
-	if config.Port == 0 {
-		config.Port = DefaultServerConfig.Port
+func (c *Config) validateServerConfig() error {
+	if c.Server.Port == 0 {
+		c.Server.Port = DefaultServerConfig.Port
 	}
 
 	return nil
 }
 
-func validateLogConfig(config *LogConfig) error {
-	if config.Format == "" {
-		config.Format = DefaultLogConfig.Format
+func (c *Config) validateLogConfig() error {
+	if c.Log.Format == "" {
+		c.Log.Format = DefaultLogConfig.Format
 	} else {
-		switch config.Format {
+		switch c.Log.Format {
 		case "text":
-			config.Format = "text"
+			c.Log.Format = "text"
 		case "json":
-			config.Format = "json"
+			c.Log.Format = "json"
 		default:
-			return fmt.Errorf("invalid log format: %s, options are text or json", config.Format)
+			return fmt.Errorf("invalid log format: %s, options are text or json", c.Log.Format)
 		}
 	}
 
-	if config.Level == "" {
-		config.Level = DefaultLogConfig.Level
+	if c.Log.Level == "" {
+		c.Log.Level = DefaultLogConfig.Level
 	} else {
-		switch config.Level {
+		switch c.Log.Level {
 		case "debug":
-			config.Level = string(rune(slog.LevelDebug))
+			c.Log.Level = string(rune(slog.LevelDebug))
 		case "info":
-			config.Level = string(rune(slog.LevelInfo))
+			c.Log.Level = string(rune(slog.LevelInfo))
 		case "warn":
-			config.Level = string(rune(slog.LevelWarn))
+			c.Log.Level = string(rune(slog.LevelWarn))
 		case "error":
-			config.Level = string(rune(slog.LevelError))
+			c.Log.Level = string(rune(slog.LevelError))
 		default:
-			return fmt.Errorf("invalid log level: %s, options are debug, info, warn, error", config.Level)
+			return fmt.Errorf("invalid log level: %s, options are debug, info, warn, error", c.Log.Level)
 		}
 	}
 
 	return nil
 }
 
-func validateCORSConfig(config *CORSConfig) error {
-	if len(config.AllowedOrigins) == 0 {
-		config.AllowedOrigins = DefaultCORSConfig.AllowedOrigins
+func (c *Config) validateCORSConfig() error {
+	if len(c.CORS.AllowedOrigins) == 0 {
+		c.CORS.AllowedOrigins = DefaultCORSConfig.AllowedOrigins
 	}
-	if len(config.AllowedMethods) == 0 {
-		config.AllowedMethods = DefaultCORSConfig.AllowedMethods
+	if len(c.CORS.AllowedMethods) == 0 {
+		c.CORS.AllowedMethods = DefaultCORSConfig.AllowedMethods
 	}
-	if len(config.AllowedHeaders) == 0 {
-		config.AllowedHeaders = DefaultCORSConfig.AllowedHeaders
+	if len(c.CORS.AllowedHeaders) == 0 {
+		c.CORS.AllowedHeaders = DefaultCORSConfig.AllowedHeaders
 	}
-	if config.MaxAgeSeconds == 0 {
-		config.MaxAgeSeconds = DefaultCORSConfig.MaxAgeSeconds
+	if c.CORS.MaxAgeSeconds == 0 {
+		c.CORS.MaxAgeSeconds = DefaultCORSConfig.MaxAgeSeconds
 	}
 
 	return nil
 }
 
-func validateSessionConfig(config *SessionConfig) error {
-	if config == nil {
+func (c *Config) validateSessionConfig() error {
+	if c == nil {
 		return fmt.Errorf("session config is required")
 	}
 
-	if config.Store == "" {
-		config.Store = "memory"
+	if c.Sessions.Store == "" {
+		c.Sessions.Store = "memory"
 	} else {
-		switch config.Store {
+		switch c.Sessions.Store {
 		case "memory":
-			config.Store = "memory"
+			c.Sessions.Store = "memory"
 		case "redis":
-			config.Store = "redis"
+			c.Sessions.Store = "redis"
 		default:
-			return fmt.Errorf("invalid session store: %s, options are 'memory' or 'redis'", config.Store)
+			return fmt.Errorf("invalid session store: %s, options are 'memory' or 'redis'", c.Sessions.Store)
 		}
 	}
 
-	if config.DurationSource == "" {
-		config.DurationSource = DefaultSessionConfig.DurationSource
+	if c.Sessions.DurationSource == "" {
+		c.Sessions.DurationSource = DefaultSessionConfig.DurationSource
 	} else {
-		switch config.DurationSource {
+		switch c.Sessions.DurationSource {
 		case "fixed":
-			config.DurationSource = "fixed"
+			c.Sessions.DurationSource = "fixed"
 		case "oidc_tokens":
-			config.DurationSource = "oidc_tokens"
+			c.Sessions.DurationSource = "oidc_tokens"
 		default:
-			return fmt.Errorf("invalid session duration source: %s, options are 'fixed' or 'oidc_tokens'", config.DurationSource)
+			return fmt.Errorf("invalid session duration source: %s, options are 'fixed' or 'oidc_tokens'", c.Sessions.DurationSource)
 		}
 	}
 
-	if config.Name == "" {
-		config.Name = DefaultSessionConfig.Name
+	if c.Sessions.Name == "" {
+		c.Sessions.Name = DefaultSessionConfig.Name
 	}
 
-	if config.FixedTimeout == 0 {
-		config.FixedTimeout = DefaultSessionConfig.FixedTimeout
+	if c.Sessions.FixedTimeout == 0 {
+		c.Sessions.FixedTimeout = DefaultSessionConfig.FixedTimeout
 	}
 
 	return nil
 }
 
-func validateDataConfig(config *DataConfig) (err error) {
-	if config == nil {
-		return fmt.Errorf("data config is required")
-	}
-
-	if config.PrometheusURL == "" {
+func (c *Config) validateDataConfig() (err error) {
+	if c.Data.PrometheusURL == "" {
 		return fmt.Errorf("data.prometheus_url is required")
 	}
 
-	if config.BasicAuth != nil {
-		if config.BasicAuth.Username == "" {
+	if c.Data.BasicAuth != nil {
+		if c.Data.BasicAuth.Username == "" {
 			return fmt.Errorf("data.basic_auth.username is required")
 		}
-		if config.BasicAuth.Password == "" {
+		if c.Data.BasicAuth.Password == "" {
 			return fmt.Errorf("data.basic_auth.password is required")
 		}
 	}
 
-	if len(config.Queries) > 0 {
-		if err = validateDataQueriesConfig(config); err != nil {
+	if len(c.Data.Queries) > 0 {
+		if err = c.validateDataQueriesConfig(); err != nil {
 			return err
 		}
 	}
@@ -282,9 +275,9 @@ func validateDataConfig(config *DataConfig) (err error) {
 	return nil
 }
 
-func validateDataQueriesConfig(config *DataConfig) (err error) {
+func (c *Config) validateDataQueriesConfig() (err error) {
 
-	queries := config.Queries
+	queries := c.Data.Queries
 
 	for i, query := range queries {
 		if query.Disabled {
@@ -321,20 +314,53 @@ func validateDataQueriesConfig(config *DataConfig) (err error) {
 	return nil
 }
 
-func validateCacheConfig(c *CacheConfig) error {
-	switch c.Type {
+func (c *Config) validateCacheConfig() error {
+	switch c.Cache.Type {
 	case "memory":
 		break
 	case "redis":
-		if c.Redis.Address == "" {
-			return fmt.Errorf("redis.address is required")
-		}
-
-		if c.Redis.Password == "" {
-			return fmt.Errorf("redis.password is required")
+		if c.Redis == nil {
+			return fmt.Errorf("redis configuration must be enabled to use redis for data cache")
 		}
 	default:
-		return fmt.Errorf("invalid cache type: %s, must be 'memory' or 'redis'", c.Type)
+		return fmt.Errorf("invalid cache type: %s, must be 'memory' or 'redis'", c.Cache.Type)
+	}
+
+	return nil
+}
+
+func (c *Config) validateRedisConfig() error {
+	if c.Redis == nil {
+		return fmt.Errorf("redis config is nil")
+	}
+
+	if c.Redis.Address == "" {
+		return fmt.Errorf("redis address is required")
+	}
+
+	if _, _, err := net.SplitHostPort(c.Redis.Address); err != nil {
+		return fmt.Errorf("invalid redis address format (expected host:port): %w", err)
+	}
+
+	if c.Redis.SessionIndex < 0 {
+		return fmt.Errorf("redis session_index must be non-negative, got %d", c.Redis.SessionIndex)
+	}
+
+	if c.Redis.CacheIndex < 0 {
+		return fmt.Errorf("redis cache_index must be non-negative, got %d", c.Redis.CacheIndex)
+	}
+
+	if c.Redis.SessionIndex == c.Redis.CacheIndex {
+		return fmt.Errorf("redis session_index and cache_index should be different to avoid data collision (both are %d)", c.Redis.SessionIndex)
+	}
+
+	const maxRedisDB = 15
+	if c.Redis.SessionIndex > maxRedisDB {
+		return fmt.Errorf("redis session_index %d exceeds typical maximum of %d", c.Redis.SessionIndex, maxRedisDB)
+	}
+
+	if c.Redis.CacheIndex > maxRedisDB {
+		return fmt.Errorf("redis cache_index %d exceeds typical maximum of %d", c.Redis.CacheIndex, maxRedisDB)
 	}
 
 	return nil

@@ -9,32 +9,48 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/alexedwards/scs/redisstore"
 	"github.com/alexedwards/scs/v2"
 	"github.com/alexedwards/scs/v2/memstore"
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/gomodule/redigo/redis"
 )
 
 type SessionManager struct {
 	*scs.SessionManager
 }
 
-func NewSessionManager(cfg config.SessionConfig) (*SessionManager, error) {
+func NewSessionManager(cfg *config.Config) (*SessionManager, error) {
 	gob.Register(&models.User{})
 	sessionManager := scs.New()
 
-	switch cfg.Store {
+	switch cfg.Sessions.Store {
 	case "memory":
 		sessionManager.Store = memstore.New()
+	case "redis":
+		pool := &redis.Pool{
+			MaxIdle: 10,
+			Dial: func() (redis.Conn, error) {
+				opts := []redis.DialOption{
+					redis.DialDatabase(cfg.Redis.SessionIndex),
+				}
+				if cfg.Redis.Password != "" {
+					opts = append(opts, redis.DialPassword(cfg.Redis.Password))
+				}
+				return redis.Dial("tcp", cfg.Redis.Address, opts...)
+			},
+		}
+		sessionManager.Store = redisstore.New(pool)
 	default:
-		return nil, fmt.Errorf("unsupported session store: %s", cfg.Store)
+		return nil, fmt.Errorf("unsupported session store: %s", cfg.Sessions.Store)
 	}
 
-	sessionManager.Lifetime = cfg.FixedTimeout
+	sessionManager.Lifetime = cfg.Sessions.FixedTimeout
 
-	sessionManager.Cookie.Name = cfg.Name
+	sessionManager.Cookie.Name = cfg.Sessions.Name
 	sessionManager.Cookie.HttpOnly = true
 	sessionManager.Cookie.SameSite = http.SameSiteLaxMode
-	sessionManager.Cookie.Secure = cfg.Secure
+	sessionManager.Cookie.Secure = cfg.Sessions.Secure
 	sessionManager.Cookie.Path = "/"
 
 	return &SessionManager{SessionManager: sessionManager}, nil

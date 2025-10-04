@@ -1,0 +1,124 @@
+server:
+  port: 8080
+
+log:
+  level: "info"
+  format: "text"
+
+cors:
+  allowed_origins:
+    - "http://localhost:5173"
+  allowCredentials: true
+  maxAge: 300
+
+session:
+  store: 'redis'
+  duration_source: 'fixed'
+  secure: false
+
+redis:
+  address: 'redis:6379'  # Use Docker service name
+  session_index: 0
+  cache_index: 1
+
+cache:
+  type: 'redis'
+
+oidc:
+  client_id: 'YOUR_CLIENT_ID'
+  client_secret: 'YOUR_CLIENT_SECRET'
+  issuer_url: 'https://your-auth-provider.com'
+  redirect_url: 'http://localhost:8080/api/auth/callback'
+  scopes:
+    - 'openid'
+    - 'profile'
+    - 'email'
+    - 'groups'
+
+data:
+  prometheus_url: 'https://your-prometheus.com/prometheus'
+  basic_auth:
+    username: 'your-username'
+    password: 'your-password'
+  queries:
+    - name: 'up'
+      query: 'up{source="kubernetes", app!="", component!=""}'
+      ttl: '10m'
+    - name: 'node_status'
+      query: 'kube_node_status_condition{condition="Ready",status="true"}'
+      ttl: '10m'
+    - name: "pods_running_per_namespace"
+      query: 'count by (namespace)(kube_pod_status_phase{phase="Running"})'
+      ttl: '10m'
+
+    - name: 'traefik_requests_7d_avg'
+      query: 'sum(rate(traefik_service_requests_total[7d]))'
+      type: 'range'
+      range: '7d'
+      step: '1h'
+      ttl: '1h'
+    - name: 'traefik_requests_5m_avg'
+      query: 'sum(rate(traefik_service_requests_total[5m]))'
+      type: 'range'
+      range: '1h'
+      step: '1m'
+      ttl: '1m'
+
+    - name: 'traefik_requests_total_1h'
+      query: 'sum(rate(traefik_service_requests_total[5m])) * 60'
+      type: 'range'
+      range: '1h'
+      step: '1m'
+      ttl: '1m'
+    - name: 'traefik_requests_total_7d'
+      query: 'sum(rate(traefik_service_requests_total[1d])) * 3600'
+      type: 'range'
+      range: '7d'
+      step: '1h'
+      ttl: '1h'
+
+    - name: 'total_cluster_cpu_perc_1h'
+      query: '100 * (1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m])))'
+      type: 'range'
+      range: '1h'
+      step: '1m'
+      ttl: '1m'
+    - name: 'total_cluster_cpu_perc_7d'
+      query: '100 * (1 - avg(rate(node_cpu_seconds_total{mode="idle"}[1d])))'
+      type: 'range'
+      range: '7d'
+      step: '1h'
+      ttl: '1h'
+
+    - name: 'code_400_average_1day'
+      disabled: true
+      query: 'sum(rate(traefik_service_requests_total{code=~"4.."}[1h])) / sum(rate(traefik_service_requests_total[1h])) * 100'
+      type: 'range'
+      range: '1d'
+      step: '1h'
+      ttl: '1h'
+    - name: 'code_500_average_1day'
+      disabled: true
+      query: 'sum(rate(traefik_service_requests_total{code=~"5.."}[1h])) / sum(rate(traefik_service_requests_total[1h])) * 100'
+      type: 'range'
+      range: '1d'
+      step: '1h'
+      ttl: '1h'
+    - name: 'total_cluster_memory_perc_1h'
+      disabled: true
+      query: '100 * (1 - sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes))'
+      type: 'range'
+      range: '1h'
+      step: '1m'
+      ttl: '1m'
+    - name: 'total_cluster_memory_perc_7d'
+      disabled: true
+      query: '100 * (1 - sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes))'
+      type: 'range'
+      range: '7d'
+      step: '1h'
+      ttl: '1h'
+    - name: 'pod_restarts_last_1h'
+      disabled: true
+      query: 'increase(kube_pod_container_status_restarts_total[1h])'
+      ttl: '1m'

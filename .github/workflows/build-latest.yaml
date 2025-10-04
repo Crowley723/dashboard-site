@@ -1,10 +1,9 @@
-name: Build and Push Docker Image
+name: Build and Push Latest
 
 on:
   push:
     branches:
       - main
-  pull_request: {}
 
 jobs:
   build:
@@ -25,15 +24,15 @@ jobs:
 
       - name: Extract Metadata
         id: meta
-        uses: docker/metadata-action@c1e51972afc2121e065aed6d45c65596fe445f3f
+        uses: docker/metadata-action@c1e51972afc2121e065aed6d45c65596fe445f3f # v5.8.0
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
             type=ref,event=branch
-            type=ref,event=pr
+            type=sha,format=long
 
       - name: Login to Registry
-        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}

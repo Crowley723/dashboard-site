@@ -64,6 +64,10 @@ make build                 # Build Docker image
 ## Configuration
 
 - **Backend Config**: `config.yaml` - Contains OIDC, Prometheus, caching, and server settings
+- **Docker Config**: `config.docker.yaml` - Docker-specific configuration (not tracked in git)
+  - Use `config.docker.yaml.template` as a starting point
+  - Copy template: `cp config.docker.yaml.template config.docker.yaml`
+  - Update with your specific values (OIDC credentials, Prometheus URL, etc.)
 - **Frontend Config**: Uses environment variables and TanStack Router configuration
 
 ## Key Features

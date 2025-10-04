@@ -16,8 +16,7 @@ name: "CodeQL"
 on:
   push:
     branches:
-      - master
-      - gh-pages
+      - main
     paths:
       - 'go.mod'
       - 'go.sum'
@@ -31,7 +30,7 @@ on:
   pull_request:
     # The branches below must be a subset of the branches above
     branches:
-      - master
+      - main
     paths:
       - 'go.mod'
       - 'go.sum'

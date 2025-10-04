@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"github.com/go-jose/go-jose/v4/json"
+	"encoding/json"
 )
 
 // ResultData represents

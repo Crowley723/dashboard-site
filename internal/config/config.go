@@ -156,6 +156,15 @@ func (c *Config) validateServerConfig() error {
 		c.Server.Port = DefaultServerConfig.Port
 	}
 
+	if c.Server.Debug != nil || c.Server.Debug.Enabled {
+		if c.Server.Debug.Host == "" {
+			c.Server.Debug.Host = DefaultDebugConfig.Host
+		}
+		if c.Server.Debug.Port <= 0 || c.Server.Debug.Port >= 65535 {
+			c.Server.Debug.Port = DefaultDebugConfig.Port
+		}
+	}
+
 	return nil
 }
 
@@ -350,8 +359,20 @@ func (c *Config) validateRedisConfig() error {
 		return fmt.Errorf("redis cache_index must be non-negative, got %d", c.Redis.CacheIndex)
 	}
 
+	if c.Redis.LeaderIndex < 0 {
+		return fmt.Errorf("redis cache_index must be non-negative, got %d", c.Redis.CacheIndex)
+	}
+
 	if c.Redis.SessionIndex == c.Redis.CacheIndex {
 		return fmt.Errorf("redis session_index and cache_index should be different to avoid data collision (both are %d)", c.Redis.SessionIndex)
+	}
+
+	if c.Redis.LeaderIndex == c.Redis.CacheIndex {
+		return fmt.Errorf("redis leader_index and cache_index should be different to avoid data collision (both are %d)", c.Redis.LeaderIndex)
+	}
+
+	if c.Redis.LeaderIndex == c.Redis.SessionIndex {
+		return fmt.Errorf("redis leader_index and session_index should be different to avoid data collision (both are %d)", c.Redis.LeaderIndex)
 	}
 
 	const maxRedisDB = 15
@@ -363,5 +384,8 @@ func (c *Config) validateRedisConfig() error {
 		return fmt.Errorf("redis cache_index %d exceeds typical maximum of %d", c.Redis.CacheIndex, maxRedisDB)
 	}
 
+	if c.Redis.LeaderIndex > maxRedisDB {
+		return fmt.Errorf("redis leader_index %d exceeds typical maximum of %d", c.Redis.LeaderIndex, maxRedisDB)
+	}
 	return nil
 }

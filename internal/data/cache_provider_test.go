@@ -68,7 +68,7 @@ func setupRedisCache(b *testing.B) *RedisCache {
 	cache := NewRedisCache(cfg, logger)
 
 	// Clean up any existing test data
-	conn := cache.pool.Get()
+	conn := cache.client.Get()
 	conn.Do("FLUSHDB")
 	conn.Close()
 

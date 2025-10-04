@@ -1,4 +1,4 @@
-name: 'Backend'
+name: 'Testing and Test Coverage'
 on:
   pull_request: {}
   push:

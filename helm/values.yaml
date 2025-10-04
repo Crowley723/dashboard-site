@@ -7,7 +7,7 @@ deployment:
 
   image:
     repository: "ghcr.io/crowley723/dashboard-site"
-    tag: "main"
+    tag: "prod"
     pullPolicy: "Always"
 
   affinity:

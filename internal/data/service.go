@@ -1,9 +1,9 @@
 package data
 
 import (
-	"context"
 	"fmt"
 	"homelab-dashboard/internal/config"
+	"homelab-dashboard/internal/middlewares"
 	"homelab-dashboard/internal/utils"
 	"log/slog"
 	"time"
@@ -28,7 +28,7 @@ func NewService(client *MimirClient, cache CacheProvider, logger *slog.Logger, q
 	}
 }
 
-func (s *Service) ExecuteQueries(ctx context.Context) error {
+func (s *Service) ExecuteQueries(ctx *middlewares.AppContext) error {
 	for _, queryConfig := range s.queries {
 
 		if queryConfig.Disabled {
@@ -45,7 +45,7 @@ func (s *Service) ExecuteQueries(ctx context.Context) error {
 	return nil
 }
 
-func (s *Service) executeQuery(ctx context.Context, config config.PrometheusQuery) error {
+func (s *Service) executeQuery(ctx *middlewares.AppContext, config config.PrometheusQuery) error {
 	var result model.Value
 	var err error
 
@@ -86,7 +86,7 @@ func (s *Service) executeQuery(ctx context.Context, config config.PrometheusQuer
 		if ttl == 0 {
 			ttl = 5 * time.Minute
 		}
-		s.cache.Set(config.Name, result, config.RequireAuth, config.RequiredGroup)
+		ctx.Cache.Set(ctx, config.Name, result, config.RequireAuth, config.RequiredGroup)
 		s.logger.Debug("cached query result", "query", config.Name, "type", config.Type, "ttl", ttl)
 	} else {
 		s.logger.Warn("cache is nil, skipping cache storage", "query", config.Name)
@@ -95,8 +95,8 @@ func (s *Service) executeQuery(ctx context.Context, config config.PrometheusQuer
 	return nil
 }
 
-func (s *Service) GetCachedResult(queryName string) (model.Value, bool) {
-	cached, found := s.cache.Get(queryName)
+func (s *Service) GetCachedResult(ctx *middlewares.AppContext, queryName string) (model.Value, bool) {
+	cached, found := ctx.Cache.Get(ctx, queryName)
 	if !found {
 		return nil, false
 	}

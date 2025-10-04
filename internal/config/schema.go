@@ -5,22 +5,36 @@ import (
 )
 
 type Config struct {
-	Server   ServerConfig  `yaml:"server"`
-	OIDC     OIDCConfig    `yaml:"oidc"`
-	Log      LogConfig     `yaml:"log"`
-	CORS     CORSConfig    `yaml:"cors"`
-	Sessions SessionConfig `yaml:"sessions"`
-	Data     DataConfig    `yaml:"data"`
-	Cache    CacheConfig   `yaml:"cache"`
-	Redis    *RedisConfig  `yaml:"redis"`
+	Server      ServerConfig       `yaml:"server"`
+	OIDC        OIDCConfig         `yaml:"oidc"`
+	Log         LogConfig          `yaml:"log"`
+	CORS        CORSConfig         `yaml:"cors"`
+	Sessions    SessionConfig      `yaml:"sessions"`
+	Data        DataConfig         `yaml:"data"`
+	Cache       CacheConfig        `yaml:"cache"`
+	Redis       *RedisConfig       `yaml:"redis"`
+	Distributed *DistributedConfig `yaml:"distributed"`
 }
 
 type ServerConfig struct {
-	Port int `yaml:"port"`
+	Port  int                `yaml:"port"`
+	Debug *ServerDebugConfig `yaml:"debug"`
 }
 
 var DefaultServerConfig = ServerConfig{
 	Port: 8080,
+}
+
+type ServerDebugConfig struct {
+	Enabled bool   `yaml:"enabled"`
+	Host    string `yaml:"host"`
+	Port    int    `yaml:"port"`
+}
+
+var DefaultDebugConfig = ServerDebugConfig{
+	Enabled: false,
+	Host:    "localhost",
+	Port:    5123,
 }
 
 type OIDCConfig struct {
@@ -109,9 +123,15 @@ type RedisConfig struct {
 	Password     string `yaml:"password"`
 	SessionIndex int    `yaml:"session_index"`
 	CacheIndex   int    `yaml:"cache_index"`
+	LeaderIndex  int    `yaml:"leader_index"`
 }
 
 var DefaultRedisConfig = RedisConfig{
 	SessionIndex: 0,
 	CacheIndex:   1,
+}
+
+type DistributedConfig struct {
+	Enabled bool          `yaml:"enabled"`
+	TTL     time.Duration `yaml:"ttl"`
 }

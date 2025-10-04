@@ -1,50 +1,43 @@
 package data
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"homelab-dashboard/internal/config"
+	"homelab-dashboard/internal/middlewares"
 	"log/slog"
 	"time"
 
 	"encoding/json"
 
-	"github.com/gomodule/redigo/redis"
 	"github.com/prometheus/common/model"
+	"github.com/redis/go-redis/v9"
 )
 
 type RedisCache struct {
-	pool   *redis.Pool
+	client *redis.Client
 	logger *slog.Logger
 }
 
 // NewRedisCache creates a new Redis-backed cache
-func NewRedisCache(cfg *config.Config, logger *slog.Logger) *RedisCache {
-	pool := &redis.Pool{
-		MaxIdle:     10,
-		MaxActive:   50,
-		IdleTimeout: 240 * time.Second,
-		Dial: func() (redis.Conn, error) {
-			opts := []redis.DialOption{
-				redis.DialDatabase(cfg.Redis.CacheIndex),
-			}
-			if cfg.Redis.Password != "" {
-				opts = append(opts, redis.DialPassword(cfg.Redis.Password))
-			}
-			return redis.Dial("tcp", cfg.Redis.Address, opts...)
-		},
-		TestOnBorrow: func(c redis.Conn, t time.Time) error {
-			if time.Since(t) < time.Minute {
-				return nil
-			}
-			_, err := c.Do("PING")
-			return err
-		},
+func NewRedisCache(cfg *config.Config, logger *slog.Logger) (*RedisCache, error) {
+	client := redis.NewClient(&redis.Options{
+		Addr:         cfg.Redis.Address,
+		Password:     cfg.Redis.Password,
+		DB:           cfg.Redis.CacheIndex,
+		MinIdleConns: 2,
+	})
+
+	ctx := context.Background()
+	if err := client.Ping(ctx).Err(); err != nil {
+		return nil, fmt.Errorf("redis connection failed: %w", err)
 	}
 
 	return &RedisCache{
-		pool:   pool,
+		client: client,
 		logger: logger,
-	}
+	}, nil
 }
 
 // key generates a namespaced Redis key
@@ -54,21 +47,13 @@ func (r *RedisCache) key(queryName string) string {
 
 // ClosePool closes the Redis connection pool
 func (r *RedisCache) ClosePool() error {
-	return r.pool.Close()
+	return r.client.Close()
 }
 
-func (r *RedisCache) Get(queryName string) (CachedData, bool) {
-	conn := r.pool.Get()
-	defer func(conn redis.Conn) {
-		err := conn.Close()
-		if err != nil {
-			r.logger.Error("error closing redis connection", "error", err)
-		}
-	}(conn)
-
-	data, err := redis.String(conn.Do("GET", r.key(queryName)))
+func (r *RedisCache) Get(ctx *middlewares.AppContext, queryName string) (CachedData, bool) {
+	data, err := r.client.Get(ctx, r.key(queryName)).Result()
 	if err != nil {
-		if err != redis.ErrNil {
+		if !errors.Is(err, redis.Nil) {
 			r.logger.Error("error executing redis GET", "error", err)
 		}
 		return CachedData{}, false
@@ -118,17 +103,8 @@ func (r *RedisCache) Get(queryName string) (CachedData, bool) {
 	return cached, true
 }
 
-func (r *RedisCache) ListAll() []string {
-	conn := r.pool.Get()
-	defer func(conn redis.Conn) {
-		err := conn.Close()
-		if err != nil {
-			r.logger.Error("error closing redis connection", "error", err)
-		}
-	}(conn)
-
-	pattern := r.key("*")
-	keys, err := redis.Strings(conn.Do("KEYS", pattern+"*"))
+func (r *RedisCache) ListAll(ctx *middlewares.AppContext) []string {
+	keys, err := r.client.Keys(ctx, r.key("*")).Result()
 	if err != nil {
 		r.logger.Error("error executing redis 'KEYS'", "error", err)
 		return []string{}
@@ -146,15 +122,7 @@ func (r *RedisCache) ListAll() []string {
 	return result
 }
 
-func (r *RedisCache) Set(queryName string, value model.Value, requireAuth bool, requiredGroup string) {
-	conn := r.pool.Get()
-	defer func(conn redis.Conn) {
-		err := conn.Close()
-		if err != nil {
-			r.logger.Error("error closing redis connection", "error", err)
-		}
-	}(conn)
-
+func (r *RedisCache) Set(ctx *middlewares.AppContext, queryName string, value model.Value, requireAuth bool, requiredGroup string) {
 	var valueType string
 	switch value.(type) {
 	case model.Vector:
@@ -192,7 +160,7 @@ func (r *RedisCache) Set(queryName string, value model.Value, requireAuth bool, 
 		return
 	}
 
-	_, err = conn.Do("SET", r.key(queryName), data)
+	_, err = r.client.Set(ctx, r.key(queryName), data, 0).Result()
 	if err != nil {
 		r.logger.Error("error executing redis 'SET'", "error", err)
 		return
@@ -200,16 +168,8 @@ func (r *RedisCache) Set(queryName string, value model.Value, requireAuth bool, 
 }
 
 // Delete removes an entry from the cache
-func (r *RedisCache) Delete(query string) {
-	conn := r.pool.Get()
-	defer func(conn redis.Conn) {
-		err := conn.Close()
-		if err != nil {
-			r.logger.Error("error closing redis connection", "error", err)
-		}
-	}(conn)
-
-	_, err := conn.Do("DEL", r.key(query))
+func (r *RedisCache) Delete(ctx *middlewares.AppContext, query string) {
+	_, err := r.client.Del(ctx, r.key(query)).Result()
 	if err != nil {
 		r.logger.Error("error executing redis 'DEL'", "error", err)
 		return
@@ -217,17 +177,9 @@ func (r *RedisCache) Delete(query string) {
 }
 
 // Size returns the current number of elements in the cache
-func (r *RedisCache) Size() int {
-	conn := r.pool.Get()
-	defer func(conn redis.Conn) {
-		err := conn.Close()
-		if err != nil {
-			r.logger.Error("error closing redis connection", "error", err)
-		}
-	}(conn)
-
+func (r *RedisCache) Size(ctx *middlewares.AppContext) int {
 	pattern := r.key("*")
-	keys, err := redis.Values(conn.Do("KEYS", pattern))
+	keys, err := r.client.Keys(ctx, pattern).Result()
 	if err != nil {
 		r.logger.Error("error executing redis 'KEYS'", "error", err)
 		return 0
@@ -237,31 +189,12 @@ func (r *RedisCache) Size() int {
 }
 
 // EstimateSize returns the estimated size of the current cache (in bytes)
-func (r *RedisCache) EstimateSize() (int, error) {
-	conn := r.pool.Get()
-	defer func(conn redis.Conn) {
-		err := conn.Close()
-		if err != nil {
-			r.logger.Error("error closing redis connection", "error", err)
-		}
-	}(conn)
-
-	pattern := r.key("*")
-	keys, err := redis.Strings(conn.Do("KEYS", pattern))
+func (r *RedisCache) EstimateSize(ctx *middlewares.AppContext) (int, error) {
+	dbSize, err := r.client.DBSize(ctx).Result()
 	if err != nil {
 		r.logger.Error("error executing redis 'KEYS'", "error", err)
 		return 0, err
 	}
 
-	totalSize := 0
-	for _, key := range keys {
-		size, err := redis.Int(conn.Do("STRLEN", key))
-		if err != nil {
-			r.logger.Error("error executing redis 'STRLEN'", "error", err)
-			continue
-		}
-		totalSize += size
-	}
-
-	return totalSize, nil
+	return int(dbSize), nil
 }

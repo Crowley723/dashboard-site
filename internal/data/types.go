@@ -23,6 +23,7 @@ type CachedData struct {
 	Value         model.Value `json:"-"`          //for memcache use
 	ValueJSON     string      `json:"value_json"` // raw JSON for Redis
 	ValueType     string      `json:"value_type"` // "vector", "matrix", "scalar", "string"
+	JSONBytes     []byte      `json:"json_bytes"`
 	Timestamp     time.Time   `json:"timestamp"`
 	RequireAuth   bool        `json:"require_auth"`
 	RequiredGroup string      `json:"required_group"`

@@ -7,6 +7,7 @@ import (
 	"homelab-dashboard/internal/auth"
 	"homelab-dashboard/internal/config"
 	"homelab-dashboard/internal/data"
+	"homelab-dashboard/internal/leader"
 	"homelab-dashboard/internal/middlewares"
 	"log/slog"
 	"net/http"
@@ -14,70 +15,153 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 )
 
-func Start(cfg *config.Config) error {
+type Server struct {
+	cfg         *config.Config
+	logger      *slog.Logger
+	appCtx      *middlewares.AppContext
+	httpServer  *http.Server
+	debugServer *http.Server
+	dataService *data.Service
+	cache       *data.CacheProvider
+	election    *leader.Election
+	ctx         *context.Context
+	cancel      context.CancelFunc
+}
+
+func New(cfg *config.Config) (*Server, error) {
 	logger := setupLogger(cfg)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	sessionManager, err := auth.NewSessionManager(cfg)
 	if err != nil {
-		return fmt.Errorf("failed to create session manager: %w", err)
+		cancel()
+		return nil, err
 	}
 
 	oidcProvider, err := auth.NewRealOIDCProvider(ctx, cfg.OIDC)
 
 	dataService, cache, err := setupDataService(cfg, logger)
 	if err != nil {
-		return err
+		cancel()
+		return nil, err
 	}
 
-	timeInterval := calculateFetchInterval(cfg, 10*time.Minute)
-	go func() {
-		if err := runBackgroundDataFetching(ctx, dataService, logger, timeInterval); err != nil {
-			logger.Error("background data fetching stopped", "error", err)
+	var election *leader.Election
+	if cfg.Distributed.Enabled {
+		redisClient := redis.NewClient(&redis.Options{
+			Addr: cfg.Redis.Address,
+			DB:   cfg.Redis.LeaderIndex,
+		})
+
+		hostname := os.Getenv("HOSTNAME")
+		if hostname == "" {
+			hostname = uuid.New().String()
 		}
-	}()
+
+		election = &leader.Election{
+			Redis:      redisClient,
+			InstanceID: hostname,
+			TTL:        cfg.Distributed.TTL,
+		}
+	}
 
 	appCtx := middlewares.NewAppContext(ctx, cfg, logger, cache, sessionManager, oidcProvider)
 
 	router := setupRouter(appCtx)
-
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", cfg.Server.Port),
 		Handler: router,
 	}
 
+	var debugServer *http.Server
+	if cfg.Server.Debug.Enabled {
+		debugRouter := setupDebugRouter()
+		debugServer = &http.Server{
+			Addr:    fmt.Sprintf("%s:%d", cfg.Server.Debug.Host, cfg.Server.Debug.Port),
+			Handler: debugRouter,
+		}
+
+	}
+
+	return &Server{
+		cfg:         cfg,
+		logger:      logger,
+		appCtx:      appCtx,
+		httpServer:  server,
+		debugServer: debugServer,
+		dataService: dataService,
+		election:    election,
+		ctx:         &ctx,
+		cancel:      cancel,
+	}, nil
+}
+
+func (s *Server) Start() error {
+
+	timeInterval := calculateFetchInterval(s.cfg, 10*time.Minute)
 	go func() {
-		logger.Info("Server starting", "port", cfg.Server.Port)
-		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger.Error("Server failed to start", "error", err)
-			cancel()
+		if err := s.runBackgroundDataFetching(timeInterval); err != nil {
+			s.logger.Error("background data fetching stopped", "error", err)
 		}
 	}()
+
+	router := setupRouter(s.appCtx)
+	server := &http.Server{
+		Addr:    fmt.Sprintf(":%d", s.cfg.Server.Port),
+		Handler: router,
+	}
+
+	go func() {
+		s.logger.Info("Server starting", "port", s.cfg.Server.Port)
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			s.logger.Error("Server failed to start", "error", err)
+			s.cancel()
+		}
+	}()
+
+	if s.cfg.Server.Debug.Enabled {
+
+		go func() {
+			s.logger.Info("Metrics server starting", "address", fmt.Sprintf("%s:%d", s.cfg.Server.Debug.Host, s.cfg.Server.Debug.Port))
+			if err := s.debugServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				s.logger.Error("Metrics server failed to start", "error", err)
+				s.cancel()
+			}
+		}()
+	}
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	select {
 	case <-quit:
-		logger.Info("Shutdown signal received")
-	case <-ctx.Done():
-		logger.Info("Context canceled")
+		s.logger.Info("Shutdown signal received")
+	case <-s.appCtx.Done():
+		s.logger.Info("Context canceled")
 	}
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer shutdownCancel()
 
-	logger.Info("Shutting down server")
+	s.logger.Info("Shutting down server")
 	if err := server.Shutdown(shutdownCtx); err != nil {
-		logger.Error("Server forced to shutdown", "error", err)
+		s.logger.Error("Server forced to shutdown", "error", err)
 		return err
 	}
 
-	logger.Info("Server exited")
+	if s.debugServer != nil && s.cfg.Server.Debug.Enabled {
+		if err := s.debugServer.Shutdown(shutdownCtx); err != nil {
+			s.logger.Error("Debug server forced to shutdown", "error", err)
+		}
+	}
+
+	s.logger.Info("Server exited")
 	return nil
 }
 
@@ -92,7 +176,10 @@ func setupDataService(cfg *config.Config, logger *slog.Logger) (*data.Service, d
 		return nil, nil, fmt.Errorf("failed to create new mimir client: %w", err)
 	}
 
-	cache := data.NewCacheProvider(cfg, logger)
+	cache, err := data.NewCacheProvider(cfg, logger)
+	if err != nil {
+		logger.Error("error setting up cache provider", "error", err)
+	}
 	return data.NewService(mimirClient, cache, logger, cfg.Data.Queries), cache, nil
 }
 
@@ -119,4 +206,34 @@ func calculateFetchInterval(cfg *config.Config, defaultInterval time.Duration) t
 	}
 
 	return minTTL
+}
+
+func (s *Server) monitorLeadership(ctx context.Context) {
+	var cancel context.CancelFunc
+	var fetcherCtx context.Context
+
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			if cancel != nil {
+				cancel()
+			}
+			return
+
+		case <-ticker.C:
+			isLeader := s.election.IsLeader()
+
+			if isLeader && cancel == nil {
+				fetcherCtx, cancel = context.WithCancel(ctx)
+				go s.runBackgroundDataFetcher(fetcherCtx)
+
+			} else if !isLeader && cancel != nil {
+				cancel()
+				cancel = nil
+			}
+		}
+	}
 }

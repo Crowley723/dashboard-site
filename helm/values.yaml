@@ -116,7 +116,22 @@ deployment:
   labels:
     app.kubernetes.io/name: dashboard
     app.kubernetes.io/component: application
-
+  annotations:
+    profiles.grafana.com/cpu.scrape: "true"
+    profiles.grafana.com/cpu.port: "9000"
+    profiles.grafana.com/cpu.path: "/debug/pprof/profile"
+    profiles.grafana.com/memory.scrape: "true"
+    profiles.grafana.com/memory.port: "9000"
+    profiles.grafana.com/memory.path: "/debug/pprof/heap"
+    profiles.grafana.com/goroutine.scrape: "true"
+    profiles.grafana.com/goroutine.port: "9000"
+    profiles.grafana.com/goroutine.path: "/debug/pprof/goroutine"
+    profiles.grafana.com/allocs.scrape: "true"
+    profiles.grafana.com/allocs.port: "9000"
+    profiles.grafana.com/allocs.path: "/debug/pprof/allocs"
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9000"
+    prometheus.io/path: "/metrics"
   image:
     repository: "ghcr.io/crowley723/dashboard-site"
     tag: "prod"
@@ -182,6 +197,10 @@ configMap:
 config:
   server:
     port: 8080
+    debug:
+      enabled: true
+      host: 127.0.0.1
+      port: 9000
 
   log:
     level: "info"

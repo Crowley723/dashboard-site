@@ -32,9 +32,9 @@ data:
     {{- with .Values.config.redis }}
     redis:
       address: {{ .address | quote }}
-      session_index: {{ .session_index | quote }}
-      cache_index: {{ .cache_index | quote }}
-      leader_index: {{ .leader_index | quote }}
+      session_index: {{ .session_index }}
+      cache_index: {{ .cache_index }}
+      leader_index: {{ .leader_index }}
       {{- if .sentinel }}
       sentinel:
         master_name: {{ .sentinel.master_name | quote }}

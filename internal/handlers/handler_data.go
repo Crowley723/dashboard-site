@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"slices"
 	"strings"
-
-	"github.com/go-jose/go-jose/v4/json"
 )
 
 func GetMetricsGET(ctx *middlewares.AppContext) {
@@ -22,7 +20,7 @@ func GetMetricsGET(ctx *middlewares.AppContext) {
 
 	var resultData []ResultData
 	if queryParam == "" {
-		resultData = addRecordsIfAuthorized(ctx, ctx.Cache.ListAll(), userGroups)
+		resultData = addRecordsIfAuthorized(ctx, ctx.Cache.ListAll(ctx.Context), userGroups)
 	} else {
 		resultData = addRecordsIfAuthorized(ctx, queries, userGroups)
 
@@ -32,14 +30,11 @@ func GetMetricsGET(ctx *middlewares.AppContext) {
 }
 
 func convertCachedDataToResultData(data *data.CachedData) (*ResultData, error) {
-	jsonBytes, err := json.Marshal(data.Value)
-
 	return &ResultData{
 		QueryName: data.Name,
 		Type:      data.Value.Type().String(),
-		Data:      jsonBytes,
-		Timestamp: data.Timestamp.Unix(),
-	}, err
+		Data:      data.JSONBytes,
+	}, nil
 }
 
 func addRecordsIfAuthorized(ctx *middlewares.AppContext, queryNames []string, userGroups []string) []ResultData {
@@ -47,7 +42,7 @@ func addRecordsIfAuthorized(ctx *middlewares.AppContext, queryNames []string, us
 	resultData = make([]ResultData, 0, len(queryNames))
 
 	for _, entryName := range queryNames {
-		entry, exists := ctx.Cache.Get(entryName)
+		entry, exists := ctx.Cache.Get(ctx.Context, entryName)
 		if !exists {
 			continue
 		}
@@ -88,7 +83,7 @@ func GetQueriesGET(ctx *middlewares.AppContext) {
 
 	var resultData []ResultData
 	if queryParam == "" {
-		resultData = addRecordsIfAuthorized(ctx, ctx.Cache.ListAll(), userGroups)
+		resultData = addRecordsIfAuthorized(ctx, ctx.Cache.ListAll(ctx.Context), userGroups)
 	} else {
 		resultData = addRecordsIfAuthorized(ctx, queries, userGroups)
 

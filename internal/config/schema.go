@@ -5,22 +5,36 @@ import (
 )
 
 type Config struct {
-	Server   ServerConfig  `yaml:"server"`
-	OIDC     OIDCConfig    `yaml:"oidc"`
-	Log      LogConfig     `yaml:"log"`
-	CORS     CORSConfig    `yaml:"cors"`
-	Sessions SessionConfig `yaml:"sessions"`
-	Data     DataConfig    `yaml:"data"`
-	Cache    CacheConfig   `yaml:"cache"`
-	Redis    *RedisConfig  `yaml:"redis"`
+	Server      ServerConfig       `yaml:"server"`
+	OIDC        OIDCConfig         `yaml:"oidc"`
+	Log         LogConfig          `yaml:"log"`
+	CORS        CORSConfig         `yaml:"cors"`
+	Sessions    SessionConfig      `yaml:"sessions"`
+	Data        DataConfig         `yaml:"data"`
+	Cache       CacheConfig        `yaml:"cache"`
+	Redis       *RedisConfig       `yaml:"redis"`
+	Distributed *DistributedConfig `yaml:"distributed"`
 }
 
 type ServerConfig struct {
-	Port int `yaml:"port"`
+	Port  int                `yaml:"port"`
+	Debug *ServerDebugConfig `yaml:"debug"`
 }
 
 var DefaultServerConfig = ServerConfig{
 	Port: 8080,
+}
+
+type ServerDebugConfig struct {
+	Enabled bool   `yaml:"enabled"`
+	Host    string `yaml:"host"`
+	Port    int    `yaml:"port"`
+}
+
+var DefaultDebugConfig = ServerDebugConfig{
+	Enabled: false,
+	Host:    "localhost",
+	Port:    5123,
 }
 
 type OIDCConfig struct {
@@ -78,9 +92,14 @@ var DefaultSessionConfig = SessionConfig{
 }
 
 type DataConfig struct {
-	PrometheusURL string            `yaml:"prometheus_url"`
-	BasicAuth     *BasicAuth        `yaml:"basic_auth"`
-	Queries       []PrometheusQuery `yaml:"queries"`
+	PrometheusURL         string            `yaml:"prometheus_url"`
+	BasicAuth             *BasicAuth        `yaml:"basic_auth"`
+	Queries               []PrometheusQuery `yaml:"queries"`
+	FallbackFetchInterval time.Duration     `yaml:"fallback_fetch_interval"`
+}
+
+var defaultDataConfig = DataConfig{
+	FallbackFetchInterval: 10 * time.Minute,
 }
 
 type BasicAuth struct {
@@ -105,13 +124,33 @@ type CacheConfig struct {
 }
 
 type RedisConfig struct {
-	Address      string `yaml:"address"`
-	Password     string `yaml:"password"`
-	SessionIndex int    `yaml:"session_index"`
-	CacheIndex   int    `yaml:"cache_index"`
+	Address      string               `yaml:"address"`
+	Password     string               `yaml:"password"`
+	Sentinel     *RedisSentinelConfig `yaml:"sentinel"`
+	SessionIndex int                  `yaml:"session_index"`
+	CacheIndex   int                  `yaml:"cache_index"`
+	LeaderIndex  int                  `yaml:"leader_index"`
 }
 
 var DefaultRedisConfig = RedisConfig{
 	SessionIndex: 0,
 	CacheIndex:   1,
+	LeaderIndex:  2,
+}
+
+type RedisSentinelConfig struct {
+	MasterName        string   `yaml:"master_name"`
+	SentinelAddresses []string `yaml:"addresses"`
+	SentinelPassword  string   `yaml:"password"`
+	SentinelUsername  string   `yaml:"username"`
+}
+
+type DistributedConfig struct {
+	Enabled bool          `yaml:"enabled"`
+	TTL     time.Duration `yaml:"ttl"`
+}
+
+var DefaultDistributedConfig = DistributedConfig{
+	Enabled: false,
+	TTL:     30 * time.Second,
 }

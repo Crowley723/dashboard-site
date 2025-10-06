@@ -1,9 +1,121 @@
+redis:
+  image:
+    registry: registry.crowleybrynn.com/dockerhub-proxy
+    repository: bitnamilegacy/redis
+  architecture: replication
+
+  auth:
+    enabled: true
+    sentinel: true
+    existingSecret: "redis-credentials"
+    existingSecretPasswordKey: "password"
+
+  master:
+    podAffinityPreset: ""
+    podAntiAffinityPreset: ""
+    nodeAffinityPreset:
+      type: ""
+      key: ""
+      values: []
+
+    # Then set custom affinity
+    affinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: redis
+                app.kubernetes.io/component: node
+            topologyKey: kubernetes.io/hostname
+      podAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 50
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: dashboard
+                  app.kubernetes.io/component: application
+              topologyKey: kubernetes.io/hostname
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: "node-role.kubernetes.io/control-plane"
+                  operator: DoesNotExist
+
+    disableCommands:
+      - FLUSHDB
+      - FLUSHALL
+    resourcesPreset: "nano"
+    persistence:
+      enabled: true
+      size: 2Gi
+      storageClass: longhorn-static
+      accessModes:
+        - ReadWriteOnce
+
+  replica:
+    affinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: redis
+                app.kubernetes.io/component: node
+            topologyKey: kubernetes.io/hostname
+      podAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 50
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: dashboard
+                  app.kubernetes.io/component: application
+              topologyKey: kubernetes.io/hostname
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: "node-role.kubernetes.io/control-plane"
+                  operator: DoesNotExist
+    replicaCount: 3
+    disableCommands:
+      - FLUSHDB
+      - FLUSHALL
+    resourcesPreset: "nano"
+    persistence:
+      enabled: true
+      size: 2Gi
+      storageClass: longhorn-static
+      accessModes:
+        - ReadWriteOnce
+
+  sentinel:
+    image:
+      registry: registry.crowleybrynn.com/dockerhub-proxy
+      repository: bitnamilegacy/redis-sentinel
+    enabled: true
+    quorum: 2
+    downAfterMilliseconds: 30000
+    failoverTimeout: 180000
+
+  networkPolicy:
+    enabled: true
+    allowExternal: true
+
+  metrics:
+    enabled: false
+
 deployment:
   replicas: 1
   strategy:
     type: RollingUpdate
     rollingUpdate:
       maxSurge: 1
+
+  labels:
+    app.kubernetes.io/name: dashboard
+    app.kubernetes.io/component: application
 
   image:
     repository: "ghcr.io/crowley723/dashboard-site"
@@ -33,6 +145,8 @@ deployment:
     envFrom:
       - secretRef:
           name: dashboard-secrets
+      - secretRef:
+          name: redis-credentials
 
     resources:
       limits:
@@ -96,7 +210,6 @@ config:
       - 'groups'
 
   data:
-    time_interval: '10m'
     queries:
       - name: 'up'
         query: 'up{source="kubernetes", app!="", component!=""}'

@@ -10,3 +10,8 @@ maintainers:
   - name: Brynn Crowley
     email: littlehill723@gmail.com
     url: https://github.com/Crowley723
+dependencies:
+  - name: redis
+    version: "20.4.0"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: redis.enabled

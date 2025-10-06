@@ -10,6 +10,7 @@
 package mocks
 
 import (
+	context "context"
 	data "homelab-dashboard/internal/data"
 	reflect "reflect"
 
@@ -42,83 +43,68 @@ func (m *MockCacheProvider) EXPECT() *MockCacheProviderMockRecorder {
 }
 
 // Delete mocks base method.
-func (m *MockCacheProvider) Delete(query string) {
+func (m *MockCacheProvider) Delete(ctx context.Context, query string) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Delete", query)
+	m.ctrl.Call(m, "Delete", ctx, query)
 }
 
 // Delete indicates an expected call of Delete.
-func (mr *MockCacheProviderMockRecorder) Delete(query any) *gomock.Call {
+func (mr *MockCacheProviderMockRecorder) Delete(ctx, query any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockCacheProvider)(nil).Delete), query)
-}
-
-// EstimateSize mocks base method.
-func (m *MockCacheProvider) EstimateSize() (int, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "EstimateSize")
-	ret0, _ := ret[0].(int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// EstimateSize indicates an expected call of EstimateSize.
-func (mr *MockCacheProviderMockRecorder) EstimateSize() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EstimateSize", reflect.TypeOf((*MockCacheProvider)(nil).EstimateSize))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockCacheProvider)(nil).Delete), ctx, query)
 }
 
 // Get mocks base method.
-func (m *MockCacheProvider) Get(queryName string) (data.CachedData, bool) {
+func (m *MockCacheProvider) Get(ctx context.Context, queryName string) (data.CachedData, bool) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Get", queryName)
+	ret := m.ctrl.Call(m, "Get", ctx, queryName)
 	ret0, _ := ret[0].(data.CachedData)
 	ret1, _ := ret[1].(bool)
 	return ret0, ret1
 }
 
 // Get indicates an expected call of Get.
-func (mr *MockCacheProviderMockRecorder) Get(queryName any) *gomock.Call {
+func (mr *MockCacheProviderMockRecorder) Get(ctx, queryName any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockCacheProvider)(nil).Get), queryName)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockCacheProvider)(nil).Get), ctx, queryName)
 }
 
 // ListAll mocks base method.
-func (m *MockCacheProvider) ListAll() []string {
+func (m *MockCacheProvider) ListAll(ctx context.Context) []string {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListAll")
+	ret := m.ctrl.Call(m, "ListAll", ctx)
 	ret0, _ := ret[0].([]string)
 	return ret0
 }
 
 // ListAll indicates an expected call of ListAll.
-func (mr *MockCacheProviderMockRecorder) ListAll() *gomock.Call {
+func (mr *MockCacheProviderMockRecorder) ListAll(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListAll", reflect.TypeOf((*MockCacheProvider)(nil).ListAll))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListAll", reflect.TypeOf((*MockCacheProvider)(nil).ListAll), ctx)
 }
 
 // Set mocks base method.
-func (m *MockCacheProvider) Set(queryName string, value model.Value, requireAuth bool, requiredGroup string) {
+func (m *MockCacheProvider) Set(ctx context.Context, queryName string, value model.Value, requireAuth bool, requiredGroup string) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Set", queryName, value, requireAuth, requiredGroup)
+	m.ctrl.Call(m, "Set", ctx, queryName, value, requireAuth, requiredGroup)
 }
 
 // Set indicates an expected call of Set.
-func (mr *MockCacheProviderMockRecorder) Set(queryName, value, requireAuth, requiredGroup any) *gomock.Call {
+func (mr *MockCacheProviderMockRecorder) Set(ctx, queryName, value, requireAuth, requiredGroup any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Set", reflect.TypeOf((*MockCacheProvider)(nil).Set), queryName, value, requireAuth, requiredGroup)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Set", reflect.TypeOf((*MockCacheProvider)(nil).Set), ctx, queryName, value, requireAuth, requiredGroup)
 }
 
 // Size mocks base method.
-func (m *MockCacheProvider) Size() int {
+func (m *MockCacheProvider) Size(ctx context.Context) int {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Size")
+	ret := m.ctrl.Call(m, "Size", ctx)
 	ret0, _ := ret[0].(int)
 	return ret0
 }
 
 // Size indicates an expected call of Size.
-func (mr *MockCacheProviderMockRecorder) Size() *gomock.Call {
+func (mr *MockCacheProviderMockRecorder) Size(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Size", reflect.TypeOf((*MockCacheProvider)(nil).Size))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Size", reflect.TypeOf((*MockCacheProvider)(nil).Size), ctx)
 }

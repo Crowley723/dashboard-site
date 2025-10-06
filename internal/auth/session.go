@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"encoding/gob"
 	"fmt"
 	"homelab-dashboard/internal/config"
@@ -9,11 +10,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/alexedwards/scs/redisstore"
+	"github.com/alexedwards/scs/goredisstore"
 	"github.com/alexedwards/scs/v2"
 	"github.com/alexedwards/scs/v2/memstore"
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/gomodule/redigo/redis"
+	"github.com/redis/go-redis/v9"
 )
 
 type SessionManager struct {
@@ -28,19 +29,19 @@ func NewSessionManager(cfg *config.Config) (*SessionManager, error) {
 	case "memory":
 		sessionManager.Store = memstore.New()
 	case "redis":
-		pool := &redis.Pool{
-			MaxIdle: 10,
-			Dial: func() (redis.Conn, error) {
-				opts := []redis.DialOption{
-					redis.DialDatabase(cfg.Redis.SessionIndex),
-				}
-				if cfg.Redis.Password != "" {
-					opts = append(opts, redis.DialPassword(cfg.Redis.Password))
-				}
-				return redis.Dial("tcp", cfg.Redis.Address, opts...)
-			},
+		client := redis.NewClient(&redis.Options{
+			Addr:         cfg.Redis.Address,
+			Password:     cfg.Redis.Password,
+			DB:           cfg.Redis.SessionIndex,
+			MinIdleConns: 2,
+		})
+
+		ctx := context.Background()
+		if err := client.Ping(ctx).Err(); err != nil {
+			return nil, fmt.Errorf("redis connection failed: %w", err)
 		}
-		sessionManager.Store = redisstore.New(pool)
+
+		sessionManager.Store = goredisstore.New(client)
 	default:
 		return nil, fmt.Errorf("unsupported session store: %s", cfg.Sessions.Store)
 	}

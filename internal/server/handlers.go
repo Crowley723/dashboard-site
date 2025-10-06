@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func setupRouter(ctx *middlewares.AppContext) *chi.Mux {
@@ -19,6 +20,7 @@ func setupRouter(ctx *middlewares.AppContext) *chi.Mux {
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+	r.Use(middlewares.MetricsMiddleware)
 	r.Use(middleware.Timeout(60 * time.Second))
 
 	r.Use(ctx.SessionManager.LoadAndSave)
@@ -33,6 +35,8 @@ func setupRouter(ctx *middlewares.AppContext) *chi.Mux {
 		AllowCredentials: ctx.Config.CORS.AllowCredentials,
 		MaxAge:           ctx.Config.CORS.MaxAgeSeconds,
 	}))
+
+	r.Use(middleware.Compress(5))
 
 	r.Handle("/assets/*", http.StripPrefix("/assets/", http.FileServer(http.Dir("web/dist/assets"))))
 	r.Handle("/favicon.ico", http.FileServer(http.Dir("web/dist")))
@@ -61,6 +65,22 @@ func setupRouter(ctx *middlewares.AppContext) *chi.Mux {
 			r.Get("/health", ctx.HandlerFunc(handlers.HandlerHealth))
 		})
 	})
+
+	return r
+}
+
+func setupDebugRouter() *chi.Mux {
+	r := chi.NewRouter()
+
+	r.Use(middleware.RequestID)
+	r.Use(middleware.RealIP)
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
+	r.Use(middleware.Timeout(60 * time.Second))
+
+	r.Mount("/debug", middleware.Profiler())
+
+	r.Get("/metrics", promhttp.Handler().ServeHTTP)
 
 	return r
 }

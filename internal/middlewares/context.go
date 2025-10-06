@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/go-jose/go-jose/v4/json"
+	"encoding/json"
 )
 
 type AppContext struct {

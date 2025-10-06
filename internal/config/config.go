@@ -124,6 +124,15 @@ func validateConfig(config *Config) error {
 	}
 
 	err = config.validateRedisConfig()
+	if err != nil {
+		return err
+	}
+
+	err = config.validateDistributedConfig()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -154,6 +163,15 @@ func (c *Config) validateOIDCConfig() error {
 func (c *Config) validateServerConfig() error {
 	if c.Server.Port == 0 {
 		c.Server.Port = DefaultServerConfig.Port
+	}
+
+	if c.Server.Debug != nil && c.Server.Debug.Enabled {
+		if c.Server.Debug.Host == "" {
+			c.Server.Debug.Host = DefaultDebugConfig.Host
+		}
+		if c.Server.Debug.Port <= 0 || c.Server.Debug.Port >= 65535 {
+			c.Server.Debug.Port = DefaultDebugConfig.Port
+		}
 	}
 
 	return nil
@@ -272,6 +290,12 @@ func (c *Config) validateDataConfig() (err error) {
 		}
 	}
 
+	if c.Data.FallbackFetchInterval.Seconds() < 0 {
+		c.Data.FallbackFetchInterval = defaultDataConfig.FallbackFetchInterval
+	} else if c.Data.FallbackFetchInterval.Seconds() < 30 && c.Data.FallbackFetchInterval.Seconds() > 0 {
+		return fmt.Errorf("data.fallback_fetch_interval cannot be less than 30 seconds")
+	}
+
 	return nil
 }
 
@@ -350,8 +374,20 @@ func (c *Config) validateRedisConfig() error {
 		return fmt.Errorf("redis cache_index must be non-negative, got %d", c.Redis.CacheIndex)
 	}
 
+	if c.Redis.LeaderIndex < 0 {
+		return fmt.Errorf("redis leader_index must be non-negative, got %d", c.Redis.CacheIndex)
+	}
+
 	if c.Redis.SessionIndex == c.Redis.CacheIndex {
 		return fmt.Errorf("redis session_index and cache_index should be different to avoid data collision (both are %d)", c.Redis.SessionIndex)
+	}
+
+	if c.Redis.LeaderIndex == c.Redis.CacheIndex {
+		return fmt.Errorf("redis leader_index and cache_index should be different to avoid data collision (both are %d)", c.Redis.LeaderIndex)
+	}
+
+	if c.Redis.LeaderIndex == c.Redis.SessionIndex {
+		return fmt.Errorf("redis leader_index and session_index should be different to avoid data collision (both are %d)", c.Redis.LeaderIndex)
 	}
 
 	const maxRedisDB = 15
@@ -361,6 +397,32 @@ func (c *Config) validateRedisConfig() error {
 
 	if c.Redis.CacheIndex > maxRedisDB {
 		return fmt.Errorf("redis cache_index %d exceeds typical maximum of %d", c.Redis.CacheIndex, maxRedisDB)
+	}
+
+	if c.Redis.LeaderIndex > maxRedisDB {
+		return fmt.Errorf("redis leader_index %d exceeds typical maximum of %d", c.Redis.LeaderIndex, maxRedisDB)
+	}
+
+	if c.Redis.Sentinel != nil {
+		if c.Redis.Sentinel.MasterName == "" {
+			return fmt.Errorf("sentinel master_name is required")
+		}
+		if len(c.Redis.Sentinel.SentinelAddresses) == 0 {
+			return fmt.Errorf("at least one sentinel address is required")
+		}
+	}
+	return nil
+}
+
+func (c *Config) validateDistributedConfig() error {
+	if c.Distributed == nil || !c.Distributed.Enabled {
+		return nil
+	}
+
+	if c.Distributed.TTL.Seconds() <= 0 {
+		c.Distributed.TTL = DefaultDistributedConfig.TTL
+	} else if c.Distributed.TTL > time.Minute {
+		return fmt.Errorf("distributed ttl cannot be more than 1 minute")
 	}
 
 	return nil

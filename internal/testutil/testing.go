@@ -3,6 +3,7 @@ package testutil
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"homelab-dashboard/internal/config"
 	"homelab-dashboard/internal/data"
 	"homelab-dashboard/internal/middlewares"
@@ -393,13 +394,13 @@ func (tc *TestContext) WithRequest(req *http.Request) *TestContext {
 }
 
 // ExpectCacheGet sets up an expectation for cache.Get()
-func (tc *TestContext) ExpectCacheGet(queryName string, returnData data.CachedData, found bool) *gomock.Call {
-	return tc.MockCache.EXPECT().Get(queryName).Return(returnData, found)
+func (tc *TestContext) ExpectCacheGet(ctx context.Context, queryName string, returnData data.CachedData, found bool) *gomock.Call {
+	return tc.MockCache.EXPECT().Get(ctx, queryName).Return(returnData, found)
 }
 
 // ExpectCacheSet sets up an expectation for cache.Set()
-func (tc *TestContext) ExpectCacheSet(queryName string, value interface{}, requireAuth bool, requiredGroup string) *gomock.Call {
-	return tc.MockCache.EXPECT().Set(queryName, value, requireAuth, requiredGroup)
+func (tc *TestContext) ExpectCacheSet(ctx context.Context, queryName string, value interface{}, requireAuth bool, requiredGroup string) *gomock.Call {
+	return tc.MockCache.EXPECT().Set(ctx, queryName, value, requireAuth, requiredGroup)
 }
 
 // ExpectSessionIsAuthenticated sets up an expectation for session.IsAuthenticated()
@@ -457,6 +458,10 @@ func (u UnmarshalableValue) Type() model.ValueType {
 
 func (u UnmarshalableValue) String() string {
 	return "unmarshalable"
+}
+
+func (u UnmarshalableValue) MarshalJSON() ([]byte, error) {
+	return nil, fmt.Errorf("intentionally unmarshalable value")
 }
 
 func (tc *TestContext) CreateCachedDataWithUnmarshalableValue(name string, requireAuth bool, requiredGroup string) data.CachedData {

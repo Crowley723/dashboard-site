@@ -293,7 +293,6 @@ func TestParseDurationString_AtoiErrors(t *testing.T) {
 				assert.Contains(t, err.Error(), tc.expectedErr)
 				assert.Equal(t, time.Duration(0), duration)
 			} else {
-				// This case tests behavior on systems where large numbers might work
 				t.Logf("Input %s resulted in: duration=%v, err=%v", tc.input, duration, err)
 			}
 		})

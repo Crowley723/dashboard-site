@@ -48,6 +48,10 @@ var (
 	EnvDataPrometheusURL     = "DASHBOARD_DATA_PROMETHEUS_URL"
 	EnvDataBasicAuthUsername = "DASHBOARD_DATA_BASIC_AUTH_USERNAME"
 	EnvDataBasicAuthPassword = "DASHBOARD_DATA_BASIC_AUTH_PASSWORD"
+	EnvRedisPassword         = "DASHBOARD_REDIS_PASSWORD"
+	EnvRedisUsername         = "DASHBOARD_REDIS_USERNAME"
+	EnvRedisSentinelUsername = "DASHBOARD_REDIS_SENTINEL_USERNAME"
+	EnvRedisSentinelPassword = "DASHBOARD_REDIS_SENTINEL_PASSWORD"
 )
 
 func applyEnvironmentOverrides(config *Config) {
@@ -83,6 +87,39 @@ func applyEnvironmentOverrides(config *Config) {
 			config.Data.BasicAuth = &BasicAuth{}
 		}
 		config.Data.BasicAuth.Password = password
+	}
+
+	if redisPassword := os.Getenv(EnvRedisPassword); redisPassword != "" {
+		if config.Redis == nil {
+			config.Redis = &RedisConfig{}
+		}
+		config.Redis.Password = redisPassword
+	}
+
+	if redisUsername := os.Getenv(EnvRedisUsername); redisUsername != "" {
+		if config.Redis == nil {
+			config.Redis = &RedisConfig{}
+		}
+	}
+
+	if sentinelUsername := os.Getenv(EnvRedisSentinelUsername); sentinelUsername != "" {
+		if config.Redis == nil {
+			config.Redis = &RedisConfig{}
+		}
+		if config.Redis.Sentinel == nil {
+			config.Redis.Sentinel = &RedisSentinelConfig{}
+		}
+		config.Redis.Sentinel.SentinelUsername = sentinelUsername
+	}
+
+	if sentinelPassword := os.Getenv(EnvRedisSentinelPassword); sentinelPassword != "" {
+		if config.Redis == nil {
+			config.Redis = &RedisConfig{}
+		}
+		if config.Redis.Sentinel == nil {
+			config.Redis.Sentinel = &RedisSentinelConfig{}
+		}
+		config.Redis.Sentinel.SentinelPassword = sentinelPassword
 	}
 }
 

@@ -17,16 +17,16 @@ data:
       port: {{ .port | default 8080 }}
       {{- if .debug }}
       debug:
-        enabled: {{ .enabled | default false | quote }}
+        enabled: {{ .enabled | default false }}
         host: {{ .host | default "127.0.0.1" | quote }}
-        port: {{ .port | default 9000 | quote }}
+        port: {{ .port | default 9000 }}
       {{- end }}
     {{- end }}
 
     {{- with .Values.config.distributed }}
     distributed:
-      enabled: {{ .enabled | default false | quote }}
-      ttl: {{ .ttl | default "30s" | quote }}
+      enabled: {{ .enabled | default false }}
+      ttl: {{ .ttl | default "30s" }}
     {{- end }}
 
     {{- with .Values.config.redis }}
@@ -35,6 +35,19 @@ data:
       session_index: {{ .session_index | quote }}
       cache_index: {{ .cache_index | quote }}
       leader_index: {{ .leader_index | quote }}
+      {{- if .sentinel }}
+      sentinel:
+        master_name: {{ .sentinel.master_name | quote }}
+        username: {{ .sentinel.username | quote }}
+        password: {{ .sentinel.password | quote }}
+        {{- if .sentinel.addresses }}
+        addresses:
+          {{- range .sentinel.addresses }}
+          - {{ . | quote }}
+          {{- end }}
+        {{- end }}
+      {{- end}}
+
     {{- end }}
 
     {{- with .Values.config.oidc }}
@@ -140,7 +153,7 @@ data:
       queries:
         {{- range .queries }}
         - name: {{ .name | quote }}
-          disabled: {{ .disabled | quote }}
+          disabled: {{ .disabled }}
           query: {{ .query | quote }}
           type: {{ .type | quote }}
           {{- if .ttl }}

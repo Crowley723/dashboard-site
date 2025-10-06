@@ -202,6 +202,17 @@ config:
       host: 0.0.0.0
       port: 9000
 
+  redis:
+    address: 'dashboard-redis.dashboard-site.svc.cluster.local:6379'
+    session_index: 0
+    cache_index: 1
+    leader_index: 2
+    sentinel:
+      addresses:
+        - 'dashboard-redis-node-0.dashboard-redis-headless.dashboard-site.svc.cluster.local:26379'
+        - 'dashboard-redis-node-1.dashboard-redis-headless.dashboard-site.svc.cluster.local:26379'
+        - 'dashboard-redis-node-2.dashboard-redis-headless.dashboard-site.svc.cluster.local:26379'
+
   log:
     level: "info"
     format: "text"

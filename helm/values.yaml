@@ -227,6 +227,7 @@ config:
     cache_index: 1
     leader_index: 2
     sentinel:
+      master_name: mymaster
       addresses:
         - 'dashboard-redis-node-0.dashboard-redis-headless.dashboard-site.svc.cluster.local:26379'
         - 'dashboard-redis-node-1.dashboard-redis-headless.dashboard-site.svc.cluster.local:26379'

@@ -17,9 +17,9 @@ data:
       port: {{ .port | default 8080 }}
       {{- if .debug }}
       debug:
-        enabled: {{ .enabled | default false }}
-        host: {{ .host | default "127.0.0.1" | quote }}
-        port: {{ .port | default 9000 }}
+        enabled: {{ .debug.enabled | default false }}
+        host: {{ .debug.host | default "127.0.0.1" | quote }}
+        port: {{ .debug.port | default 9000 }}
       {{- end }}
     {{- end }}
 
@@ -38,7 +38,6 @@ data:
       {{- if .sentinel }}
       sentinel:
         master_name: {{ .sentinel.master_name | quote }}
-        username: {{ .sentinel.username | quote }}
         password: {{ .sentinel.password | quote }}
         {{- if .sentinel.addresses }}
         addresses:

@@ -125,6 +125,7 @@ type CacheConfig struct {
 
 type RedisConfig struct {
 	Address      string               `yaml:"address"`
+	Username     string               `yaml:"username"`
 	Password     string               `yaml:"password"`
 	Sentinel     *RedisSentinelConfig `yaml:"sentinel"`
 	SessionIndex int                  `yaml:"session_index"`

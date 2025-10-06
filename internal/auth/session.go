@@ -40,7 +40,6 @@ func NewSessionManager(logger *slog.Logger, cfg *config.Config) (*SessionManager
 			client = redis.NewFailoverClient(&redis.FailoverOptions{
 				MasterName:       cfg.Redis.Sentinel.MasterName,
 				SentinelAddrs:    cfg.Redis.Sentinel.SentinelAddresses,
-				SentinelUsername: cfg.Redis.Sentinel.SentinelUsername,
 				SentinelPassword: cfg.Redis.Sentinel.SentinelPassword,
 				Password:         cfg.Redis.Password,
 				DB:               cfg.Redis.SessionIndex,

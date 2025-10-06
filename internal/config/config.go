@@ -100,6 +100,7 @@ func applyEnvironmentOverrides(config *Config) {
 		if config.Redis == nil {
 			config.Redis = &RedisConfig{}
 		}
+		config.Redis.Username = redisUsername
 	}
 
 	if sentinelUsername := os.Getenv(EnvRedisSentinelUsername); sentinelUsername != "" {

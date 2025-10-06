@@ -44,7 +44,6 @@ func NewRedisCache(cfg *config.Config, logger *slog.Logger) (*RedisCache, error)
 		client = redis.NewFailoverClient(&redis.FailoverOptions{
 			MasterName:       cfg.Redis.Sentinel.MasterName,
 			SentinelAddrs:    cfg.Redis.Sentinel.SentinelAddresses,
-			SentinelUsername: cfg.Redis.Sentinel.SentinelUsername,
 			SentinelPassword: cfg.Redis.Sentinel.SentinelPassword,
 			Password:         cfg.Redis.Password,
 			DB:               cfg.Redis.CacheIndex,

@@ -166,21 +166,11 @@ deployment:
           secretKeyRef:
             name: redis-credentials
             key: password
-      - name: DASHBOARD_REDIS_USERNAME
-        valueFrom:
-          secretKeyRef:
-            name: redis-credentials
-            key: username
       - name: DASHBOARD_REDIS_SENTINEL_PASSWORD
         valueFrom:
           secretKeyRef:
             name: redis-credentials
             key: password
-      - name: DASHBOARD_REDIS_SENTINEL_USERNAME
-        valueFrom:
-          secretKeyRef:
-            name: redis-credentials
-            key: username
 
     resources:
       limits:

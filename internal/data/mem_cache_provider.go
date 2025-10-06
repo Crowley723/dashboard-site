@@ -1,9 +1,9 @@
 package data
 
 import (
+	"context"
 	"homelab-dashboard/internal/config"
 	"homelab-dashboard/internal/metrics"
-	"homelab-dashboard/internal/middlewares"
 	"log/slog"
 	"sync"
 	"time"
@@ -27,7 +27,7 @@ type MemCache struct {
 }
 
 // Get returns the data for a currently cached query
-func (d *MemCache) Get(ctx *middlewares.AppContext, queryName string) (CachedData, bool) {
+func (d *MemCache) Get(ctx context.Context, queryName string) (CachedData, bool) {
 	d.mutex.RLock()
 	defer d.mutex.RUnlock()
 
@@ -41,7 +41,7 @@ func (d *MemCache) Get(ctx *middlewares.AppContext, queryName string) (CachedDat
 }
 
 // ListAll returns a slice of keys for the currently cached queries
-func (d *MemCache) ListAll(ctx *middlewares.AppContext) []string {
+func (d *MemCache) ListAll(ctx context.Context) []string {
 	d.mutex.RLock()
 	defer d.mutex.RUnlock()
 
@@ -54,7 +54,7 @@ func (d *MemCache) ListAll(ctx *middlewares.AppContext) []string {
 }
 
 // Set sets (or inserts) the value of a query
-func (d *MemCache) Set(ctx *middlewares.AppContext, queryName string, value model.Value, requireAuth bool, requiredGroup string) {
+func (d *MemCache) Set(ctx context.Context, queryName string, value model.Value, requireAuth bool, requiredGroup string) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
@@ -75,28 +75,15 @@ func (d *MemCache) Set(ctx *middlewares.AppContext, queryName string, value mode
 }
 
 // Delete removes an entry from the cache
-func (d *MemCache) Delete(ctx *middlewares.AppContext, query string) {
+func (d *MemCache) Delete(ctx context.Context, query string) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 	delete(d.cache, query)
 }
 
 // Size returns the current number of elements in the cache
-func (d *MemCache) Size(ctx *middlewares.AppContext) int {
+func (d *MemCache) Size(ctx context.Context) int {
 	d.mutex.RLock()
 	defer d.mutex.RUnlock()
 	return len(d.cache)
-}
-
-// EstimateSize returns the estimated size of the current cache (in bytes) by checking the length of the marshalled cache.
-func (d *MemCache) EstimateSize(ctx *middlewares.AppContext) (int, error) {
-	d.mutex.RLock()
-	defer d.mutex.RUnlock()
-
-	totalSize := 0
-	for _, entry := range d.cache {
-		totalSize += len(entry.JSONBytes)
-	}
-
-	return totalSize, nil
 }

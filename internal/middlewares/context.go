@@ -3,6 +3,7 @@ package middlewares
 import (
 	"context"
 	"homelab-dashboard/internal/config"
+	"homelab-dashboard/internal/data"
 	"log/slog"
 	"net/http"
 
@@ -15,7 +16,7 @@ type AppContext struct {
 	Logger         *slog.Logger
 	SessionManager SessionProvider
 	OIDCProvider   OIDCProvider
-	Cache          CacheProvider
+	Cache          data.CacheProvider
 
 	Request  *http.Request
 	Response http.ResponseWriter
@@ -78,7 +79,7 @@ func (ctx *AppContext) Redirect(url string, status int) {
 	http.Redirect(ctx.Response, ctx.Request, url, status)
 }
 
-func NewAppContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, cache CacheProvider, sessionManager SessionProvider, oidcProvider OIDCProvider) *AppContext {
+func NewAppContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, cache data.CacheProvider, sessionManager SessionProvider, oidcProvider OIDCProvider) *AppContext {
 	return &AppContext{
 		Context:        ctx,
 		Config:         cfg,

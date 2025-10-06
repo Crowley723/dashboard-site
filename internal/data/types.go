@@ -1,6 +1,7 @@
 package data
 
 import (
+	"context"
 	"time"
 
 	"github.com/prometheus/common/model"
@@ -27,4 +28,12 @@ type CachedData struct {
 	Timestamp     time.Time   `json:"timestamp"`
 	RequireAuth   bool        `json:"require_auth"`
 	RequiredGroup string      `json:"required_group"`
+}
+
+type CacheProvider interface {
+	Get(ctx context.Context, queryName string) (CachedData, bool)
+	ListAll(ctx context.Context) []string
+	Set(ctx context.Context, queryName string, value model.Value, requireAuth bool, requiredGroup string)
+	Delete(ctx context.Context, query string)
+	Size(ctx context.Context) int
 }

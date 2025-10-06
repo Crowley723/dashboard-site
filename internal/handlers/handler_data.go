@@ -20,7 +20,7 @@ func GetMetricsGET(ctx *middlewares.AppContext) {
 
 	var resultData []ResultData
 	if queryParam == "" {
-		resultData = addRecordsIfAuthorized(ctx, ctx.Cache.ListAll(ctx), userGroups)
+		resultData = addRecordsIfAuthorized(ctx, ctx.Cache.ListAll(ctx.Context), userGroups)
 	} else {
 		resultData = addRecordsIfAuthorized(ctx, queries, userGroups)
 
@@ -42,7 +42,7 @@ func addRecordsIfAuthorized(ctx *middlewares.AppContext, queryNames []string, us
 	resultData = make([]ResultData, 0, len(queryNames))
 
 	for _, entryName := range queryNames {
-		entry, exists := ctx.Cache.Get(ctx, entryName)
+		entry, exists := ctx.Cache.Get(ctx.Context, entryName)
 		if !exists {
 			continue
 		}
@@ -83,7 +83,7 @@ func GetQueriesGET(ctx *middlewares.AppContext) {
 
 	var resultData []ResultData
 	if queryParam == "" {
-		resultData = addRecordsIfAuthorized(ctx, ctx.Cache.ListAll(ctx), userGroups)
+		resultData = addRecordsIfAuthorized(ctx, ctx.Cache.ListAll(ctx.Context), userGroups)
 	} else {
 		resultData = addRecordsIfAuthorized(ctx, queries, userGroups)
 

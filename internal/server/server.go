@@ -7,7 +7,7 @@ import (
 	"homelab-dashboard/internal/auth"
 	"homelab-dashboard/internal/config"
 	"homelab-dashboard/internal/data"
-	"homelab-dashboard/internal/leader"
+	"homelab-dashboard/internal/metrics"
 	"homelab-dashboard/internal/middlewares"
 	"log/slog"
 	"net/http"
@@ -17,6 +17,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/redis/go-redis/extra/redisprometheus/v9"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -28,7 +30,7 @@ type Server struct {
 	debugServer *http.Server
 	dataService *data.Service
 	cache       *data.CacheProvider
-	election    *leader.Election
+	election    *distributed.Election
 	ctx         *context.Context
 	cancel      context.CancelFunc
 }
@@ -52,19 +54,26 @@ func New(cfg *config.Config) (*Server, error) {
 		return nil, err
 	}
 
-	var election *leader.Election
-	if cfg.Distributed.Enabled {
+	var election *distributed.Election
+	if cfg.Distributed != nil && cfg.Distributed.Enabled {
 		redisClient := redis.NewClient(&redis.Options{
 			Addr: cfg.Redis.Address,
 			DB:   cfg.Redis.LeaderIndex,
 		})
+
+		if cfg.Server.Debug != nil && cfg.Server.Debug.Enabled {
+			collector := redisprometheus.NewCollector(metrics.Namespace, "election", redisClient)
+			if err := prometheus.Register(collector); err != nil {
+				logger.Debug("failed to register redis election collector: already registered", "error", err)
+			}
+		}
 
 		hostname := os.Getenv("HOSTNAME")
 		if hostname == "" {
 			hostname = uuid.New().String()
 		}
 
-		election = &leader.Election{
+		election = &distributed.Election{
 			Redis:      redisClient,
 			InstanceID: hostname,
 			TTL:        cfg.Distributed.TTL,
@@ -104,12 +113,18 @@ func New(cfg *config.Config) (*Server, error) {
 
 func (s *Server) Start() error {
 
-	timeInterval := calculateFetchInterval(s.cfg, 10*time.Minute)
-	go func() {
-		if err := s.runBackgroundDataFetching(timeInterval); err != nil {
-			s.logger.Error("background data fetching stopped", "error", err)
-		}
-	}()
+	if s.election != nil {
+		go s.election.Start(*s.appCtx)
+
+		go s.monitorLeadership(*s.appCtx)
+	} else {
+		timeInterval := calculateFetchInterval(s.cfg, s.cfg.Data.FallbackFetchInterval)
+		go func() {
+			if err := s.runBackgroundDataFetching(s.appCtx, timeInterval); err != nil {
+				s.logger.Error("background data fetching stopped", "error", err)
+			}
+		}()
+	}
 
 	router := setupRouter(s.appCtx)
 	server := &http.Server{
@@ -118,7 +133,11 @@ func (s *Server) Start() error {
 	}
 
 	go func() {
-		s.logger.Info("Server starting", "port", s.cfg.Server.Port)
+		if s.cfg.Distributed.Enabled && s.cfg.Distributed != nil {
+			s.logger.Info("Server starting", "port", s.cfg.Server.Port, "instance", s.election.InstanceID)
+		} else {
+			s.logger.Info("Server starting", "port", s.cfg.Server.Port)
+		}
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			s.logger.Error("Server failed to start", "error", err)
 			s.cancel()
@@ -126,7 +145,6 @@ func (s *Server) Start() error {
 	}()
 
 	if s.cfg.Server.Debug.Enabled {
-
 		go func() {
 			s.logger.Info("Metrics server starting", "address", fmt.Sprintf("%s:%d", s.cfg.Server.Debug.Host, s.cfg.Server.Debug.Port))
 			if err := s.debugServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -186,53 +204,64 @@ func setupDataService(cfg *config.Config, logger *slog.Logger) (*data.Service, d
 // calculateFetchInterval determines how often the background data fetching should happen, based completely on the shortest configured ttl, falling back to the default if there are no ttl configured.
 func calculateFetchInterval(cfg *config.Config, defaultInterval time.Duration) time.Duration {
 	var minTTL time.Duration
+	found := false
 
 	for _, q := range cfg.Data.Queries {
-		if q.TTL <= 0 {
+		if q.Disabled || q.TTL <= 0 {
 			continue
 		}
 
-		if q.TTL == 0 || q.TTL < minTTL {
+		if !found || q.TTL < minTTL {
 			minTTL = q.TTL
+			found = true
 		}
 	}
 
-	if minTTL == 0 {
+	if !found {
 		minTTL = defaultInterval
 	}
 
-	if minTTL < time.Second {
-		minTTL = time.Second
+	if minTTL < time.Second*30 {
+		minTTL = time.Second * 30
 	}
-
 	return minTTL
 }
 
 func (s *Server) monitorLeadership(ctx context.Context) {
-	var cancel context.CancelFunc
-	var fetcherCtx context.Context
+	var fetchCtx context.Context
+	var fetchCancel context.CancelFunc
 
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(s.cfg.Distributed.TTL / 3)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
-			if cancel != nil {
-				cancel()
+			if fetchCancel != nil {
+				s.logger.Info("stopping data fetching due to shutdown")
+				fetchCancel()
 			}
 			return
 
 		case <-ticker.C:
 			isLeader := s.election.IsLeader()
 
-			if isLeader && cancel == nil {
-				fetcherCtx, cancel = context.WithCancel(ctx)
-				go s.runBackgroundDataFetcher(fetcherCtx)
+			if isLeader && fetchCancel == nil {
+				s.logger.Info("starting data fetching as leader")
 
-			} else if !isLeader && cancel != nil {
-				cancel()
-				cancel = nil
+				fetchCtx, fetchCancel = context.WithCancel(ctx)
+				interval := calculateFetchInterval(s.cfg, s.cfg.Data.FallbackFetchInterval)
+
+				go func(fctx context.Context) {
+					if err := s.runBackgroundDataFetching(fctx, interval); err != nil {
+						s.logger.Error("data fetching stopped", "error", err)
+					}
+				}(fetchCtx)
+
+			} else if !isLeader && fetchCancel != nil {
+				s.logger.Info("stopping data fetching, lost leadership")
+				fetchCancel()
+				fetchCancel = nil
 			}
 		}
 	}

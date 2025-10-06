@@ -1,4 +1,4 @@
-package leader
+package distributed
 
 import (
 	"homelab-dashboard/internal/metrics"
@@ -11,8 +11,8 @@ import (
 
 type Election struct {
 	Redis      *redis.Client
-	InstanceID string        // Unique identifier (hostname, pod name, etc.)
-	TTL        time.Duration // heartbeat timeout
+	InstanceID string // Unique identifier
+	TTL        time.Duration
 	isLeader   bool
 	mu         sync.RWMutex
 }
@@ -24,32 +24,45 @@ func (e *Election) IsLeader() bool {
 }
 
 func (e *Election) campaign(ctx middlewares.AppContext) {
-	ok, err := e.Redis.SetNX(ctx, "leader", e.InstanceID, e.TTL).Result()
+	ok, err := e.Redis.SetNX(ctx, leaderKey, e.InstanceID, e.TTL).Result()
 	if err != nil {
+		ctx.Logger.Error("failed to campaign for leadership", "error", err, "instance", e.InstanceID)
 		return
 	}
 
 	e.mu.Lock()
 	wasLeader := e.isLeader
-	e.isLeader = ok
-	e.mu.Unlock()
-
-	if ok && !wasLeader {
-		ctx.Logger.Info("became leader", "instance", e.InstanceID)
-		metrics.IsLeader.Set(1)
-	} else if !ok && wasLeader {
-		ctx.Logger.Info("lost leadership", "instance", e.InstanceID)
-		metrics.IsLeader.Set(0)
-	}
 
 	if ok {
-		e.Redis.Expire(ctx, "leader", e.TTL)
+		e.isLeader = true
+	} else {
+		currentLeader, err := e.Redis.Get(ctx, leaderKey).Result()
+		if err == nil && currentLeader == e.InstanceID {
+			e.isLeader = true
+			e.Redis.Expire(ctx, leaderKey, e.TTL)
+		} else {
+			e.isLeader = false
+		}
+	}
+
+	e.mu.Unlock()
+
+	if e.isLeader && !wasLeader {
+		ctx.Logger.Info("became leader", "instance", e.InstanceID)
+		metrics.IsLeader.Set(1)
+		metrics.LeadershipChanges.Inc()
+	} else if !e.isLeader && wasLeader {
+		ctx.Logger.Info("lost leadership", "instance", e.InstanceID)
+		metrics.IsLeader.Set(0)
+		metrics.LeadershipChanges.Inc()
 	}
 }
 
 func (e *Election) Start(ctx middlewares.AppContext) {
 	ticker := time.NewTicker(e.TTL / 3)
 	defer ticker.Stop()
+
+	e.campaign(ctx)
 
 	for {
 		select {
@@ -76,6 +89,14 @@ func (e *Election) resign(ctx middlewares.AppContext) {
         end
         return 0
     `
-	redis.NewScript(script).Run(ctx, e.Redis, []string{"leader"}, e.InstanceID)
+
+	_, err := redis.NewScript(script).Run(ctx, e.Redis, []string{leaderKey}, e.InstanceID).Result()
+	if err != nil {
+		ctx.Logger.Error("failed to resign leadership", "error", err, "instance", e.InstanceID)
+	} else {
+		ctx.Logger.Info("resigned leadership", "instance", e.InstanceID)
+		metrics.IsLeader.Set(0)
+	}
+
 	e.isLeader = false
 }

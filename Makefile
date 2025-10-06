@@ -5,24 +5,38 @@ install:
 	go mod download
 	cd web && bash -c "source ~/.nvm/nvm.sh && pnpm install"
 
-dev-frontend-bare:
+dev-frontend:
 	cd web && bash -c "source ~/.nvm/nvm.sh && pnpm run dev"
 
-dev-backend-bare:
+dev-backend:
 	GO_ENV=development reflex -r '\.go$$' -s -- go run ./main.go -c config.yaml
 
 
-dev-backend-debug-bare:
-	GO_ENV=development reflex -r '\.go$$' -s -- dlv debug --headless --listen=:2345 --api-version=2 --accept-multiclient ./main.go -- -c config.yaml
+dev-backend-debug:
+	GO_ENV=development reflex -r '\.go$$' -s -- dlv debug --headless --listen=:2345 --api-version=2 --accept-multiclient ./main.go -- -c config.docker.yaml
 
-dev-bare:
+dev:
 	@echo "Starting development servers..."
 	@trap 'kill 0' INT TERM EXIT; \
 	($(MAKE) dev-backend) & \
 	($(MAKE) dev-frontend) & \
 	wait
 
-dev-debug-bare:
+dev2:
+	@echo "Starting development servers..."
+	@trap 'kill 0' INT TERM EXIT; \
+	($(MAKE) dev-backend2) & \
+	($(MAKE) dev-frontend) & \
+	wait
+
+dev3:
+	@echo "Starting development servers..."
+	@trap 'kill 0' INT TERM EXIT; \
+	($(MAKE) dev-backend3) & \
+	($(MAKE) dev-frontend) & \
+	wait
+
+dev-debug:
 	@echo "Starting development servers with debug..."
 	@trap 'kill 0' INT TERM EXIT; \
 	($(MAKE) dev-backend-debug) & \
@@ -33,23 +47,23 @@ build:
 	docker build -t dashboard-site:latest -f docker/Dockerfile .
 
 # Docker development commands
-dev:
+dev-docker:
 	@echo "Starting Docker development environment..."
 	cd docker && docker compose up --build
 
-dev-debug:
+dev-docker-debug:
 	@echo "Starting Docker development environment with debugger..."
 	cd docker && docker compose run --rm --service-ports dashboard-app /usr/local/bin/start-debug.sh
 
-dev-stop:
+dev-docker-down:
 	@echo "Stopping Docker development environment..."
 	cd docker && docker compose down
 
-dev-logs:
+dev-docker-logs:
 	@echo "Following Docker development logs..."
 	cd docker && docker compose logs -f
 
-dev-rebuild:
+dev-docker-rebuild:
 	@echo "Rebuilding Docker development environment..."
 	cd docker && docker compose down && docker compose up --build
 

@@ -8,7 +8,7 @@ import (
 var (
 	HTTPRequestsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "http_requests_total",
+			Name: Namespace + "_http_requests_total",
 			Help: "Total number of HTTP requests",
 		},
 		[]string{"method", "endpoint", "status"},
@@ -25,7 +25,7 @@ var (
 
 	CacheHits = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "cache_hits_total",
+			Name: Namespace + "_cache_hits_total",
 			Help: "Total number of cache hits",
 		},
 		[]string{"cache_name"},
@@ -33,23 +33,24 @@ var (
 
 	CacheMisses = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "cache_misses_total",
+			Name: Namespace + "_cache_misses_total",
 			Help: "Total number of cache misses",
 		},
 		[]string{"cache_name"},
 	)
 
-	CacheSize = promauto.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "cache_size_bytes",
-			Help: "Current size of cache in bytes",
+	CacheOperationDuration = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    Namespace + "_cache_operation_duration_seconds",
+			Help:    "Time to complete cache operations",
+			Buckets: prometheus.DefBuckets,
 		},
-		[]string{"cache_name"},
+		[]string{"cache_name", "operation"},
 	)
 
 	CacheItems = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "cache_items_total",
+			Name: Namespace + "_cache_items_total",
 			Help: "Current number of items in cache",
 		},
 		[]string{"cache_name"},
@@ -66,7 +67,7 @@ var (
 
 	DataFetchErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "data_fetch_errors_total",
+			Name: Namespace + "_data_fetch_errors_total",
 			Help: "Total number of data fetch errors",
 		},
 		[]string{"query_name", "source"},
@@ -74,13 +75,13 @@ var (
 
 	IsLeader = promauto.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "leader_is_leader",
+			Name: Namespace + "_leader_is_leader",
 			Help: "1 if this instance is the leader, 0 otherwise",
 		},
 	)
 	LeadershipChanges = promauto.NewCounter(
 		prometheus.CounterOpts{
-			Name: "leader_changes_total",
+			Name: Namespace + "_leader_changes_total",
 			Help: "Total number of leadership changes",
 		})
 )

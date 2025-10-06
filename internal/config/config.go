@@ -124,6 +124,12 @@ func validateConfig(config *Config) error {
 	}
 
 	err = config.validateRedisConfig()
+	if err != nil {
+		return err
+	}
+
+	err = config.validateDistributedConfig()
+
 	return nil
 }
 
@@ -281,6 +287,12 @@ func (c *Config) validateDataConfig() (err error) {
 		}
 	}
 
+	if c.Data.FallbackFetchInterval.Seconds() < 0 {
+		c.Data.FallbackFetchInterval = defaultDataConfig.FallbackFetchInterval
+	} else if c.Data.FallbackFetchInterval.Seconds() < 30 && c.Data.FallbackFetchInterval.Seconds() > 0 {
+		return fmt.Errorf("data.fallback_fetch_interval cannot be less than 30 seconds")
+	}
+
 	return nil
 }
 
@@ -387,5 +399,28 @@ func (c *Config) validateRedisConfig() error {
 	if c.Redis.LeaderIndex > maxRedisDB {
 		return fmt.Errorf("redis leader_index %d exceeds typical maximum of %d", c.Redis.LeaderIndex, maxRedisDB)
 	}
+
+	if c.Redis.Sentinel != nil {
+		if c.Redis.Sentinel.MasterName == "" {
+			return fmt.Errorf("sentinel master_name is required")
+		}
+		if len(c.Redis.Sentinel.SentinelAddresses) == 0 {
+			return fmt.Errorf("at least one sentinel address is required")
+		}
+	}
+	return nil
+}
+
+func (c *Config) validateDistributedConfig() error {
+	if c.Distributed == nil || !c.Distributed.Enabled {
+		return nil
+	}
+
+	if c.Distributed.TTL.Seconds() < 0 {
+		c.Distributed.TTL = DefaultDistributedConfig.TTL
+	} else if c.Distributed.TTL.Minutes() > 1 {
+		return fmt.Errorf("distributed ttl cannot be more than 1 minute")
+	}
+
 	return nil
 }

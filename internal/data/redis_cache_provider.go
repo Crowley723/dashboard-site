@@ -5,29 +5,67 @@ import (
 	"errors"
 	"fmt"
 	"homelab-dashboard/internal/config"
-	"homelab-dashboard/internal/middlewares"
+	"homelab-dashboard/internal/metrics"
 	"log/slog"
 	"time"
 
 	"encoding/json"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/model"
+	"github.com/redis/go-redis/extra/redisprometheus/v9"
 	"github.com/redis/go-redis/v9"
 )
 
+type RedisClient interface {
+	Get(ctx context.Context, key string) *redis.StringCmd
+	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd
+	Del(ctx context.Context, keys ...string) *redis.IntCmd
+	Keys(ctx context.Context, pattern string) *redis.StringSliceCmd
+	Ping(ctx context.Context) *redis.StatusCmd
+	PoolStats() *redis.PoolStats
+	Close() error
+}
+
 type RedisCache struct {
-	client *redis.Client
+	client RedisClient
 	logger *slog.Logger
 }
 
 // NewRedisCache creates a new Redis-backed cache
 func NewRedisCache(cfg *config.Config, logger *slog.Logger) (*RedisCache, error) {
-	client := redis.NewClient(&redis.Options{
-		Addr:         cfg.Redis.Address,
-		Password:     cfg.Redis.Password,
-		DB:           cfg.Redis.CacheIndex,
-		MinIdleConns: 2,
-	})
+	var client RedisClient
+
+	if cfg.Redis.Sentinel != nil {
+		logger.Info("connecting to redis via sentinel",
+			"master", cfg.Redis.Sentinel.MasterName,
+			"sentinels", cfg.Redis.Sentinel.SentinelAddresses)
+
+		client = redis.NewFailoverClient(&redis.FailoverOptions{
+			MasterName:       cfg.Redis.Sentinel.MasterName,
+			SentinelAddrs:    cfg.Redis.Sentinel.SentinelAddresses,
+			SentinelUsername: cfg.Redis.Sentinel.SentinelUsername,
+			SentinelPassword: cfg.Redis.Sentinel.SentinelPassword,
+			Password:         cfg.Redis.Password,
+			DB:               cfg.Redis.CacheIndex,
+			MinIdleConns:     2,
+		})
+	} else {
+		client = redis.NewClient(&redis.Options{
+			Addr:         cfg.Redis.Address,
+			Password:     cfg.Redis.Password,
+			DB:           cfg.Redis.CacheIndex,
+			MinIdleConns: 2,
+		})
+
+	}
+
+	if cfg.Server.Debug != nil && cfg.Server.Debug.Enabled {
+		collector := redisprometheus.NewCollector(metrics.Namespace, "cache", client)
+		if err := prometheus.Register(collector); err != nil {
+			logger.Debug("failed to register redis cache collector: already registered", "error", err)
+		}
+	}
 
 	ctx := context.Background()
 	if err := client.Ping(ctx).Err(); err != nil {
@@ -50,14 +88,20 @@ func (r *RedisCache) ClosePool() error {
 	return r.client.Close()
 }
 
-func (r *RedisCache) Get(ctx *middlewares.AppContext, queryName string) (CachedData, bool) {
+func (r *RedisCache) Get(ctx context.Context, queryName string) (CachedData, bool) {
+	timer := prometheus.NewTimer(metrics.CacheOperationDuration.WithLabelValues(metrics.CachetypeRedis, metrics.CacheoperationtypeGet))
+	defer timer.ObserveDuration()
+
 	data, err := r.client.Get(ctx, r.key(queryName)).Result()
 	if err != nil {
 		if !errors.Is(err, redis.Nil) {
 			r.logger.Error("error executing redis GET", "error", err)
 		}
+		metrics.CacheMisses.WithLabelValues(metrics.CachetypeRedis).Inc()
 		return CachedData{}, false
 	}
+
+	metrics.CacheHits.WithLabelValues(metrics.CachetypeRedis).Inc()
 
 	var cached CachedData
 	if err := json.Unmarshal([]byte(data), &cached); err != nil {
@@ -100,10 +144,15 @@ func (r *RedisCache) Get(ctx *middlewares.AppContext, queryName string) (CachedD
 		return CachedData{}, false
 	}
 
+	cached.JSONBytes = []byte(cached.ValueJSON)
+
 	return cached, true
 }
 
-func (r *RedisCache) ListAll(ctx *middlewares.AppContext) []string {
+func (r *RedisCache) ListAll(ctx context.Context) []string {
+	timer := prometheus.NewTimer(metrics.CacheOperationDuration.WithLabelValues(metrics.CachetypeRedis, metrics.CacheoperationtypeListall))
+	defer timer.ObserveDuration()
+
 	keys, err := r.client.Keys(ctx, r.key("*")).Result()
 	if err != nil {
 		r.logger.Error("error executing redis 'KEYS'", "error", err)
@@ -122,7 +171,10 @@ func (r *RedisCache) ListAll(ctx *middlewares.AppContext) []string {
 	return result
 }
 
-func (r *RedisCache) Set(ctx *middlewares.AppContext, queryName string, value model.Value, requireAuth bool, requiredGroup string) {
+func (r *RedisCache) Set(ctx context.Context, queryName string, value model.Value, requireAuth bool, requiredGroup string) {
+	timer := prometheus.NewTimer(metrics.CacheOperationDuration.WithLabelValues(metrics.CachetypeRedis, metrics.CacheoperationtypeSet))
+	defer timer.ObserveDuration()
+
 	var valueType string
 	switch value.(type) {
 	case model.Vector:
@@ -148,6 +200,7 @@ func (r *RedisCache) Set(ctx *middlewares.AppContext, queryName string, value mo
 		Value:         value,
 		ValueJSON:     string(valueJSON),
 		ValueType:     valueType,
+		JSONBytes:     valueJSON,
 		Timestamp:     time.Now(),
 		Name:          queryName,
 		RequireAuth:   requireAuth,
@@ -168,7 +221,10 @@ func (r *RedisCache) Set(ctx *middlewares.AppContext, queryName string, value mo
 }
 
 // Delete removes an entry from the cache
-func (r *RedisCache) Delete(ctx *middlewares.AppContext, query string) {
+func (r *RedisCache) Delete(ctx context.Context, query string) {
+	timer := prometheus.NewTimer(metrics.CacheOperationDuration.WithLabelValues(metrics.CachetypeRedis, metrics.CacheoperationtypeDelete))
+	defer timer.ObserveDuration()
+
 	_, err := r.client.Del(ctx, r.key(query)).Result()
 	if err != nil {
 		r.logger.Error("error executing redis 'DEL'", "error", err)
@@ -177,7 +233,10 @@ func (r *RedisCache) Delete(ctx *middlewares.AppContext, query string) {
 }
 
 // Size returns the current number of elements in the cache
-func (r *RedisCache) Size(ctx *middlewares.AppContext) int {
+func (r *RedisCache) Size(ctx context.Context) int {
+	timer := prometheus.NewTimer(metrics.CacheOperationDuration.WithLabelValues(metrics.CachetypeRedis, metrics.CacheoperationtypeCountEntries))
+	defer timer.ObserveDuration()
+
 	pattern := r.key("*")
 	keys, err := r.client.Keys(ctx, pattern).Result()
 	if err != nil {
@@ -186,15 +245,4 @@ func (r *RedisCache) Size(ctx *middlewares.AppContext) int {
 	}
 
 	return len(keys)
-}
-
-// EstimateSize returns the estimated size of the current cache (in bytes)
-func (r *RedisCache) EstimateSize(ctx *middlewares.AppContext) (int, error) {
-	dbSize, err := r.client.DBSize(ctx).Result()
-	if err != nil {
-		r.logger.Error("error executing redis 'KEYS'", "error", err)
-		return 0, err
-	}
-
-	return int(dbSize), nil
 }

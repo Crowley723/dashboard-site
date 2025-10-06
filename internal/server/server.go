@@ -70,14 +70,14 @@ func New(cfg *config.Config) (*Server, error) {
 				SentinelUsername: cfg.Redis.Sentinel.SentinelUsername,
 				SentinelPassword: cfg.Redis.Sentinel.SentinelPassword,
 				Password:         cfg.Redis.Password,
-				DB:               cfg.Redis.CacheIndex,
+				DB:               cfg.Redis.LeaderIndex,
 				MinIdleConns:     2,
 			})
 		} else {
 			client = redis.NewClient(&redis.Options{
 				Addr:         cfg.Redis.Address,
 				Password:     cfg.Redis.Password,
-				DB:           cfg.Redis.CacheIndex,
+				DB:           cfg.Redis.LeaderIndex,
 				MinIdleConns: 2,
 			})
 		}

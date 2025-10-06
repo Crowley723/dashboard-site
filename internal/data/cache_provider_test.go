@@ -65,7 +65,7 @@ func setupRedisCache(b *testing.B) *RedisCache {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	cfg := &config.Config{
 		Redis: &config.RedisConfig{
-			Address:    "127.0.1.50:6379",
+			Address:    "127.0.0.1:6379",
 			Password:   "",
 			CacheIndex: 1,
 		},
@@ -95,23 +95,23 @@ func TestNewCacheProvider(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
 	tests := []struct {
-		name        string
-		cacheType   string
+		name         string
+		cacheType    string
 		expectedType string
 	}{
 		{
-			name:        "memory cache by default",
-			cacheType:   "",
+			name:         "memory cache by default",
+			cacheType:    "",
 			expectedType: "*data.MemCache",
 		},
 		{
-			name:        "memory cache explicitly",
-			cacheType:   "memory",
+			name:         "memory cache explicitly",
+			cacheType:    "memory",
 			expectedType: "*data.MemCache",
 		},
 		{
-			name:        "redis cache",
-			cacheType:   "redis",
+			name:         "redis cache",
+			cacheType:    "redis",
 			expectedType: "*data.RedisCache",
 		},
 	}

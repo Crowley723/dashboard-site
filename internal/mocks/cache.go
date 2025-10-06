@@ -10,8 +10,8 @@
 package mocks
 
 import (
+	context "context"
 	data "homelab-dashboard/internal/data"
-	middlewares "homelab-dashboard/internal/middlewares"
 	reflect "reflect"
 
 	model "github.com/prometheus/common/model"
@@ -22,6 +22,7 @@ import (
 type MockCacheProvider struct {
 	ctrl     *gomock.Controller
 	recorder *MockCacheProviderMockRecorder
+	isgomock struct{}
 }
 
 // MockCacheProviderMockRecorder is the mock recorder for MockCacheProvider.
@@ -42,7 +43,7 @@ func (m *MockCacheProvider) EXPECT() *MockCacheProviderMockRecorder {
 }
 
 // Delete mocks base method.
-func (m *MockCacheProvider) Delete(ctx middlewares.AppContext, query string) {
+func (m *MockCacheProvider) Delete(ctx context.Context, query string) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Delete", ctx, query)
 }
@@ -53,23 +54,8 @@ func (mr *MockCacheProviderMockRecorder) Delete(ctx, query any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockCacheProvider)(nil).Delete), ctx, query)
 }
 
-// EstimateSize mocks base method.
-func (m *MockCacheProvider) EstimateSize(ctx middlewares.AppContext) (int, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "EstimateSize", ctx)
-	ret0, _ := ret[0].(int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// EstimateSize indicates an expected call of EstimateSize.
-func (mr *MockCacheProviderMockRecorder) EstimateSize(ctx any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EstimateSize", reflect.TypeOf((*MockCacheProvider)(nil).EstimateSize), ctx)
-}
-
 // Get mocks base method.
-func (m *MockCacheProvider) Get(ctx middlewares.AppContext, queryName string) (data.CachedData, bool) {
+func (m *MockCacheProvider) Get(ctx context.Context, queryName string) (data.CachedData, bool) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", ctx, queryName)
 	ret0, _ := ret[0].(data.CachedData)
@@ -84,7 +70,7 @@ func (mr *MockCacheProviderMockRecorder) Get(ctx, queryName any) *gomock.Call {
 }
 
 // ListAll mocks base method.
-func (m *MockCacheProvider) ListAll(ctx middlewares.AppContext) []string {
+func (m *MockCacheProvider) ListAll(ctx context.Context) []string {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListAll", ctx)
 	ret0, _ := ret[0].([]string)
@@ -98,7 +84,7 @@ func (mr *MockCacheProviderMockRecorder) ListAll(ctx any) *gomock.Call {
 }
 
 // Set mocks base method.
-func (m *MockCacheProvider) Set(ctx middlewares.AppContext, queryName string, value model.Value, requireAuth bool, requiredGroup string) {
+func (m *MockCacheProvider) Set(ctx context.Context, queryName string, value model.Value, requireAuth bool, requiredGroup string) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Set", ctx, queryName, value, requireAuth, requiredGroup)
 }
@@ -110,7 +96,7 @@ func (mr *MockCacheProviderMockRecorder) Set(ctx, queryName, value, requireAuth,
 }
 
 // Size mocks base method.
-func (m *MockCacheProvider) Size(ctx middlewares.AppContext) int {
+func (m *MockCacheProvider) Size(ctx context.Context) int {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Size", ctx)
 	ret0, _ := ret[0].(int)

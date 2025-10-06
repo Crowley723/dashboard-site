@@ -31,12 +31,21 @@ func NewService(client *MimirClient, cache CacheProvider, logger *slog.Logger, q
 }
 
 func (s *Service) ExecuteQueries(ctx context.Context, cache CacheProvider) error {
+	if cache == nil {
+		cache = s.cache
+	}
+
+	if cache == nil {
+		s.logger.Error("cache is nil, skipping metrics update")
+		return nil
+	}
+
 	cacheType := "memory"
-	if _, ok := s.cache.(*RedisCache); ok {
+	if _, ok := cache.(*RedisCache); ok {
 		cacheType = "redis"
 	}
 
-	size := s.cache.Size(ctx)
+	size := cache.Size(ctx)
 	metrics.CacheItems.WithLabelValues(cacheType).Set(float64(size))
 
 	for _, queryConfig := range s.queries {
@@ -80,19 +89,19 @@ func (s *Service) executeQuery(ctx context.Context, cache CacheProvider, config 
 			Step:  stepDuration,
 		}
 
-		timer := prometheus.NewTimer(metrics.DataFetchDuration.WithLabelValues(config.Name, metrics.DatasourcetypeMimir))
+		timer := prometheus.NewTimer(metrics.DataFetchDuration.WithLabelValues(config.Name, metrics.DataSourceTypeMimir))
 		result, err = s.client.QueryRange(ctx, config.Query, r)
 		timer.ObserveDuration()
 
 	default:
-		timer := prometheus.NewTimer(metrics.DataFetchDuration.WithLabelValues(config.Name, metrics.DatasourcetypeMimir))
+		timer := prometheus.NewTimer(metrics.DataFetchDuration.WithLabelValues(config.Name, metrics.DataSourceTypeMimir))
 		result, err = s.client.Query(ctx, config.Query, time.Now())
 		timer.ObserveDuration()
 
 	}
 
 	if err != nil {
-		metrics.DataFetchErrors.WithLabelValues(config.Name, metrics.DatasourcetypeMimir).Inc()
+		metrics.DataFetchErrors.WithLabelValues(config.Name, metrics.DataSourceTypeMimir).Inc()
 		return fmt.Errorf("failed to execute query %s: %w", config.Name, err)
 	}
 

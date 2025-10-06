@@ -129,6 +129,9 @@ func validateConfig(config *Config) error {
 	}
 
 	err = config.validateDistributedConfig()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -162,7 +165,7 @@ func (c *Config) validateServerConfig() error {
 		c.Server.Port = DefaultServerConfig.Port
 	}
 
-	if c.Server.Debug != nil || c.Server.Debug.Enabled {
+	if c.Server.Debug != nil && c.Server.Debug.Enabled {
 		if c.Server.Debug.Host == "" {
 			c.Server.Debug.Host = DefaultDebugConfig.Host
 		}
@@ -372,7 +375,7 @@ func (c *Config) validateRedisConfig() error {
 	}
 
 	if c.Redis.LeaderIndex < 0 {
-		return fmt.Errorf("redis cache_index must be non-negative, got %d", c.Redis.CacheIndex)
+		return fmt.Errorf("redis leader_index must be non-negative, got %d", c.Redis.CacheIndex)
 	}
 
 	if c.Redis.SessionIndex == c.Redis.CacheIndex {
@@ -416,9 +419,9 @@ func (c *Config) validateDistributedConfig() error {
 		return nil
 	}
 
-	if c.Distributed.TTL.Seconds() < 0 {
+	if c.Distributed.TTL.Seconds() <= 0 {
 		c.Distributed.TTL = DefaultDistributedConfig.TTL
-	} else if c.Distributed.TTL.Minutes() > 1 {
+	} else if c.Distributed.TTL > time.Minute {
 		return fmt.Errorf("distributed ttl cannot be more than 1 minute")
 	}
 

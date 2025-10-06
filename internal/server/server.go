@@ -7,6 +7,7 @@ import (
 	"homelab-dashboard/internal/auth"
 	"homelab-dashboard/internal/config"
 	"homelab-dashboard/internal/data"
+	"homelab-dashboard/internal/distributed"
 	"homelab-dashboard/internal/metrics"
 	"homelab-dashboard/internal/middlewares"
 	"log/slog"
@@ -29,7 +30,7 @@ type Server struct {
 	httpServer  *http.Server
 	debugServer *http.Server
 	dataService *data.Service
-	cache       *data.CacheProvider
+	cache       data.CacheProvider
 	election    *distributed.Election
 	ctx         *context.Context
 	cancel      context.CancelFunc
@@ -89,7 +90,7 @@ func New(cfg *config.Config) (*Server, error) {
 	}
 
 	var debugServer *http.Server
-	if cfg.Server.Debug.Enabled {
+	if cfg.Server.Debug != nil && cfg.Server.Debug.Enabled {
 		debugRouter := setupDebugRouter()
 		debugServer = &http.Server{
 			Addr:    fmt.Sprintf("%s:%d", cfg.Server.Debug.Host, cfg.Server.Debug.Port),
@@ -133,7 +134,7 @@ func (s *Server) Start() error {
 	}
 
 	go func() {
-		if s.cfg.Distributed.Enabled && s.cfg.Distributed != nil {
+		if s.cfg.Distributed != nil && s.cfg.Distributed.Enabled {
 			s.logger.Info("Server starting", "port", s.cfg.Server.Port, "instance", s.election.InstanceID)
 		} else {
 			s.logger.Info("Server starting", "port", s.cfg.Server.Port)
@@ -144,7 +145,7 @@ func (s *Server) Start() error {
 		}
 	}()
 
-	if s.cfg.Server.Debug.Enabled {
+	if s.cfg.Server.Debug != nil && s.cfg.Server.Debug.Enabled {
 		go func() {
 			s.logger.Info("Metrics server starting", "address", fmt.Sprintf("%s:%d", s.cfg.Server.Debug.Host, s.cfg.Server.Debug.Port))
 			if err := s.debugServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

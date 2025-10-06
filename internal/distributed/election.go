@@ -1,6 +1,7 @@
 package distributed
 
 import (
+	"homelab-dashboard/internal/config"
 	"homelab-dashboard/internal/metrics"
 	"homelab-dashboard/internal/middlewares"
 	"sync"
@@ -59,7 +60,12 @@ func (e *Election) campaign(ctx middlewares.AppContext) {
 }
 
 func (e *Election) Start(ctx middlewares.AppContext) {
-	ticker := time.NewTicker(e.TTL / 3)
+	interval := e.TTL / 3
+	if interval <= 0 {
+		interval = config.DefaultDistributedConfig.TTL / 3
+	}
+
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	e.campaign(ctx)

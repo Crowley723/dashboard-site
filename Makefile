@@ -1,5 +1,5 @@
 export PATH := /home/brynn/.local/share/pnpm:$(PATH)
-.PHONY: dev-frontend dev-backend dev install
+.PHONY: dev-frontend dev-backend dev install dev-backend-debug dev-debug
 
 install:
 	go mod download
@@ -11,7 +11,6 @@ dev-frontend:
 dev-backend:
 	GO_ENV=development reflex -r '\.go$$' -s -- go run ./main.go -c config.yaml
 
-
 dev-backend-debug:
 	GO_ENV=development reflex -r '\.go$$' -s -- dlv debug --headless --listen=:2345 --api-version=2 --accept-multiclient ./main.go -- -c config.docker.yaml
 
@@ -19,20 +18,6 @@ dev:
 	@echo "Starting development servers..."
 	@trap 'kill 0' INT TERM EXIT; \
 	($(MAKE) dev-backend) & \
-	($(MAKE) dev-frontend) & \
-	wait
-
-dev2:
-	@echo "Starting development servers..."
-	@trap 'kill 0' INT TERM EXIT; \
-	($(MAKE) dev-backend2) & \
-	($(MAKE) dev-frontend) & \
-	wait
-
-dev3:
-	@echo "Starting development servers..."
-	@trap 'kill 0' INT TERM EXIT; \
-	($(MAKE) dev-backend3) & \
 	($(MAKE) dev-frontend) & \
 	wait
 

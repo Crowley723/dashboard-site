@@ -89,7 +89,7 @@ func (r *RedisCache) ClosePool() error {
 }
 
 func (r *RedisCache) Get(ctx context.Context, queryName string) (CachedData, bool) {
-	timer := prometheus.NewTimer(metrics.CacheOperationDuration.WithLabelValues(metrics.CachetypeRedis, metrics.CacheoperationtypeGet))
+	timer := prometheus.NewTimer(metrics.CacheOperationDuration.WithLabelValues(metrics.CacheTypeRedis, metrics.CacheOperationTypeGet))
 	defer timer.ObserveDuration()
 
 	data, err := r.client.Get(ctx, r.key(queryName)).Result()
@@ -97,11 +97,11 @@ func (r *RedisCache) Get(ctx context.Context, queryName string) (CachedData, boo
 		if !errors.Is(err, redis.Nil) {
 			r.logger.Error("error executing redis GET", "error", err)
 		}
-		metrics.CacheMisses.WithLabelValues(metrics.CachetypeRedis).Inc()
+		metrics.CacheMisses.WithLabelValues(metrics.CacheTypeRedis).Inc()
 		return CachedData{}, false
 	}
 
-	metrics.CacheHits.WithLabelValues(metrics.CachetypeRedis).Inc()
+	metrics.CacheHits.WithLabelValues(metrics.CacheTypeRedis).Inc()
 
 	var cached CachedData
 	if err := json.Unmarshal([]byte(data), &cached); err != nil {
@@ -150,7 +150,7 @@ func (r *RedisCache) Get(ctx context.Context, queryName string) (CachedData, boo
 }
 
 func (r *RedisCache) ListAll(ctx context.Context) []string {
-	timer := prometheus.NewTimer(metrics.CacheOperationDuration.WithLabelValues(metrics.CachetypeRedis, metrics.CacheoperationtypeListall))
+	timer := prometheus.NewTimer(metrics.CacheOperationDuration.WithLabelValues(metrics.CacheTypeRedis, metrics.CacheOperationTypeListAll))
 	defer timer.ObserveDuration()
 
 	keys, err := r.client.Keys(ctx, r.key("*")).Result()
@@ -172,7 +172,7 @@ func (r *RedisCache) ListAll(ctx context.Context) []string {
 }
 
 func (r *RedisCache) Set(ctx context.Context, queryName string, value model.Value, requireAuth bool, requiredGroup string) {
-	timer := prometheus.NewTimer(metrics.CacheOperationDuration.WithLabelValues(metrics.CachetypeRedis, metrics.CacheoperationtypeSet))
+	timer := prometheus.NewTimer(metrics.CacheOperationDuration.WithLabelValues(metrics.CacheTypeRedis, metrics.CacheOperationTypeSet))
 	defer timer.ObserveDuration()
 
 	var valueType string
@@ -222,7 +222,7 @@ func (r *RedisCache) Set(ctx context.Context, queryName string, value model.Valu
 
 // Delete removes an entry from the cache
 func (r *RedisCache) Delete(ctx context.Context, query string) {
-	timer := prometheus.NewTimer(metrics.CacheOperationDuration.WithLabelValues(metrics.CachetypeRedis, metrics.CacheoperationtypeDelete))
+	timer := prometheus.NewTimer(metrics.CacheOperationDuration.WithLabelValues(metrics.CacheTypeRedis, metrics.CacheOperationTypeDelete))
 	defer timer.ObserveDuration()
 
 	_, err := r.client.Del(ctx, r.key(query)).Result()
@@ -234,7 +234,7 @@ func (r *RedisCache) Delete(ctx context.Context, query string) {
 
 // Size returns the current number of elements in the cache
 func (r *RedisCache) Size(ctx context.Context) int {
-	timer := prometheus.NewTimer(metrics.CacheOperationDuration.WithLabelValues(metrics.CachetypeRedis, metrics.CacheoperationtypeCountEntries))
+	timer := prometheus.NewTimer(metrics.CacheOperationDuration.WithLabelValues(metrics.CacheTypeRedis, metrics.CacheOperationTypeCountEntries))
 	defer timer.ObserveDuration()
 
 	pattern := r.key("*")

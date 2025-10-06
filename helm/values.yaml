@@ -107,7 +107,7 @@ redis:
     enabled: false
 
 deployment:
-  replicas: 1
+  replicas: 3
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -221,6 +221,10 @@ config:
       host: 0.0.0.0
       port: 9000
 
+  distributed:
+    enabled: true
+    ttl: '30s'
+
   redis:
     address: 'dashboard-redis.dashboard-site.svc.cluster.local:6379'
     session_index: 0
@@ -245,12 +249,12 @@ config:
     maxAge: 300
 
   session:
-    store: 'memory'
-    duration_source: 'fixed'
+    store: 'redis'
+    duration_source: 'oidc_tokens'
     secure: false
 
   cache:
-    type: 'memory'
+    type: 'redis'
 
   oidc:
     scopes:

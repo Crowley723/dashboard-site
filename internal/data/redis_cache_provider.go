@@ -17,7 +17,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type RedisClient interface {
+type RedisCacheClient interface {
 	Get(ctx context.Context, key string) *redis.StringCmd
 	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd
 	Del(ctx context.Context, keys ...string) *redis.IntCmd
@@ -28,13 +28,13 @@ type RedisClient interface {
 }
 
 type RedisCache struct {
-	client RedisClient
+	client RedisCacheClient
 	logger *slog.Logger
 }
 
 // NewRedisCache creates a new Redis-backed cache
 func NewRedisCache(cfg *config.Config, logger *slog.Logger) (*RedisCache, error) {
-	var client RedisClient
+	var client RedisCacheClient
 
 	if cfg.Redis.Sentinel != nil {
 		logger.Info("connecting to redis via sentinel",
@@ -57,7 +57,6 @@ func NewRedisCache(cfg *config.Config, logger *slog.Logger) (*RedisCache, error)
 			DB:           cfg.Redis.CacheIndex,
 			MinIdleConns: 2,
 		})
-
 	}
 
 	if cfg.Server.Debug != nil && cfg.Server.Debug.Enabled {

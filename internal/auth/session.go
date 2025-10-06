@@ -7,6 +7,7 @@ import (
 	"homelab-dashboard/internal/config"
 	"homelab-dashboard/internal/middlewares"
 	"homelab-dashboard/internal/models"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -21,7 +22,7 @@ type SessionManager struct {
 	*scs.SessionManager
 }
 
-func NewSessionManager(cfg *config.Config) (*SessionManager, error) {
+func NewSessionManager(logger *slog.Logger, cfg *config.Config) (*SessionManager, error) {
 	gob.Register(&models.User{})
 	sessionManager := scs.New()
 
@@ -29,12 +30,30 @@ func NewSessionManager(cfg *config.Config) (*SessionManager, error) {
 	case "memory":
 		sessionManager.Store = memstore.New()
 	case "redis":
-		client := redis.NewClient(&redis.Options{
-			Addr:         cfg.Redis.Address,
-			Password:     cfg.Redis.Password,
-			DB:           cfg.Redis.SessionIndex,
-			MinIdleConns: 2,
-		})
+		var client *redis.Client
+
+		if cfg.Redis.Sentinel != nil {
+			logger.Info("connecting to redis via sentinel",
+				"master", cfg.Redis.Sentinel.MasterName,
+				"sentinels", cfg.Redis.Sentinel.SentinelAddresses)
+
+			client = redis.NewFailoverClient(&redis.FailoverOptions{
+				MasterName:       cfg.Redis.Sentinel.MasterName,
+				SentinelAddrs:    cfg.Redis.Sentinel.SentinelAddresses,
+				SentinelUsername: cfg.Redis.Sentinel.SentinelUsername,
+				SentinelPassword: cfg.Redis.Sentinel.SentinelPassword,
+				Password:         cfg.Redis.Password,
+				DB:               cfg.Redis.CacheIndex,
+				MinIdleConns:     2,
+			})
+		} else {
+			client = redis.NewClient(&redis.Options{
+				Addr:         cfg.Redis.Address,
+				Password:     cfg.Redis.Password,
+				DB:           cfg.Redis.CacheIndex,
+				MinIdleConns: 2,
+			})
+		}
 
 		ctx := context.Background()
 		if err := client.Ping(ctx).Err(); err != nil {

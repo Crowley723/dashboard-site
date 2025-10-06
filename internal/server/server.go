@@ -41,7 +41,7 @@ func New(cfg *config.Config) (*Server, error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	sessionManager, err := auth.NewSessionManager(cfg)
+	sessionManager, err := auth.NewSessionManager(logger, cfg)
 	if err != nil {
 		cancel()
 		return nil, err
@@ -57,13 +57,33 @@ func New(cfg *config.Config) (*Server, error) {
 
 	var election *distributed.Election
 	if cfg.Distributed != nil && cfg.Distributed.Enabled {
-		redisClient := redis.NewClient(&redis.Options{
-			Addr: cfg.Redis.Address,
-			DB:   cfg.Redis.LeaderIndex,
-		})
+		var client *redis.Client
+
+		if cfg.Redis.Sentinel != nil {
+			logger.Info("connecting to redis via sentinel",
+				"master", cfg.Redis.Sentinel.MasterName,
+				"sentinels", cfg.Redis.Sentinel.SentinelAddresses)
+
+			client = redis.NewFailoverClient(&redis.FailoverOptions{
+				MasterName:       cfg.Redis.Sentinel.MasterName,
+				SentinelAddrs:    cfg.Redis.Sentinel.SentinelAddresses,
+				SentinelUsername: cfg.Redis.Sentinel.SentinelUsername,
+				SentinelPassword: cfg.Redis.Sentinel.SentinelPassword,
+				Password:         cfg.Redis.Password,
+				DB:               cfg.Redis.CacheIndex,
+				MinIdleConns:     2,
+			})
+		} else {
+			client = redis.NewClient(&redis.Options{
+				Addr:         cfg.Redis.Address,
+				Password:     cfg.Redis.Password,
+				DB:           cfg.Redis.CacheIndex,
+				MinIdleConns: 2,
+			})
+		}
 
 		if cfg.Server.Debug != nil && cfg.Server.Debug.Enabled {
-			collector := redisprometheus.NewCollector(metrics.Namespace, "election", redisClient)
+			collector := redisprometheus.NewCollector(metrics.Namespace, "election", client)
 			if err := prometheus.Register(collector); err != nil {
 				logger.Debug("failed to register redis election collector: already registered", "error", err)
 			}
@@ -75,7 +95,7 @@ func New(cfg *config.Config) (*Server, error) {
 		}
 
 		election = &distributed.Election{
-			Redis:      redisClient,
+			Redis:      client,
 			InstanceID: hostname,
 			TTL:        cfg.Distributed.TTL,
 		}

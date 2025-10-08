@@ -116,7 +116,8 @@ deployment:
   labels:
     app.kubernetes.io/name: dashboard
     app.kubernetes.io/component: application
-  annotations:
+  annotations: {}
+  podAnnotations:
     profiles.grafana.com/cpu.scrape: "true"
     profiles.grafana.com/cpu.port: "9000"
     profiles.grafana.com/cpu.path: "/debug/pprof/profile"

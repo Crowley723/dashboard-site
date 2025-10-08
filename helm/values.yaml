@@ -186,6 +186,11 @@ service:
   type: ClusterIP
   port: 80
   targetPort: http
+  additionalPorts:
+    - port: 9000
+      targetPort: 9000
+      protocol: TCP
+      name: debug
 
 ingressRoute:
   enabled: true

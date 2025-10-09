@@ -17,7 +17,7 @@ COPY *.go ./
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o dashboard-site ./main.go
 
-FROM alpine:latest@sha256:4bcff63911fcb4448bd4fdacec207030997caf25e9bea4045fa6c8c44de311d1 AS runtime
+FROM alpine:latest@sha256:56b31e2dadc083b6b067d6cd4e97a9c6e5a953e6595830c60d9197589ff88ad4 AS runtime
 RUN apk add --no-cache ca-certificates tzdata && \
     addgroup -g 1001 -S app && \
     adduser -u 1001 -S app -G app

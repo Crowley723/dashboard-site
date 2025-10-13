@@ -20,11 +20,12 @@ export const options = {
 
 const BASE_URL = __ENV.BASE_URL || "http://localhost:8080";
 
-function heavyDashboardUser() {
+export default function heavyDashboardUser() {
   let res = http.get(`${BASE_URL}/api/auth/status`);
-  check(res, {
+  const authCheck = check(res, {
     "auth status check": (r) => r.status === 200 || r.status === 401,
-  }) || errorRate.add(1);
+  });
+  errorRate.add(!authCheck);
 
   sleep(0.5);
 
@@ -33,11 +34,10 @@ function heavyDashboardUser() {
   const queriesSuccess = check(res, {
     "queries retrieved": (r) => r.status === 200,
   });
+  errorRate.add(!queriesSuccess);
 
   if (queriesSuccess && res.json()) {
     queries = res.json();
-  } else {
-    errorRate.add(1);
   }
 
   sleep(1);
@@ -45,29 +45,33 @@ function heavyDashboardUser() {
   if (queries.length > 0) {
     const selectedQueries = queries.slice(0, Math.min(5, queries.length));
     res = http.get(`${BASE_URL}/api/data?queries=${selectedQueries.join(",")}`);
-    check(res, {
+    const multiQueryCheck = check(res, {
       "multiple queries data": (r) => r.status === 200,
-    }) || errorRate.add(1);
+    });
+    errorRate.add(!multiQueryCheck);
   } else {
     res = http.get(`${BASE_URL}/api/data`);
-    check(res, {
+    const allDataCheck = check(res, {
       "all data retrieved": (r) => r.status === 200,
-    }) || errorRate.add(1);
+    });
+    errorRate.add(!allDataCheck);
   }
 
   sleep(2);
 
   res = http.get(`${BASE_URL}/api/data`);
-  check(res, {
+  const refreshCheck = check(res, {
     "data refresh": (r) => r.status === 200,
-  }) || errorRate.add(1);
+  });
+  errorRate.add(!refreshCheck);
 }
 
 function lightDashboardUser() {
   let res = http.get(`${BASE_URL}/api/auth/status`);
-  check(res, {
+  const authCheck = check(res, {
     "auth status": (r) => r.status === 200 || r.status === 401,
-  }) || errorRate.add(1);
+  });
+  errorRate.add(!authCheck);
 
   sleep(0.5);
 
@@ -86,25 +90,28 @@ function lightDashboardUser() {
     res = http.get(`${BASE_URL}/api/data`);
   }
 
-  check(res, {
+  const dataCheck = check(res, {
     "single query data": (r) => r.status === 200,
-  }) || errorRate.add(1);
+  });
+  errorRate.add(!dataCheck);
 }
 
 function queryExplorer() {
   let res = http.get(`${BASE_URL}/api/queries`);
-  check(res, {
+  const queryListCheck = check(res, {
     "query list": (r) => r.status === 200,
-  }) || errorRate.add(1);
+  });
+  errorRate.add(!queryListCheck);
 
   sleep(1);
 
   const attempts = Math.floor(Math.random() * 3) + 1;
   for (let i = 0; i < attempts; i++) {
     res = http.get(`${BASE_URL}/api/data`);
-    check(res, {
+    const exploreCheck = check(res, {
       "explore data": (r) => r.status === 200,
-    }) || errorRate.add(1);
+    });
+    errorRate.add(!exploreCheck);
 
     sleep(1.5);
   }
@@ -112,9 +119,10 @@ function queryExplorer() {
 
 function healthCheck() {
   const res = http.get(`${BASE_URL}/api/v1/health`);
-  check(res, {
+  const healthCheckResult = check(res, {
     "health check": (r) => r.status === 200 && r.json("status") === "OK",
-  }) || errorRate.add(1);
+  });
+  errorRate.add(!healthCheckResult);
 }
 
 export function setup() {

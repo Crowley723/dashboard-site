@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/model"
 	"github.com/redis/go-redis/extra/redisprometheus/v9"
 	"github.com/redis/go-redis/v9"
 )
@@ -103,46 +102,9 @@ func (r *RedisCache) Get(ctx context.Context, queryName string) (CachedData, boo
 
 	var cached CachedData
 	if err := json.Unmarshal([]byte(data), &cached); err != nil {
-		r.logger.Error("error unmarshalling redis response", "error", err)
+		r.logger.Error("error unmarshalling cached data", "error", err)
 		return CachedData{}, false
 	}
-
-	// Reconstruct the correct type from JSON
-	switch cached.ValueType {
-	case "vector":
-		var v model.Vector
-		if err := json.Unmarshal([]byte(cached.ValueJSON), &v); err != nil {
-			r.logger.Error("error unmarshalling vector", "error", err)
-			return CachedData{}, false
-		}
-		cached.Value = v
-	case "matrix":
-		var m model.Matrix
-		if err := json.Unmarshal([]byte(cached.ValueJSON), &m); err != nil {
-			r.logger.Error("error unmarshalling matrix", "error", err)
-			return CachedData{}, false
-		}
-		cached.Value = m
-	case "scalar":
-		var s model.Scalar
-		if err := json.Unmarshal([]byte(cached.ValueJSON), &s); err != nil {
-			r.logger.Error("error unmarshalling scalar", "error", err)
-			return CachedData{}, false
-		}
-		cached.Value = &s
-	case "string":
-		var s model.String
-		if err := json.Unmarshal([]byte(cached.ValueJSON), &s); err != nil {
-			r.logger.Error("error unmarshalling string", "error", err)
-			return CachedData{}, false
-		}
-		cached.Value = &s
-	default:
-		r.logger.Error("unknown value type in cache", "type", cached.ValueType)
-		return CachedData{}, false
-	}
-
-	cached.JSONBytes = []byte(cached.ValueJSON)
 
 	return cached, true
 }
@@ -169,50 +131,17 @@ func (r *RedisCache) ListAll(ctx context.Context) []string {
 	return result
 }
 
-func (r *RedisCache) Set(ctx context.Context, queryName string, value model.Value, requireAuth bool, requiredGroup string) {
+func (r *RedisCache) Set(ctx context.Context, queryName string, data CachedData) {
 	timer := prometheus.NewTimer(metrics.CacheOperationDuration.WithLabelValues(metrics.CacheTypeRedis, metrics.CacheOperationTypeSet))
 	defer timer.ObserveDuration()
 
-	var valueType string
-	switch value.(type) {
-	case model.Vector:
-		valueType = "vector"
-	case model.Matrix:
-		valueType = "matrix"
-	case *model.Scalar:
-		valueType = "scalar"
-	case *model.String:
-		valueType = "string"
-	default:
-		r.logger.Error("unknown prometheus value type", "type", fmt.Sprintf("%T", value))
-		return
-	}
-
-	valueJSON, err := json.Marshal(value)
-	if err != nil {
-		r.logger.Error("error marshalling prometheus value", "error", err)
-		return
-	}
-
-	cache := CachedData{
-		Value:         value,
-		ValueJSON:     string(valueJSON),
-		ValueType:     valueType,
-		JSONBytes:     valueJSON,
-		Timestamp:     time.Now(),
-		Name:          queryName,
-		RequireAuth:   requireAuth,
-		RequiredGroup: requiredGroup,
-	}
-
-	data, err := json.Marshal(cache)
+	jsonData, err := json.Marshal(data)
 	if err != nil {
 		r.logger.Error("error marshalling cached data", "error", err)
 		return
 	}
 
-	_, err = r.client.Set(ctx, r.key(queryName), data, 0).Result()
-	if err != nil {
+	if err := r.client.Set(ctx, r.key(queryName), jsonData, 0).Err(); err != nil {
 		r.logger.Error("error executing redis 'SET'", "error", err)
 		return
 	}

@@ -6,11 +6,6 @@ import (
 	"homelab-dashboard/internal/metrics"
 	"log/slog"
 	"sync"
-	"time"
-
-	"encoding/json"
-
-	"github.com/prometheus/common/model"
 )
 
 func NewMemCache(cfg *config.Config, logger *slog.Logger) (*MemCache, error) {
@@ -54,24 +49,11 @@ func (d *MemCache) ListAll(ctx context.Context) []string {
 }
 
 // Set sets (or inserts) the value of a query
-func (d *MemCache) Set(ctx context.Context, queryName string, value model.Value, requireAuth bool, requiredGroup string) {
+func (d *MemCache) Set(ctx context.Context, queryName string, data CachedData) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
-	jsonBytes, err := json.Marshal(value)
-	if err != nil {
-		d.logger.Error("failed to marshal value for cache", "query", queryName, "error", err)
-		return
-	}
-
-	d.cache[queryName] = CachedData{
-		Value:         value,
-		Timestamp:     time.Now(),
-		Name:          queryName,
-		JSONBytes:     jsonBytes,
-		RequireAuth:   requireAuth,
-		RequiredGroup: requiredGroup,
-	}
+	d.cache[queryName] = data
 }
 
 // Delete removes an entry from the cache

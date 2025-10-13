@@ -4,8 +4,6 @@ import (
 	"context"
 	"homelab-dashboard/internal/config"
 	"log/slog"
-
-	"github.com/prometheus/common/model"
 )
 
 //go:generate mockgen -source=cache_provider.go -destination=../mocks/cache.go -package=mocks
@@ -13,7 +11,7 @@ import (
 type CacheProvider interface {
 	Get(ctx context.Context, queryName string) (CachedData, bool)
 	ListAll(ctx context.Context) []string
-	Set(ctx context.Context, queryName string, value model.Value, requireAuth bool, requiredGroup string)
+	Set(ctx context.Context, queryName string, data CachedData)
 	Delete(ctx context.Context, query string)
 	Size(ctx context.Context) int
 }

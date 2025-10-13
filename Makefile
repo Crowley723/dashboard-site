@@ -9,7 +9,7 @@ dev-frontend:
 	cd web && bash -c "source ~/.nvm/nvm.sh && pnpm run dev"
 
 dev-backend:
-	GO_ENV=development reflex -r '\.go$$' -s -- go run ./main.go -c config.yaml
+	GO_ENV=development reflex -r '\.go$$' -s -- go run ./main.go -c config.docker.yaml
 
 dev-backend-debug:
 	GO_ENV=development reflex -r '\.go$$' -s -- dlv debug --headless --listen=:2345 --api-version=2 --accept-multiclient ./main.go -- -c config.docker.yaml
@@ -52,11 +52,16 @@ dev-docker-rebuild:
 	@echo "Rebuilding Docker development environment..."
 	cd docker && docker compose down && docker compose up --build
 
+TEST_FLAGS ?=
+
+test:
+	go test $(TEST_FLAGS) ./...
+
 coverage:
-	go test -cover -v ./...
+	go test $(TEST_FLAGS) -cover ./...
 
 coverage-html:
-	go test -coverprofile=coverage.out ./...
+	go test -coverprofile=coverage.out $(TEST_FLAGS) ./...
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report generated: coverage.html"
 

@@ -2,6 +2,7 @@ package data
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"homelab-dashboard/internal/config"
 	"homelab-dashboard/internal/metrics"
@@ -110,11 +111,47 @@ func (s *Service) executeQuery(ctx context.Context, cache CacheProvider, config 
 		if ttl == 0 {
 			ttl = 5 * time.Minute
 		}
-		cache.Set(ctx, config.Name, result, config.RequireAuth, config.RequiredGroup)
+
+		cachedData := s.prepareCacheData(config.Name, result, config)
+
+		cache.Set(ctx, config.Name, cachedData)
 		s.logger.Debug("cached query result", "query", config.Name, "type", config.Type, "ttl", ttl)
 	} else {
 		s.logger.Warn("cache is nil, skipping cache storage", "query", config.Name)
 	}
 
 	return nil
+}
+
+func (s *Service) prepareCacheData(name string, value model.Value, config config.PrometheusQuery) CachedData {
+	// Marshal Prometheus data ONCE in background job
+	jsonBytes, err := json.Marshal(value)
+	if err != nil {
+		s.logger.Error("failed to marshal value for cache", "query", name, "error", err)
+		return CachedData{} // Return empty on error
+	}
+
+	// Extract type string ONCE
+	var typeStr string
+	switch value.(type) {
+	case model.Vector:
+		typeStr = "vector"
+	case model.Matrix:
+		typeStr = "matrix"
+	case *model.Scalar:
+		typeStr = "scalar"
+	case *model.String:
+		typeStr = "string"
+	default:
+		typeStr = value.Type().String() // Fallback
+	}
+
+	return CachedData{
+		Name:          name,
+		ValueType:     typeStr,
+		JSONBytes:     jsonBytes,
+		Timestamp:     time.Now(),
+		RequireAuth:   config.RequireAuth,
+		RequiredGroup: config.RequiredGroup,
+	}
 }

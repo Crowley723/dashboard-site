@@ -14,7 +14,6 @@ import (
 	data "homelab-dashboard/internal/data"
 	reflect "reflect"
 
-	model "github.com/prometheus/common/model"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -84,15 +83,15 @@ func (mr *MockCacheProviderMockRecorder) ListAll(ctx any) *gomock.Call {
 }
 
 // Set mocks base method.
-func (m *MockCacheProvider) Set(ctx context.Context, queryName string, value model.Value, requireAuth bool, requiredGroup string) {
+func (m *MockCacheProvider) Set(ctx context.Context, queryName string, arg2 data.CachedData) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Set", ctx, queryName, value, requireAuth, requiredGroup)
+	m.ctrl.Call(m, "Set", ctx, queryName, arg2)
 }
 
 // Set indicates an expected call of Set.
-func (mr *MockCacheProviderMockRecorder) Set(ctx, queryName, value, requireAuth, requiredGroup any) *gomock.Call {
+func (mr *MockCacheProviderMockRecorder) Set(ctx, queryName, arg2 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Set", reflect.TypeOf((*MockCacheProvider)(nil).Set), ctx, queryName, value, requireAuth, requiredGroup)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Set", reflect.TypeOf((*MockCacheProvider)(nil).Set), ctx, queryName, arg2)
 }
 
 // Size mocks base method.

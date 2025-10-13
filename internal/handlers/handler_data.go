@@ -32,7 +32,7 @@ func GetMetricsGET(ctx *middlewares.AppContext) {
 func convertCachedDataToResultData(data *data.CachedData) (*ResultData, error) {
 	return &ResultData{
 		QueryName: data.Name,
-		Type:      data.Value.Type().String(),
+		Type:      data.ValueType,
 		Data:      data.JSONBytes,
 	}, nil
 }

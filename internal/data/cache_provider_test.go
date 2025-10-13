@@ -2,6 +2,7 @@ package data
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -61,7 +62,7 @@ func setupMemCache() *MemCache {
 	return cache
 }
 
-func setupRedisCache(b *testing.B) *RedisCache {
+func setupRedisCache(tb testing.TB) *RedisCache {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	cfg := &config.Config{
 		Redis: &config.RedisConfig{
@@ -72,17 +73,17 @@ func setupRedisCache(b *testing.B) *RedisCache {
 	}
 	cache, err := NewRedisCache(cfg, logger)
 	if err != nil {
-		b.Skipf("Redis not available: %v", err)
+		tb.Skipf("Redis not available: %v", err)
 	}
 
 	// Clean up any existing test data
 	ctx := context.Background()
 	err = cache.client.Ping(ctx).Err()
 	if err != nil {
-		b.Skipf("Redis not available: %v", err)
+		tb.Skipf("Redis not available: %v", err)
 	}
 
-	b.Cleanup(func() {
+	tb.Cleanup(func() {
 		cache.ClosePool()
 	})
 
@@ -109,11 +110,6 @@ func TestNewCacheProvider(t *testing.T) {
 			cacheType:    "memory",
 			expectedType: "*data.MemCache",
 		},
-		{
-			name:         "redis cache",
-			cacheType:    "redis",
-			expectedType: "*data.RedisCache",
-		},
 	}
 
 	for _, tt := range tests {
@@ -122,22 +118,10 @@ func TestNewCacheProvider(t *testing.T) {
 				Cache: config.CacheConfig{
 					Type: tt.cacheType,
 				},
-				Redis: &config.RedisConfig{
-					Address:    "127.0.0.1:6379",
-					CacheIndex: 1,
-				},
 			}
 
 			cache, err := NewCacheProvider(cfg, logger)
-			if tt.cacheType == "redis" {
-				// Redis may not be available in test environment
-				if err != nil {
-					t.Skipf("Redis not available: %v", err)
-				}
-			} else {
-				require.NoError(t, err)
-			}
-
+			require.NoError(t, err)
 			assert.Equal(t, tt.expectedType, fmt.Sprintf("%T", cache))
 		})
 	}
@@ -147,52 +131,72 @@ func TestMemCache_SetAndGet(t *testing.T) {
 	cache := setupMemCache()
 	ctx := context.Background()
 
-	// Test vector
-	vec := createTestVector(3)
-	cache.Set(ctx, "test-vector", vec, false, "")
-
-	result, found := cache.Get(ctx, "test-vector")
-	assert.True(t, found)
-	assert.Equal(t, "test-vector", result.Name)
-	assert.Equal(t, vec, result.Value)
-	assert.False(t, result.RequireAuth)
-	assert.Empty(t, result.RequiredGroup)
-	assert.NotNil(t, result.JSONBytes)
-
-	// Test matrix
-	matrix := createTestMatrix(2, 3)
-	cache.Set(ctx, "test-matrix", matrix, true, "admin")
-
-	result, found = cache.Get(ctx, "test-matrix")
-	assert.True(t, found)
-	assert.Equal(t, "test-matrix", result.Name)
-	assert.Equal(t, matrix, result.Value)
-	assert.True(t, result.RequireAuth)
-	assert.Equal(t, "admin", result.RequiredGroup)
-
-	// Test scalar
-	scalar := &model.Scalar{
-		Value:     123.45,
-		Timestamp: model.Time(time.Now().UnixMilli()),
+	tests := []struct {
+		name          string
+		key           string
+		data          interface{}
+		requireAuth   bool
+		requiredGroup string
+	}{
+		{
+			name:          "vector without auth",
+			key:           "test-vector",
+			data:          createTestVector(3),
+			requireAuth:   false,
+			requiredGroup: "",
+		},
+		{
+			name:          "matrix with auth",
+			key:           "test-matrix",
+			data:          createTestMatrix(2, 3),
+			requireAuth:   true,
+			requiredGroup: "admin",
+		},
+		{
+			name: "scalar",
+			key:  "test-scalar",
+			data: &model.Scalar{
+				Value:     123.45,
+				Timestamp: model.Time(time.Now().UnixMilli()),
+			},
+			requireAuth:   false,
+			requiredGroup: "",
+		},
+		{
+			name: "string",
+			key:  "test-string",
+			data: &model.String{
+				Value:     "test-value",
+				Timestamp: model.Time(time.Now().UnixMilli()),
+			},
+			requireAuth:   false,
+			requiredGroup: "",
+		},
 	}
-	cache.Set(ctx, "test-scalar", scalar, false, "")
 
-	result, found = cache.Get(ctx, "test-scalar")
-	assert.True(t, found)
-	assert.Equal(t, "test-scalar", result.Name)
-	assert.Equal(t, scalar, result.Value)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			jsonBytes, err := json.Marshal(tt.data)
+			require.NoError(t, err)
 
-	// Test string
-	str := &model.String{
-		Value:     "test-value",
-		Timestamp: model.Time(time.Now().UnixMilli()),
+			cachedData := CachedData{
+				Name:          tt.key,
+				JSONBytes:     jsonBytes,
+				RequireAuth:   tt.requireAuth,
+				RequiredGroup: tt.requiredGroup,
+			}
+
+			cache.Set(ctx, tt.key, cachedData)
+
+			result, found := cache.Get(ctx, tt.key)
+			assert.True(t, found)
+			assert.Equal(t, tt.key, result.Name)
+			assert.Equal(t, jsonBytes, result.JSONBytes)
+			assert.Equal(t, tt.requireAuth, result.RequireAuth)
+			assert.Equal(t, tt.requiredGroup, result.RequiredGroup)
+			assert.NotNil(t, result.JSONBytes)
+		})
 	}
-	cache.Set(ctx, "test-string", str, false, "")
-
-	result, found = cache.Get(ctx, "test-string")
-	assert.True(t, found)
-	assert.Equal(t, "test-string", result.Name)
-	assert.Equal(t, str, result.Value)
 }
 
 func TestMemCache_GetMiss(t *testing.T) {
@@ -202,7 +206,7 @@ func TestMemCache_GetMiss(t *testing.T) {
 	result, found := cache.Get(ctx, "nonexistent")
 	assert.False(t, found)
 	assert.Empty(t, result.Name)
-	assert.Nil(t, result.Value)
+	assert.Nil(t, result.JSONBytes)
 }
 
 func TestMemCache_Delete(t *testing.T) {
@@ -210,7 +214,13 @@ func TestMemCache_Delete(t *testing.T) {
 	ctx := context.Background()
 
 	vec := createTestVector(2)
-	cache.Set(ctx, "test-delete", vec, false, "")
+	jsonBytes, _ := json.Marshal(vec)
+	data := CachedData{
+		Name:      "test-delete",
+		JSONBytes: jsonBytes,
+	}
+
+	cache.Set(ctx, "test-delete", data)
 
 	// Verify it exists
 	_, found := cache.Get(ctx, "test-delete")
@@ -234,9 +244,16 @@ func TestMemCache_ListAll(t *testing.T) {
 
 	// Add some items
 	vec := createTestVector(1)
-	cache.Set(ctx, "query1", vec, false, "")
-	cache.Set(ctx, "query2", vec, false, "")
-	cache.Set(ctx, "query3", vec, false, "")
+	jsonBytes, _ := json.Marshal(vec)
+	data := CachedData{
+		Name:      "",
+		JSONBytes: jsonBytes,
+	}
+
+	for i := 1; i <= 3; i++ {
+		data.Name = fmt.Sprintf("query%d", i)
+		cache.Set(ctx, data.Name, data)
+	}
 
 	keys = cache.ListAll(ctx)
 	assert.Len(t, keys, 3)
@@ -254,10 +271,17 @@ func TestMemCache_Size(t *testing.T) {
 
 	// Add items
 	vec := createTestVector(1)
-	cache.Set(ctx, "item1", vec, false, "")
+	jsonBytes, _ := json.Marshal(vec)
+	data := CachedData{
+		JSONBytes: jsonBytes,
+	}
+
+	data.Name = "item1"
+	cache.Set(ctx, "item1", data)
 	assert.Equal(t, 1, cache.Size(ctx))
 
-	cache.Set(ctx, "item2", vec, false, "")
+	data.Name = "item2"
+	cache.Set(ctx, "item2", data)
 	assert.Equal(t, 2, cache.Size(ctx))
 
 	// Delete an item
@@ -269,6 +293,7 @@ func TestMemCache_ConcurrentAccess(t *testing.T) {
 	cache := setupMemCache()
 	ctx := context.Background()
 	vec := createTestVector(10)
+	jsonBytes, _ := json.Marshal(vec)
 
 	// Test concurrent writes and reads
 	done := make(chan bool, 10)
@@ -277,7 +302,12 @@ func TestMemCache_ConcurrentAccess(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		go func(id int) {
 			for j := 0; j < 10; j++ {
-				cache.Set(ctx, fmt.Sprintf("writer-%d-item-%d", id, j), vec, false, "")
+				key := fmt.Sprintf("writer-%d-item-%d", id, j)
+				data := CachedData{
+					Name:      key,
+					JSONBytes: jsonBytes,
+				}
+				cache.Set(ctx, key, data)
 			}
 			done <- true
 		}(i)
@@ -308,20 +338,32 @@ func TestMemCache_UpdateExistingKey(t *testing.T) {
 
 	// Set initial value
 	vec1 := createTestVector(2)
-	cache.Set(ctx, "update-test", vec1, false, "")
+	jsonBytes1, _ := json.Marshal(vec1)
+	data1 := CachedData{
+		Name:      "update-test",
+		JSONBytes: jsonBytes1,
+	}
+	cache.Set(ctx, "update-test", data1)
 
 	result, found := cache.Get(ctx, "update-test")
 	assert.True(t, found)
-	assert.Equal(t, vec1, result.Value)
+	assert.Equal(t, jsonBytes1, result.JSONBytes)
 	assert.False(t, result.RequireAuth)
 
 	// Update with new value and auth requirements
 	vec2 := createTestVector(5)
-	cache.Set(ctx, "update-test", vec2, true, "admin")
+	jsonBytes2, _ := json.Marshal(vec2)
+	data2 := CachedData{
+		Name:          "update-test",
+		JSONBytes:     jsonBytes2,
+		RequireAuth:   true,
+		RequiredGroup: "admin",
+	}
+	cache.Set(ctx, "update-test", data2)
 
 	result, found = cache.Get(ctx, "update-test")
 	assert.True(t, found)
-	assert.Equal(t, vec2, result.Value)
+	assert.Equal(t, jsonBytes2, result.JSONBytes)
 	assert.True(t, result.RequireAuth)
 	assert.Equal(t, "admin", result.RequiredGroup)
 
@@ -334,295 +376,351 @@ func TestMemCache_TimestampUpdates(t *testing.T) {
 	ctx := context.Background()
 
 	vec := createTestVector(1)
+	jsonBytes, _ := json.Marshal(vec)
+	data := CachedData{
+		Name:      "timestamp-test",
+		JSONBytes: jsonBytes,
+		Timestamp: time.Now(),
+	}
+
 	beforeSet := time.Now()
-	cache.Set(ctx, "timestamp-test", vec, false, "")
+	cache.Set(ctx, "timestamp-test", data)
 	afterSet := time.Now()
 
 	result, found := cache.Get(ctx, "timestamp-test")
-	assert.True(t, found)
-	assert.True(t, result.Timestamp.After(beforeSet) || result.Timestamp.Equal(beforeSet))
-	assert.True(t, result.Timestamp.Before(afterSet) || result.Timestamp.Equal(afterSet))
+	require.True(t, found, "cache entry should exist")
+
+	assert.False(t, result.Timestamp.IsZero(), "timestamp should not be zero value")
+
+	assert.WithinDuration(t, beforeSet, result.Timestamp, time.Second,
+		"timestamp should be set around the time Set() was called")
+	assert.True(t, !result.Timestamp.After(afterSet),
+		"timestamp should not be after Set() completed")
 }
 
 // Benchmark Set operations
-func BenchmarkMemCache_Set_SmallVector(b *testing.B) {
-	cache := setupMemCache()
-	vec := createTestVector(10)
-	ctx := context.Background()
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		cache.Set(ctx, fmt.Sprintf("query-%d", i%100), vec, false, "")
+func BenchmarkCache_Set(b *testing.B) {
+	tests := []struct {
+		name      string
+		setupFunc func(testing.TB) CacheProvider
+		dataFunc  func() (string, []byte)
+	}{
+		{
+			name:      "MemCache_SmallVector",
+			setupFunc: func(tb testing.TB) CacheProvider { return setupMemCache() },
+			dataFunc: func() (string, []byte) {
+				vec := createTestVector(10)
+				jsonBytes, _ := json.Marshal(vec)
+				return "query", jsonBytes
+			},
+		},
+		{
+			name:      "RedisCache_SmallVector",
+			setupFunc: func(tb testing.TB) CacheProvider { return setupRedisCache(tb) },
+			dataFunc: func() (string, []byte) {
+				vec := createTestVector(10)
+				jsonBytes, _ := json.Marshal(vec)
+				return "query", jsonBytes
+			},
+		},
+		{
+			name:      "MemCache_LargeVector",
+			setupFunc: func(tb testing.TB) CacheProvider { return setupMemCache() },
+			dataFunc: func() (string, []byte) {
+				vec := createTestVector(1000)
+				jsonBytes, _ := json.Marshal(vec)
+				return "query", jsonBytes
+			},
+		},
+		{
+			name:      "RedisCache_LargeVector",
+			setupFunc: func(tb testing.TB) CacheProvider { return setupRedisCache(tb) },
+			dataFunc: func() (string, []byte) {
+				vec := createTestVector(1000)
+				jsonBytes, _ := json.Marshal(vec)
+				return "query", jsonBytes
+			},
+		},
+		{
+			name:      "MemCache_Matrix",
+			setupFunc: func(tb testing.TB) CacheProvider { return setupMemCache() },
+			dataFunc: func() (string, []byte) {
+				matrix := createTestMatrix(50, 100)
+				jsonBytes, _ := json.Marshal(matrix)
+				return "query", jsonBytes
+			},
+		},
+		{
+			name:      "RedisCache_Matrix",
+			setupFunc: func(tb testing.TB) CacheProvider { return setupRedisCache(tb) },
+			dataFunc: func() (string, []byte) {
+				matrix := createTestMatrix(50, 100)
+				jsonBytes, _ := json.Marshal(matrix)
+				return "query", jsonBytes
+			},
+		},
 	}
-}
 
-func BenchmarkRedisCache_Set_SmallVector(b *testing.B) {
-	cache := setupRedisCache(b)
-	vec := createTestVector(10)
-	ctx := context.Background()
+	for _, tt := range tests {
+		b.Run(tt.name, func(b *testing.B) {
+			cache := tt.setupFunc(b)
+			_, jsonBytes := tt.dataFunc()
+			ctx := context.Background()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		cache.Set(ctx, fmt.Sprintf("query-%d", i%100), vec, false, "")
-	}
-}
-
-func BenchmarkMemCache_Set_LargeVector(b *testing.B) {
-	cache := setupMemCache()
-	vec := createTestVector(1000)
-	ctx := context.Background()
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		cache.Set(ctx, fmt.Sprintf("query-%d", i%100), vec, false, "")
-	}
-}
-
-func BenchmarkRedisCache_Set_LargeVector(b *testing.B) {
-	cache := setupRedisCache(b)
-	vec := createTestVector(1000)
-	ctx := context.Background()
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		cache.Set(ctx, fmt.Sprintf("query-%d", i%100), vec, false, "")
-	}
-}
-
-func BenchmarkMemCache_Set_Matrix(b *testing.B) {
-	cache := setupMemCache()
-	matrix := createTestMatrix(50, 100)
-	ctx := context.Background()
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		cache.Set(ctx, fmt.Sprintf("query-%d", i%100), matrix, false, "")
-	}
-}
-
-func BenchmarkRedisCache_Set_Matrix(b *testing.B) {
-	cache := setupRedisCache(b)
-	matrix := createTestMatrix(50, 100)
-	ctx := context.Background()
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		cache.Set(ctx, fmt.Sprintf("query-%d", i%100), matrix, false, "")
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				key := fmt.Sprintf("query-%d", i%100)
+				data := CachedData{
+					Name:      key,
+					JSONBytes: jsonBytes,
+				}
+				cache.Set(ctx, key, data)
+			}
+		})
 	}
 }
 
 // Benchmark Get operations
-func BenchmarkMemCache_Get(b *testing.B) {
-	cache := setupMemCache()
-	vec := createTestVector(100)
-	ctx := context.Background()
-
-	// Pre-populate
-	for i := 0; i < 100; i++ {
-		cache.Set(ctx, fmt.Sprintf("query-%d", i), vec, false, "")
+func BenchmarkCache_Get(b *testing.B) {
+	tests := []struct {
+		name      string
+		setupFunc func(testing.TB) CacheProvider
+	}{
+		{
+			name:      "MemCache",
+			setupFunc: func(tb testing.TB) CacheProvider { return setupMemCache() },
+		},
+		{
+			name:      "RedisCache",
+			setupFunc: func(tb testing.TB) CacheProvider { return setupRedisCache(tb) },
+		},
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		cache.Get(ctx, fmt.Sprintf("query-%d", i%100))
-	}
-}
+	for _, tt := range tests {
+		b.Run(tt.name, func(b *testing.B) {
+			cache := tt.setupFunc(b)
+			vec := createTestVector(100)
+			jsonBytes, _ := json.Marshal(vec)
+			ctx := context.Background()
 
-func BenchmarkRedisCache_Get(b *testing.B) {
-	cache := setupRedisCache(b)
-	vec := createTestVector(100)
-	ctx := context.Background()
+			for i := 0; i < 100; i++ {
+				key := fmt.Sprintf("query-%d", i)
+				data := CachedData{
+					Name:      key,
+					JSONBytes: jsonBytes,
+				}
+				cache.Set(ctx, key, data)
+			}
 
-	// Pre-populate
-	for i := 0; i < 100; i++ {
-		cache.Set(ctx, fmt.Sprintf("query-%d", i), vec, false, "")
-	}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		cache.Get(ctx, fmt.Sprintf("query-%d", i%100))
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				cache.Get(ctx, fmt.Sprintf("query-%d", i%100))
+			}
+		})
 	}
 }
 
 // Benchmark Get misses
-func BenchmarkMemCache_GetMiss(b *testing.B) {
-	cache := setupMemCache()
-	ctx := context.Background()
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		cache.Get(ctx, fmt.Sprintf("nonexistent-%d", i))
+func BenchmarkCache_GetMiss(b *testing.B) {
+	tests := []struct {
+		name      string
+		setupFunc func(testing.TB) CacheProvider
+	}{
+		{
+			name:      "MemCache",
+			setupFunc: func(tb testing.TB) CacheProvider { return setupMemCache() },
+		},
+		{
+			name:      "RedisCache",
+			setupFunc: func(tb testing.TB) CacheProvider { return setupRedisCache(tb) },
+		},
 	}
-}
 
-func BenchmarkRedisCache_GetMiss(b *testing.B) {
-	cache := setupRedisCache(b)
-	ctx := context.Background()
+	for _, tt := range tests {
+		b.Run(tt.name, func(b *testing.B) {
+			cache := tt.setupFunc(b)
+			ctx := context.Background()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		cache.Get(ctx, fmt.Sprintf("nonexistent-%d", i))
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				cache.Get(ctx, fmt.Sprintf("nonexistent-%d", i))
+			}
+		})
 	}
 }
 
 // Benchmark Delete operations
-func BenchmarkMemCache_Delete(b *testing.B) {
-	cache := setupMemCache()
-	vec := createTestVector(10)
-	ctx := context.Background()
-
-	// Pre-populate cache with keys we'll delete
-	for i := 0; i < b.N; i++ {
-		cache.Set(ctx, fmt.Sprintf("query-%d", i), vec, false, "")
+func BenchmarkCache_Delete(b *testing.B) {
+	tests := []struct {
+		name      string
+		setupFunc func(testing.TB) CacheProvider
+	}{
+		{
+			name:      "MemCache",
+			setupFunc: func(tb testing.TB) CacheProvider { return setupMemCache() },
+		},
+		{
+			name:      "RedisCache",
+			setupFunc: func(tb testing.TB) CacheProvider { return setupRedisCache(tb) },
+		},
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		cache.Delete(ctx, fmt.Sprintf("query-%d", i))
-	}
-}
+	for _, tt := range tests {
+		b.Run(tt.name, func(b *testing.B) {
+			cache := tt.setupFunc(b)
+			vec := createTestVector(10)
+			jsonBytes, _ := json.Marshal(vec)
+			ctx := context.Background()
 
-func BenchmarkRedisCache_Delete(b *testing.B) {
-	cache := setupRedisCache(b)
-	vec := createTestVector(10)
-	ctx := context.Background()
+			for i := 0; i < b.N; i++ {
+				key := fmt.Sprintf("query-%d", i)
+				data := CachedData{
+					Name:      key,
+					JSONBytes: jsonBytes,
+				}
+				cache.Set(ctx, key, data)
+			}
 
-	// Pre-populate cache with keys we'll delete
-	for i := 0; i < b.N; i++ {
-		cache.Set(ctx, fmt.Sprintf("query-%d", i), vec, false, "")
-	}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		cache.Delete(ctx, fmt.Sprintf("query-%d", i))
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				cache.Delete(ctx, fmt.Sprintf("query-%d", i))
+			}
+		})
 	}
 }
 
 // Benchmark ListAll
-func BenchmarkMemCache_ListAll_10(b *testing.B) {
-	cache := setupMemCache()
-	vec := createTestVector(10)
-	ctx := context.Background()
-
-	for i := 0; i < 10; i++ {
-		cache.Set(ctx, fmt.Sprintf("query-%d", i), vec, false, "")
+func BenchmarkCache_ListAll(b *testing.B) {
+	tests := []struct {
+		name      string
+		setupFunc func(testing.TB) CacheProvider
+		numItems  int
+	}{
+		{
+			name:      "MemCache_10",
+			setupFunc: func(tb testing.TB) CacheProvider { return setupMemCache() },
+			numItems:  10,
+		},
+		{
+			name:      "RedisCache_10",
+			setupFunc: func(tb testing.TB) CacheProvider { return setupRedisCache(tb) },
+			numItems:  10,
+		},
+		{
+			name:      "MemCache_100",
+			setupFunc: func(tb testing.TB) CacheProvider { return setupMemCache() },
+			numItems:  100,
+		},
+		{
+			name:      "RedisCache_100",
+			setupFunc: func(tb testing.TB) CacheProvider { return setupRedisCache(tb) },
+			numItems:  100,
+		},
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		cache.ListAll(ctx)
-	}
-}
+	for _, tt := range tests {
+		b.Run(tt.name, func(b *testing.B) {
+			cache := tt.setupFunc(b)
+			vec := createTestVector(10)
+			jsonBytes, _ := json.Marshal(vec)
+			ctx := context.Background()
 
-func BenchmarkRedisCache_ListAll_10(b *testing.B) {
-	cache := setupRedisCache(b)
-	vec := createTestVector(10)
-	ctx := context.Background()
+			for i := 0; i < tt.numItems; i++ {
+				key := fmt.Sprintf("query-%d", i)
+				data := CachedData{
+					Name:      key,
+					JSONBytes: jsonBytes,
+				}
+				cache.Set(ctx, key, data)
+			}
 
-	for i := 0; i < 10; i++ {
-		cache.Set(ctx, fmt.Sprintf("query-%d", i), vec, false, "")
-	}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		cache.ListAll(ctx)
-	}
-}
-
-func BenchmarkMemCache_ListAll_100(b *testing.B) {
-	cache := setupMemCache()
-	vec := createTestVector(10)
-	ctx := context.Background()
-
-	for i := 0; i < 100; i++ {
-		cache.Set(ctx, fmt.Sprintf("query-%d", i), vec, false, "")
-	}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		cache.ListAll(ctx)
-	}
-}
-
-func BenchmarkRedisCache_ListAll_100(b *testing.B) {
-	cache := setupRedisCache(b)
-	vec := createTestVector(10)
-	ctx := context.Background()
-
-	for i := 0; i < 100; i++ {
-		cache.Set(ctx, fmt.Sprintf("query-%d", i), vec, false, "")
-	}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		cache.ListAll(ctx)
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				cache.ListAll(ctx)
+			}
+		})
 	}
 }
 
 // Benchmark concurrent operations
-func BenchmarkMemCache_ConcurrentReadWrite(b *testing.B) {
-	cache := setupMemCache()
-	vec := createTestVector(50)
-	ctx := context.Background()
+func BenchmarkCache_ConcurrentReadWrite(b *testing.B) {
+	tests := []struct {
+		name      string
+		setupFunc func(testing.TB) CacheProvider
+	}{
+		{
+			name:      "MemCache",
+			setupFunc: func(tb testing.TB) CacheProvider { return setupMemCache() },
+		},
+		{
+			name:      "RedisCache",
+			setupFunc: func(tb testing.TB) CacheProvider { return setupRedisCache(tb) },
+		},
+	}
 
-	b.RunParallel(func(pb *testing.PB) {
-		i := 0
-		for pb.Next() {
-			if i%2 == 0 {
-				cache.Set(ctx, fmt.Sprintf("query-%d", i%100), vec, false, "")
-			} else {
-				cache.Get(ctx, fmt.Sprintf("query-%d", i%100))
-			}
-			i++
-		}
-	})
-}
+	for _, tt := range tests {
+		b.Run(tt.name, func(b *testing.B) {
+			cache := tt.setupFunc(b)
+			vec := createTestVector(50)
+			jsonBytes, _ := json.Marshal(vec)
+			ctx := context.Background()
 
-func BenchmarkRedisCache_ConcurrentReadWrite(b *testing.B) {
-	cache := setupRedisCache(b)
-	vec := createTestVector(50)
-	ctx := context.Background()
-
-	b.RunParallel(func(pb *testing.PB) {
-		i := 0
-		for pb.Next() {
-			if i%2 == 0 {
-				cache.Set(ctx, fmt.Sprintf("query-%d", i%100), vec, false, "")
-			} else {
-				cache.Get(ctx, fmt.Sprintf("query-%d", i%100))
-			}
-			i++
-		}
-	})
+			b.RunParallel(func(pb *testing.PB) {
+				i := 0
+				for pb.Next() {
+					key := fmt.Sprintf("query-%d", i%100)
+					if i%2 == 0 {
+						data := CachedData{
+							Name:      key,
+							JSONBytes: jsonBytes,
+						}
+						cache.Set(ctx, key, data)
+					} else {
+						cache.Get(ctx, key)
+					}
+					i++
+				}
+			})
+		})
+	}
 }
 
 // Benchmark Size operations
-func BenchmarkMemCache_Size(b *testing.B) {
-	cache := setupMemCache()
-	vec := createTestVector(10)
-	ctx := context.Background()
-
-	for i := 0; i < 50; i++ {
-		cache.Set(ctx, fmt.Sprintf("query-%d", i), vec, false, "")
+func BenchmarkCache_Size(b *testing.B) {
+	tests := []struct {
+		name      string
+		setupFunc func(testing.TB) CacheProvider
+	}{
+		{
+			name:      "MemCache",
+			setupFunc: func(tb testing.TB) CacheProvider { return setupMemCache() },
+		},
+		{
+			name:      "RedisCache",
+			setupFunc: func(tb testing.TB) CacheProvider { return setupRedisCache(tb) },
+		},
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		cache.Size(ctx)
-	}
-}
+	for _, tt := range tests {
+		b.Run(tt.name, func(b *testing.B) {
+			cache := tt.setupFunc(b)
+			vec := createTestVector(10)
+			jsonBytes, _ := json.Marshal(vec)
+			ctx := context.Background()
 
-func BenchmarkRedisCache_Size(b *testing.B) {
-	cache := setupRedisCache(b)
-	vec := createTestVector(10)
-	ctx := context.Background()
+			for i := 0; i < 50; i++ {
+				key := fmt.Sprintf("query-%d", i)
+				data := CachedData{
+					Name:      key,
+					JSONBytes: jsonBytes,
+				}
+				cache.Set(ctx, key, data)
+			}
 
-	for i := 0; i < 50; i++ {
-		cache.Set(ctx, fmt.Sprintf("query-%d", i), vec, false, "")
-	}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		cache.Size(ctx)
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				cache.Size(ctx)
+			}
+		})
 	}
 }

@@ -399,8 +399,8 @@ func (tc *TestContext) ExpectCacheGet(ctx context.Context, queryName string, ret
 }
 
 // ExpectCacheSet sets up an expectation for cache.Set()
-func (tc *TestContext) ExpectCacheSet(ctx context.Context, queryName string, value interface{}, requireAuth bool, requiredGroup string) *gomock.Call {
-	return tc.MockCache.EXPECT().Set(ctx, queryName, value, requireAuth, requiredGroup)
+func (tc *TestContext) ExpectCacheSet(ctx context.Context, queryName string, value any) *gomock.Call {
+	return tc.MockCache.EXPECT().Set(ctx, queryName, value)
 }
 
 // ExpectSessionIsAuthenticated sets up an expectation for session.IsAuthenticated()
@@ -416,11 +416,19 @@ func (tc *TestContext) ExpectSessionGetUser(user interface{}, ok bool) *gomock.C
 func (tc *TestContext) CreateCachedDataWithScalar(name string, value float64, requireAuth bool, requiredGroup string) data.CachedData {
 	scalar := &model.Scalar{
 		Value:     model.SampleValue(value),
-		Timestamp: model.Time(time.Now().Unix() * 1000), // Prometheus uses milliseconds
+		Timestamp: model.Time(time.Now().Unix() * 1000),
 	}
+
+	jsonBytes, err := json.Marshal(scalar)
+	if err != nil {
+		panic(fmt.Sprintf("failed to marshal scalar: %v", err))
+	}
+
 	return data.CachedData{
 		Name:          name,
 		Value:         scalar,
+		ValueType:     "scalar",
+		JSONBytes:     jsonBytes,
 		Timestamp:     time.Now(),
 		RequireAuth:   requireAuth,
 		RequiredGroup: requiredGroup,

@@ -52,14 +52,16 @@ dev-docker-rebuild:
 	@echo "Rebuilding Docker development environment..."
 	cd docker && docker compose down && docker compose up --build
 
+TEST_FLAGS ?=
+
 test:
-	go test ./...
+	go test $(TEST_FLAGS) ./...
 
 coverage:
-	go test -cover -v ./...
+	go test $(TEST_FLAGS) -cover ./...
 
 coverage-html:
-	go test -coverprofile=coverage.out ./...
+	go test -coverprofile=coverage.out $(TEST_FLAGS) ./...
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report generated: coverage.html"
 

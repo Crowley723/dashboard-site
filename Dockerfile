@@ -7,7 +7,7 @@ RUN pnpm install
 COPY web/ ./
 RUN pnpm run build
 
-FROM golang:1.25-alpine@sha256:ecb803821dbac0983b03a516adb8407b7dbadfb8771434dc5162a7c471dd27a2 AS backend-build
+FROM golang:1.25-alpine@sha256:aee43c3ccbf24fdffb7295693b6e33b21e01baec1b2a55acc351fde345e9ec34 AS backend-build
 RUN apk add --no-cache git
 WORKDIR /app
 

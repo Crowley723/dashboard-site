@@ -44,6 +44,8 @@ func (s *Service) ExecuteQueries(ctx context.Context, cache CacheProvider) error
 	cacheType := "memory"
 	if _, ok := cache.(*RedisCache); ok {
 		cacheType = "redis"
+	} else if _, ok := cache.(*HybridCache); ok {
+		cacheType = "hybrid"
 	}
 
 	size := cache.Size(ctx)
@@ -153,5 +155,6 @@ func (s *Service) prepareCacheData(name string, value model.Value, config config
 		Timestamp:     time.Now(),
 		RequireAuth:   config.RequireAuth,
 		RequiredGroup: config.RequiredGroup,
+		ExpiresAt:     time.Now().Add(time.Duration(float64(config.TTL.Seconds()) * 1.1)),
 	}
 }

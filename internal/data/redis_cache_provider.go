@@ -75,7 +75,7 @@ func NewRedisCache(cfg *config.Config, logger *slog.Logger) (*RedisCache, error)
 	}, nil
 }
 
-// key generates a namespaced Redis key
+// Key generates a namespaced Redis Key
 func (r *RedisCache) key(queryName string) string {
 	return fmt.Sprintf("cache:query:%s", queryName)
 }

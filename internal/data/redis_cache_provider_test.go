@@ -128,7 +128,7 @@ func TestRedisCache_Key(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := cache.key(tt.queryName)
+			result := cache.Key(tt.queryName)
 			assert.Equal(t, tt.expected, result)
 		})
 	}

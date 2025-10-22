@@ -22,7 +22,7 @@ type MemCache struct {
 }
 
 // Get returns the data for a currently cached query
-func (d *MemCache) Get(ctx context.Context, queryName string) (CachedData, bool) {
+func (d *MemCache) Get(ctx context.Context, queryName string) (data CachedData, ok bool) {
 	d.mutex.RLock()
 	defer d.mutex.RUnlock()
 
@@ -68,4 +68,8 @@ func (d *MemCache) Size(ctx context.Context) int {
 	d.mutex.RLock()
 	defer d.mutex.RUnlock()
 	return len(d.cache)
+}
+
+func (d *MemCache) Key(queryName string) string {
+	return ""
 }

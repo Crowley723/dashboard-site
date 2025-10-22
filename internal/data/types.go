@@ -27,4 +27,5 @@ type CachedData struct {
 	Timestamp     time.Time   `json:"timestamp"`
 	RequireAuth   bool        `json:"require_auth"`
 	RequiredGroup string      `json:"required_group"`
+	ExpiresAt     time.Time   `json:"expires_at"`
 }

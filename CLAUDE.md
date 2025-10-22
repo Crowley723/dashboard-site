@@ -21,7 +21,7 @@ This is a full-stack homelab dashboard application consisting of:
 ### Frontend (React + TypeScript)
 - **Location**: `web/` directory
 - **Framework**: React 19 with Vite, TanStack Router, and React Query
-- **Key Technologies**:
+- **key Technologies**:
   - TanStack Router for file-based routing
   - React Query for server state management
   - Tailwind CSS v4 for styling
@@ -70,7 +70,7 @@ make build                 # Build Docker image
   - Update with your specific values (OIDC credentials, Prometheus URL, etc.)
 - **Frontend Config**: Uses environment variables and TanStack Router configuration
 
-## Key Features
+## key Features
 
 - **Authentication**: OIDC integration with session management
 - **Data Sources**: Prometheus/Mimir metrics with configurable queries and TTL-based caching

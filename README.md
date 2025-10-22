@@ -25,7 +25,7 @@ The application pulls metrics from Prometheus/Mimir and presents them through a 
 - Recharts for metric visualization
 - Tailwind CSS for styling
 
-## Key Features
+## key Features
 
 - OIDC authentication for secure access to sensitive details
 - Real-time metrics from Prometheus/Mimir

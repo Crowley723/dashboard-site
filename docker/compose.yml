@@ -25,3 +25,15 @@ services:
     ports:
       - "127.0.0.1:6379:6379"
     container_name: dashboard-redis-0
+  postgres:
+    image: postgres
+    restart: unless-stopped
+    shm_size: 128mb
+    environment:
+      POSTGRES_PASSWORD: example
+
+  adminer:
+    image: adminer
+    restart: unless-stopped
+    ports:
+      - 8080:8080

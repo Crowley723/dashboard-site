@@ -1,8 +1,9 @@
-import { defineConfig } from 'vite'
-import path from "path"
-import tailwindcss from "@tailwindcss/vite"
-import { tanstackRouter } from '@tanstack/router-plugin/vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
+import path from 'path';
+import tailwindcss from '@tailwindcss/vite';
+import { tanstackRouter } from '@tanstack/router-plugin/vite';
+import react from '@vitejs/plugin-react';
+import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
 export default defineConfig({
   server: {
@@ -10,8 +11,8 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
-      }
-    }
+      },
+    },
   },
   plugins: [
     tanstackRouter({
@@ -20,10 +21,16 @@ export default defineConfig({
     }),
     react(),
     tailwindcss(),
+    nodePolyfills({
+      globals: {
+        Buffer: true,
+        //process: true,
+      },
+    }),
   ],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      '@': path.resolve(__dirname, './src'),
     },
   },
-})
+});

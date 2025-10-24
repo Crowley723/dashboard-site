@@ -14,6 +14,8 @@ type Config struct {
 	Cache       CacheConfig        `yaml:"cache"`
 	Redis       *RedisConfig       `yaml:"redis"`
 	Distributed *DistributedConfig `yaml:"distributed"`
+	Storage     *StorageConfig     `yaml:"storage"`
+	Features    *FeaturesConfig    `yaml:"features"`
 }
 
 type ServerConfig struct {
@@ -154,4 +156,25 @@ type DistributedConfig struct {
 var DefaultDistributedConfig = DistributedConfig{
 	Enabled: false,
 	TTL:     30 * time.Second,
+}
+
+type StorageConfig struct {
+	Enabled  bool   `yaml:"enabled"`
+	Host     string `yaml:"host"`
+	Port     int    `yaml:"port"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
+	Database string `yaml:"database"`
+}
+
+var DefaultStorageConfig = StorageConfig{
+	Enabled: false,
+}
+
+type FeaturesConfig struct {
+	mTLSIssuer bool `yaml:"mtls_issuer"`
+}
+
+var DefaultFeaturesConfig = FeaturesConfig{
+	mTLSIssuer: false,
 }

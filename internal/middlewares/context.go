@@ -4,6 +4,7 @@ import (
 	"context"
 	"homelab-dashboard/internal/config"
 	"homelab-dashboard/internal/data"
+	"homelab-dashboard/internal/storage"
 	"log/slog"
 	"net/http"
 
@@ -17,6 +18,7 @@ type AppContext struct {
 	SessionManager SessionProvider
 	OIDCProvider   OIDCProvider
 	Cache          data.CacheProvider
+	Storage        *storage.DatabaseProvider
 
 	Request  *http.Request
 	Response http.ResponseWriter
@@ -79,7 +81,7 @@ func (ctx *AppContext) Redirect(url string, status int) {
 	http.Redirect(ctx.Response, ctx.Request, url, status)
 }
 
-func NewAppContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, cache data.CacheProvider, sessionManager SessionProvider, oidcProvider OIDCProvider) *AppContext {
+func NewAppContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, cache data.CacheProvider, sessionManager SessionProvider, oidcProvider OIDCProvider, database *storage.DatabaseProvider) *AppContext {
 	return &AppContext{
 		Context:        ctx,
 		Config:         cfg,
@@ -87,6 +89,7 @@ func NewAppContext(ctx context.Context, cfg *config.Config, logger *slog.Logger,
 		SessionManager: sessionManager,
 		OIDCProvider:   oidcProvider,
 		Cache:          cache,
+		Storage:        database,
 	}
 }
 

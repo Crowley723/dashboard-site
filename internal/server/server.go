@@ -10,6 +10,7 @@ import (
 	"homelab-dashboard/internal/distributed"
 	"homelab-dashboard/internal/metrics"
 	"homelab-dashboard/internal/middlewares"
+	"homelab-dashboard/internal/storage"
 	"log/slog"
 	"net/http"
 	"os"
@@ -100,7 +101,18 @@ func New(cfg *config.Config) (*Server, error) {
 		}
 	}
 
-	appCtx := middlewares.NewAppContext(ctx, cfg, logger, cache, sessionManager, oidcProvider)
+	var database *storage.DatabaseProvider
+	if cfg.Storage.Enabled == true {
+		dbProvider, err := storage.NewDatabaseProvider(ctx, cfg)
+		if err != nil {
+			logger.Error("failed to initialize database provider", "error", err)
+			cancel()
+			return nil, err
+		}
+		database = dbProvider
+	}
+
+	appCtx := middlewares.NewAppContext(ctx, cfg, logger, cache, sessionManager, oidcProvider, database)
 
 	router := setupRouter(appCtx)
 	server := &http.Server{

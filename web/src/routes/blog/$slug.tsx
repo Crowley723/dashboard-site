@@ -16,15 +16,25 @@ export const Route = createFileRoute('/blog/$slug')({
       return { title: 'Blog Post' };
     }
 
+    const meta = [
+      { property: 'og:title', content: loaderData.post.title },
+      { property: 'og:type', content: 'article' },
+    ];
+
+    if (loaderData.post.description) {
+      meta.push(
+        { property: 'description', content: loaderData.post.description },
+        { property: 'og:description', content: loaderData.post.description }
+      );
+    }
+
+    if (loaderData.post.image) {
+      meta.push({ property: 'og:image', content: loaderData.post.image });
+    }
+
     return {
       title: loaderData.post.title,
-      meta: [
-        { name: 'description', content: loaderData.post.description },
-        { property: 'og:title', content: loaderData.post.title },
-        { property: 'og:description', content: loaderData.post.description },
-        { property: 'og:image', content: loaderData.post.image },
-        { property: 'og:type', content: 'article' },
-      ],
+      meta,
     };
   },
   component: BlogPost,
@@ -36,7 +46,7 @@ function BlogPost() {
   const components: Components = {
     a: ({ href, children }) => {
       const isExternal =
-        href && (href.startsWith('http') || href.startsWith('https'));
+        href && (href.startsWith('http://') || href.startsWith('https://'));
 
       return (
         <a

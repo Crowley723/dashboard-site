@@ -30,7 +30,7 @@ export function getAllPosts(): Post[] {
   const allPosts = Object.entries(postModules).map(([filepath, content]) => {
     const { data, content: markdown } = matter(content);
     const slug = filepath.split('/').pop()?.replace('.md', '') || '';
-    console.log(markdown);
+
     const readingTime = calculateReadingTime(markdown);
 
     return {

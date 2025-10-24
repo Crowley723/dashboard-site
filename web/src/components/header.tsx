@@ -16,7 +16,8 @@ export function Header() {
   return (
     <header className="w-full border-b">
       <div className="container mx-auto px-6 py-4 flex items-center justify-between">
-        <NavigationMenu className="mx-auto">
+        <div className="w-[76px]"></div>
+        <NavigationMenu className="justify-self-center">
           <NavigationMenuList>
             <NavigationMenuItem>
               <NavigationMenuLink asChild>
@@ -36,7 +37,7 @@ export function Header() {
           </NavigationMenuList>
         </NavigationMenu>
 
-        <div className={'w-[76px]'}>
+        <div className="justify-self-end">
           {isAuthenticated && user ? (
             <UserDropdown user={user} onLogout={logout} />
           ) : (

@@ -16,14 +16,14 @@ function BlogPage() {
   return (
     <div className="max-w-[1400px] mx-auto px-8 py-12">
       <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold mb-4">Welcome to my Blog!</h1>
+        <h1 className="text-4xl font-bold mb-4">Blog</h1>
         <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-          Here I will discuss topics that interest me, projects I am working on,
-          and anything I think deserves a post!
+          Open source insights, homelab adventures, and development learnings
+          from a CS student close to graduation.
         </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-8">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,400px))] gap-8">
         {posts.map((post) => (
           <BlogCard
             key={post.slug}
@@ -32,6 +32,7 @@ function BlogPage() {
             description={post.description}
             date={post.date}
             image={post.image}
+            readingTime={post.readingTime}
           />
         ))}
       </div>

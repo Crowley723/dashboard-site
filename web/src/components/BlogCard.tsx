@@ -7,6 +7,7 @@ interface BlogCardProps {
   description?: string;
   date: string | Date;
   image?: string;
+  readingTime?: number;
 }
 
 export function BlogCard({
@@ -15,6 +16,7 @@ export function BlogCard({
   description,
   date,
   image,
+  readingTime,
 }: BlogCardProps) {
   const formatDate = (dateValue: string | Date) => {
     if (!dateValue) return '';
@@ -32,9 +34,9 @@ export function BlogCard({
 
   return (
     <Link to="/blog/$slug" params={{ slug }} className="block group">
-      <article className="h-[320px] border rounded-lg overflow-hidden transition-transform hover:scale-105">
+      <article className="h-[360px] border rounded-lg overflow-hidden transition-transform hover:scale-105">
         {/* Image */}
-        <div className="h-48 bg-gray-200 overflow-hidden">
+        <div className="h-40 bg-gray-200 overflow-hidden">
           {image ? (
             <img
               src={image}
@@ -49,17 +51,23 @@ export function BlogCard({
         </div>
 
         {/* Content */}
-        <div className="p-4 h-[128px] flex flex-col">
-          <time className="text-xs text-gray-600 mb-2">{formatDate(date)}</time>
-
-          <h2 className="text-lg font-semibold mb-2 line-clamp-2 group-hover:text-blue-600">
+        <div className="p-5 h-[200px] flex flex-col">
+          <time className="text-xs text-gray-500 mb-2 block uppercase tracking-wide">
+            {formatDate(date)} • {readingTime} min read
+          </time>
+          <h2 className="text-lg font-semibold mb-3 line-clamp-2 group-hover:text-blue-600">
             {title}
           </h2>
 
           {description && (
-            <p className="text-sm text-gray-600 line-clamp-2 flex-1">
+            <p className="text-sm text-gray-600 line-clamp-4 flex-1 leading-relaxed">
               {description}
             </p>
+          )}
+          {description && description.length > 150 && (
+            <span className="text-blue-600 text-xs font-medium">
+              Read more →
+            </span>
           )}
         </div>
       </article>

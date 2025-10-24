@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
+@plugin '@tailwindcss/typography';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -134,5 +135,39 @@
     --chart-3: oklch(0.769 0.188 70.08);
     --chart-4: oklch(0.627 0.265 303.9);
     --chart-5: oklch(0.645 0.246 16.439);
+  }
+}
+
+@layer components {
+  .prose {
+    --tw-prose-body: #0a0a0a;
+    --tw-prose-headings: #0a0a0a;
+    --tw-prose-links: #3b82f6;
+    --tw-prose-bold: #0a0a0a;
+    --tw-prose-counters: #6b7280;
+    --tw-prose-bullets: #6b7280;
+    --tw-prose-quotes: #0a0a0a;
+    --tw-prose-quote-borders: #e5e7eb;
+    --tw-prose-code: #0a0a0a;
+    --tw-prose-pre-code: #6b7280;
+    --tw-prose-pre-bg: #f3f4f6;
+    --tw-prose-th-borders: #e5e7eb;
+    --tw-prose-td-borders: #e5e7eb;
+  }
+
+  .dark .prose {
+    --tw-prose-body: #fafafa;
+    --tw-prose-headings: #fafafa;
+    --tw-prose-links: #60a5fa;
+    --tw-prose-bold: #fafafa;
+    --tw-prose-counters: #9ca3af;
+    --tw-prose-bullets: #9ca3af;
+    --tw-prose-quotes: #fafafa;
+    --tw-prose-quote-borders: #374151;
+    --tw-prose-code: #fafafa;
+    --tw-prose-pre-code: #9ca3af;
+    --tw-prose-pre-bg: #1f2937;
+    --tw-prose-th-borders: #374151;
+    --tw-prose-td-borders: #374151;
   }
 }

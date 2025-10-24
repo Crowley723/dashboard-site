@@ -8,6 +8,7 @@ export interface Post {
   url: string;
   description?: string;
   image?: string;
+  readingTime?: number;
 }
 
 const postModules = import.meta.glob<string>('/content/blog/*.md', {
@@ -16,10 +17,21 @@ const postModules = import.meta.glob<string>('/content/blog/*.md', {
   eager: true,
 });
 
+function calculateReadingTime(content: string): number {
+  const wordsPerMinute = 200;
+  if (content == null) {
+    return 0;
+  }
+  const words = content.trim().split(/\s+/).length;
+  return Math.ceil(words / wordsPerMinute);
+}
+
 export function getAllPosts(): Post[] {
   const allPosts = Object.entries(postModules).map(([filepath, content]) => {
     const { data, content: markdown } = matter(content);
     const slug = filepath.split('/').pop()?.replace('.md', '') || '';
+    console.log(markdown);
+    const readingTime = calculateReadingTime(markdown);
 
     return {
       slug,
@@ -29,6 +41,7 @@ export function getAllPosts(): Post[] {
       url: `/blog/${slug}`,
       description: data.description as string | undefined,
       image: data.image as string | undefined,
+      readingTime: readingTime,
     };
   });
 

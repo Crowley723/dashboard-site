@@ -1,7 +1,8 @@
 redis:
   image:
-    registry: registry.crowleybrynn.com/dockerhub-proxy
-    repository: bitnamilegacy/redis
+    registry: registry.crowleybrynn.com
+    repository: library/redis
+    tag: 8.2.1
   architecture: replication
 
   auth:
@@ -92,8 +93,9 @@ redis:
 
   sentinel:
     image:
-      registry: registry.crowleybrynn.com/dockerhub-proxy
-      repository: bitnamilegacy/redis-sentinel
+      registry: registry.crowleybrynn.com
+      repository: library/redis-sentinel
+      tag: 8.2.1
     enabled: true
     quorum: 2
     downAfterMilliseconds: 30000

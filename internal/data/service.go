@@ -26,7 +26,6 @@ func NewService(client *MimirClient, cache CacheProvider, logger *slog.Logger, q
 	return &Service{
 		client:  client,
 		cache:   cache,
-		logger:  logger,
 		queries: queries,
 	}
 }
@@ -106,6 +105,12 @@ func (s *Service) executeQuery(ctx context.Context, cache CacheProvider, config 
 		return fmt.Errorf("failed to execute query %s: %w", config.Name, err)
 	}
 
+	// Add nil check for result before processing
+	if result == nil {
+		s.logger.Warn("query returned nil result", "query", config.Name)
+		return nil
+	}
+
 	if s.cache != nil {
 		ttl := config.TTL
 		if ttl == 0 {
@@ -124,14 +129,24 @@ func (s *Service) executeQuery(ctx context.Context, cache CacheProvider, config 
 }
 
 func (s *Service) prepareCacheData(name string, value model.Value, config config.PrometheusQuery) CachedData {
-	// Marshal Prometheus data ONCE in background job
+	if value == nil {
+		s.logger.Error("received nil value for cache preparation", "query", name)
+		return CachedData{
+			Name:          name,
+			ValueType:     "unknown",
+			JSONBytes:     []byte("null"),
+			Timestamp:     time.Now(),
+			RequireAuth:   config.RequireAuth,
+			RequiredGroup: config.RequiredGroup,
+		}
+	}
+
 	jsonBytes, err := json.Marshal(value)
 	if err != nil {
 		s.logger.Error("failed to marshal value for cache", "query", name, "error", err)
-		return CachedData{} // Return empty on error
+		return CachedData{}
 	}
 
-	// Extract type string ONCE
 	var typeStr string
 	switch value.(type) {
 	case model.Vector:
@@ -143,7 +158,11 @@ func (s *Service) prepareCacheData(name string, value model.Value, config config
 	case *model.String:
 		typeStr = "string"
 	default:
-		typeStr = value.Type().String() // Fallback
+		if value != nil {
+			typeStr = value.Type().String()
+		} else {
+			typeStr = "unknown"
+		}
 	}
 
 	return CachedData{

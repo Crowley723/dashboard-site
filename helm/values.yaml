@@ -51,7 +51,7 @@ redis:
     persistence:
       enabled: true
       size: 2Gi
-      storageClass: longhorn-static
+      storageClass: longhorn-1-replica
       accessModes:
         - ReadWriteOnce
 
@@ -87,7 +87,7 @@ redis:
     persistence:
       enabled: true
       size: 2Gi
-      storageClass: longhorn-static
+      storageClass: longhorn-1-replica
       accessModes:
         - ReadWriteOnce
 

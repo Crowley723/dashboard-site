@@ -27,6 +27,7 @@ func NewService(client *MimirClient, cache CacheProvider, logger *slog.Logger, q
 		client:  client,
 		cache:   cache,
 		queries: queries,
+  logger: logger,
 	}
 }
 

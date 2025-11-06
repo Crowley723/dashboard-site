@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ErrorRouteImport } from './routes/error'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CertsIndexRouteImport } from './routes/certs/index'
 import { Route as BlogIndexRouteImport } from './routes/blog/index'
 import { Route as BlogSlugRouteImport } from './routes/blog/$slug'
 
@@ -28,6 +29,11 @@ const AboutRoute = AboutRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CertsIndexRoute = CertsIndexRouteImport.update({
+  id: '/certs/',
+  path: '/certs/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BlogIndexRoute = BlogIndexRouteImport.update({
@@ -47,6 +53,7 @@ export interface FileRoutesByFullPath {
   '/error': typeof ErrorRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/blog': typeof BlogIndexRoute
+  '/certs': typeof CertsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -54,6 +61,7 @@ export interface FileRoutesByTo {
   '/error': typeof ErrorRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/blog': typeof BlogIndexRoute
+  '/certs': typeof CertsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,13 +70,21 @@ export interface FileRoutesById {
   '/error': typeof ErrorRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/blog/': typeof BlogIndexRoute
+  '/certs/': typeof CertsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/error' | '/blog/$slug' | '/blog'
+  fullPaths: '/' | '/about' | '/error' | '/blog/$slug' | '/blog' | '/certs'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/error' | '/blog/$slug' | '/blog'
-  id: '__root__' | '/' | '/about' | '/error' | '/blog/$slug' | '/blog/'
+  to: '/' | '/about' | '/error' | '/blog/$slug' | '/blog' | '/certs'
+  id:
+    | '__root__'
+    | '/'
+    | '/about'
+    | '/error'
+    | '/blog/$slug'
+    | '/blog/'
+    | '/certs/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -77,6 +93,7 @@ export interface RootRouteChildren {
   ErrorRoute: typeof ErrorRoute
   BlogSlugRoute: typeof BlogSlugRoute
   BlogIndexRoute: typeof BlogIndexRoute
+  CertsIndexRoute: typeof CertsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -102,6 +119,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/certs/': {
+      id: '/certs/'
+      path: '/certs'
+      fullPath: '/certs'
+      preLoaderRoute: typeof CertsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/blog/': {
       id: '/blog/'
       path: '/blog'
@@ -125,6 +149,7 @@ const rootRouteChildren: RootRouteChildren = {
   ErrorRoute: ErrorRoute,
   BlogSlugRoute: BlogSlugRoute,
   BlogIndexRoute: BlogIndexRoute,
+  CertsIndexRoute: CertsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

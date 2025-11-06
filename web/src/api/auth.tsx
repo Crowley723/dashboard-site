@@ -22,8 +22,13 @@ export interface ApiError {
 }
 
 export const authApi = {
-  login: async (): Promise<LoginResponse> => {
-    const response = await fetch('/api/auth/login', {
+  login: async (rd?: string): Promise<LoginResponse> => {
+    let url = '/api/auth/login';
+    if (rd) {
+      url += `?rd=${encodeURIComponent(rd)}`;
+    }
+
+    const response = await fetch(url, {
       method: 'GET',
       credentials: 'include',
     });

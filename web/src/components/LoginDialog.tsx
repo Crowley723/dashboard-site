@@ -1,27 +1,34 @@
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { LoginForm } from '@/components/LoginForm';
-import { useState } from 'react';
 
 interface LoginDialogProps {
   children: React.ReactNode;
-  login: () => void;
+  login: (redirectTo?: string) => void;
   isLoggingIn: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  message?: string;
+  error?: boolean;
+  redirectTo?: string;
 }
 
 export function LoginDialog({
   children,
   login,
   isLoggingIn,
+  open,
+  onOpenChange,
+  message,
+  error,
+  redirectTo,
 }: LoginDialogProps) {
-  const [open, setOpen] = useState(false);
-
   const handleLogin = () => {
-    login();
-    setOpen(false);
+    login(redirectTo);
+    onOpenChange?.(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent
         showCloseButton={false}
@@ -29,7 +36,12 @@ export function LoginDialog({
       >
         <div className="flex w-full items-center justify-center md:p-10 bg-transparent">
           <div className="w-full max-w-sm">
-            <LoginForm onLogin={handleLogin} isLoading={isLoggingIn} />
+            <LoginForm
+              onLogin={handleLogin}
+              isLoading={isLoggingIn}
+              message={message}
+              error={error}
+            />
           </div>
         </div>
       </DialogContent>

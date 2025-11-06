@@ -12,12 +12,15 @@ func GETLoginHandler(ctx *middlewares.AppContext) {
 		return
 	}
 
-	currentURL := ctx.Request.Header.Get("Referer")
-	if currentURL == "" {
-		currentURL = "/"
+	redirectTo := ctx.Request.URL.Query().Get("rd")
+	if redirectTo == "" {
+		redirectTo = ctx.Request.Header.Get("Referer")
+		if redirectTo == "" {
+			redirectTo = "/"
+		}
 	}
-
-	ctx.SessionManager.SetRedirectAfterLogin(ctx, currentURL)
+	ctx.Logger.Info("Redirecting to location after login", "location", redirectTo)
+	ctx.SessionManager.SetRedirectAfterLogin(ctx, redirectTo)
 
 	authURL, err := ctx.OIDCProvider.StartLogin(ctx)
 	if err != nil {

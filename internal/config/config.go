@@ -161,9 +161,11 @@ func validateConfig(config *Config) error {
 		return err
 	}
 
-	err = config.validateRedisConfig()
-	if err != nil {
-		return err
+	if config.Cache.Type == "redis" || config.Sessions.Store == "redis" {
+		err = config.validateRedisConfig()
+		if err != nil {
+			return err
+		}
 	}
 
 	err = config.validateDistributedConfig()

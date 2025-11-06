@@ -13,8 +13,8 @@ export const useAuth = () => {
   const user = authResponse?.user || null;
   const isAuthenticated = authResponse?.authenticated || false;
 
-  const loginMutation = useMutation<LoginResponse, Error>({
-    mutationFn: authApi.login,
+  const loginMutation = useMutation<LoginResponse, Error, string | undefined>({
+    mutationFn: (redirectTo?: string) => authApi.login(redirectTo),
     onSuccess: (data) => {
       if (data.status === 'already_authenticated') {
         queryClient

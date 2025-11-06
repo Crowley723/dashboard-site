@@ -58,6 +58,7 @@ func GETCallbackHandler(ctx *middlewares.AppContext) {
 	redirectTo := ctx.SessionManager.GetRedirectAfterLogin(ctx)
 	if redirectTo != "" {
 		ctx.Redirect(redirectTo, http.StatusFound)
+		ctx.Logger.Info("User redirecting to", "location", redirectTo)
 		return
 	}
 

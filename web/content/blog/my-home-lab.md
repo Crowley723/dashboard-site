@@ -1,7 +1,7 @@
 ---
 title: My Homelab Journey
 date: November 6, 2025
-description: 
+description: A detailed journey through my homelab setup, from Apache2 and Traefik to Proxmox clustering and Kubernetes orchestration.
 image: https://images.unsplash.com/photo-1639322537228-f710d846310a?w=800&h=450&fit=crop
 ---
 

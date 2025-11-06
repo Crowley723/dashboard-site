@@ -42,7 +42,7 @@ At the end, I had a Proxmox server that was running my existing Rocky linux mach
 
 ### Authelia
 
-Unfortunately, I wasn't nearly as invested in the idea of documenting my journey back then as I am now. So its hard to describe the state of my home lab and myself when I started contributing to Authelia. 
+Unfortunately, I wasn't nearly as invested in the idea of documenting my journey back then as I am now. So it's hard to describe the state of my home lab and myself when I started contributing to Authelia.
 
 > Authelia is an open-source authentication and authorization server and portal fulfilling the identity and access management (IAM) role of information security in providing multi-factor authentication and single sign-on (SSO) for your applications via a web portal.
 

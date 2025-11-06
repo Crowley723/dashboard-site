@@ -1,7 +1,7 @@
 ---
 title: Welcome to my blog!
 date: 2025-10-23
-description: An introduction to my blog covering open source contributions, homelab experiments, and development learnings
+description: An introduction to my blog; covering open source contributions, homelab experiments, and development learnings.
 image: https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&h=450&fit=crop
 ---
 

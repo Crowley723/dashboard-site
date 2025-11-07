@@ -26,8 +26,9 @@ export function TraefikTotalRequestsWeekCard() {
       isError={isError}
       error={error || undefined}
       unit=""
-      valueDecimals={2}
+      valueDecimals={0}
       color="var(--chart-2)"
+      minYAxisRange={500}
     />
   );
 }

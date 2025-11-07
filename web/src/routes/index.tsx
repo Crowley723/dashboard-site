@@ -63,7 +63,7 @@ function Index() {
 
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 auto-rows-72 gap-12 p-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 auto-rows-96 gap-4 p-4">
         <div className="col-span-1 row-span-1 sm:col-span-1 lg:col-span-1 lg:row-span-1">
           <PodUptimeCards />
         </div>

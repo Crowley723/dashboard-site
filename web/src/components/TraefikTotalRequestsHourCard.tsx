@@ -26,8 +26,9 @@ export function TraefikTotalRequestsHourCard() {
       isError={isError}
       error={error || undefined}
       unit=""
-      valueDecimals={1}
+      valueDecimals={0}
       color="var(--chart-2)"
+      minYAxisRange={100}
     />
   );
 }

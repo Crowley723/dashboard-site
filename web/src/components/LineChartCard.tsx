@@ -28,6 +28,8 @@ export interface ChartCardProps {
   chartClassName?: string;
   // Optional: override automatic time formatting
   timeFormat?: 'auto' | 'minutes' | 'hours' | 'days' | 'months';
+  // Optional: minimum y-axis range to prevent overly zoomed views
+  minYAxisRange?: number;
 }
 
 const generateTicks = (min: number, max: number, count: number = 5) => {
@@ -39,7 +41,7 @@ const generateTicks = (min: number, max: number, count: number = 5) => {
   const ticks: number[] = [];
 
   for (let i = 0; i < count; i++) {
-    ticks.push(Number((min + step * i).toFixed(2)));
+    ticks.push(Number(min + step * i));
   }
   return ticks;
 };
@@ -142,6 +144,7 @@ export function ChartCard({
   className = '',
   chartClassName = 'pr-[30px]',
   timeFormat = 'auto',
+  minYAxisRange,
 }: ChartCardProps) {
   if (isLoading) return <div>Loading {loadingText}...</div>;
   if (isError)
@@ -155,19 +158,44 @@ export function ChartCard({
     return <div>No data available for {title.toLowerCase()}</div>;
   }
 
-  // Calculate dynamic domain
+  // Calculate dynamic domain with minimum range
   const values = data.map((item) => item[dataKey]);
   const dataMax = Math.max(...values);
   const dataMin = Math.min(...values);
-  const padding = (dataMax - dataMin) * 0.1;
-  const yAxisMax = dataMax + padding;
-  const yAxisMin = Math.max(0, dataMin - padding);
+  const range = dataMax - dataMin;
+
+  // Enforce minimum range if specified to prevent overly zoomed charts
+  let yAxisMax: number;
+  let yAxisMin: number;
+
+  if (minYAxisRange && range < minYAxisRange) {
+    // Center the data within the minimum range
+    const center = (dataMax + dataMin) / 2;
+    const halfRange = minYAxisRange / 2;
+    yAxisMax = center + halfRange;
+    yAxisMin = Math.max(0, center - halfRange);
+  } else {
+    // Normal padding calculation (10% above and below)
+    const padding = range * 0.1;
+    yAxisMax = dataMax + padding;
+    yAxisMin = Math.max(0, dataMin - padding);
+  }
 
   const ticks = generateTicks(yAxisMin, yAxisMax, tickCount);
 
   const timestamps = data.map((item) => item.timestamp);
   const actualTimeFormat =
     timeFormat === 'auto' ? determineTimeFormat(timestamps) : timeFormat;
+
+  // Calculate better interval based on time format to prevent label overlap
+  const getXAxisInterval = () => {
+    // For minutes/hours format (1hr charts), show fewer labels to prevent overlap
+    if (actualTimeFormat === 'minutes' || actualTimeFormat === 'hours') {
+      return Math.ceil(data.length / 4) - 1; // Show ~4 labels instead of 5
+    }
+    // For days/months, can show more labels as they're shorter
+    return Math.ceil(data.length / 6) - 1;
+  };
 
   const chartConfig = {
     [dataKey]: {
@@ -187,6 +215,8 @@ export function ChartCard({
           margin={{
             left: 12,
             right: 12,
+            top: 10,
+            bottom: actualTimeFormat === 'minutes' ? 20 : 5,
           }}
         >
           <CartesianGrid vertical={false} />
@@ -195,7 +225,9 @@ export function ChartCard({
             tickLine={true}
             axisLine={true}
             tickMargin={8}
-            interval={Math.ceil(data.length / 5) - 1}
+            interval={getXAxisInterval()}
+            angle={actualTimeFormat === 'minutes' ? -15 : 0}
+            textAnchor={actualTimeFormat === 'minutes' ? 'end' : 'middle'}
             tickFormatter={(timestamp) =>
               formatTimestamp(timestamp, actualTimeFormat)
             }
@@ -206,6 +238,9 @@ export function ChartCard({
             tickLine={true}
             axisLine={true}
             tickMargin={8}
+            tickCount={tickCount}
+            minTickGap={0}
+            allowDataOverflow={false}
             tickFormatter={(value) => `${value.toFixed(valueDecimals)}${unit}`}
           />
           <ChartTooltip

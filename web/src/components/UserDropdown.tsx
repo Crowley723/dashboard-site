@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button.tsx';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar.tsx';
 import { ChevronDownIcon } from 'lucide-react';
 import type { User } from '@/api/auth.tsx';
+import { Link } from '@tanstack/react-router';
 
 const UserMenu = ({
   user,
@@ -46,6 +47,10 @@ const UserMenu = ({
             </p>
           </div>
         </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link to={'/settings'}>Settings</Link>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={onLogout}>Log out</DropdownMenuItem>
       </DropdownMenuContent>

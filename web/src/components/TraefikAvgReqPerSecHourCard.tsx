@@ -28,6 +28,7 @@ export function TraefikAvgReqPerSecHourCard() {
       unit=""
       valueDecimals={1}
       color="var(--chart-1)"
+      minYAxisRange={2}
     />
   );
 }

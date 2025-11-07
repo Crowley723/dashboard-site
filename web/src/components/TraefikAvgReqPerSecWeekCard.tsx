@@ -26,7 +26,9 @@ export function TraefikAvgReqPerSecWeekCard() {
       isError={isError}
       error={error || undefined}
       unit=""
+      valueDecimals={1}
       color="var(--chart-1)"
+      minYAxisRange={2}
     />
   );
 }

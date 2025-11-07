@@ -5,11 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Crowley, Brynn</title>
   <style>
+    /* Prevent flash of white on page load */
     html {
-      background-color: oklch(0.147 0.004 49.25);
+      background-color: var(--background);
     }
-    html:not(.dark) {
-      background-color: oklch(1 0 0);
+    html.dark {
+      background-color: oklch(0.20 0.015 240);
     }
   </style>
 </head>

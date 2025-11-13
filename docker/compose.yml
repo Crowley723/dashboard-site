@@ -17,6 +17,7 @@ services:
       - /app/web/node_modules
     depends_on:
       - redis
+      - postgres
     working_dir: /app
     command: ["/bin/sh", "/usr/local/bin/start-dev.sh"]
   redis:
@@ -31,9 +32,10 @@ services:
     shm_size: 128mb
     environment:
       POSTGRES_PASSWORD: password123
+      POSTGRES_DB: conduit
 
   adminer:
     image: adminer
     restart: unless-stopped
     ports:
-      - 8080:8080
+      - 8090:8080

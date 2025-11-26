@@ -11,8 +11,8 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/common v0.67.4
-	github.com/redis/go-redis/extra/redisprometheus/v9 v9.17.0
-	github.com/redis/go-redis/v9 v9.17.0
+	github.com/redis/go-redis/extra/redisprometheus/v9 v9.17.1
+	github.com/redis/go-redis/v9 v9.17.1
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/mock v0.6.0
 	golang.org/x/oauth2 v0.33.0

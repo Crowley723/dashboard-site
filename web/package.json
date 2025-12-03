@@ -54,7 +54,7 @@
     "eslint-plugin-react-hooks": "^6.0.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.4.0",
-    "prettier": "3.7.3",
+    "prettier": "3.7.4",
     "tailwindcss": "^4.0.0",
     "tw-animate-css": "^1.3.7",
     "typescript": "~5.9.2",

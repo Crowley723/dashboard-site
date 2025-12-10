@@ -109,6 +109,15 @@ func New(cfg *config.Config) (*Server, error) {
 			cancel()
 			return nil, err
 		}
+
+		logger.Info("Running database migrations")
+		if err := dbProvider.RunMigrations(ctx); err != nil {
+			logger.Error("failed to run database migrations", "error", err)
+			cancel()
+			return nil, err
+		}
+		logger.Info("Database migrations completed successfully")
+
 		database = dbProvider
 	}
 

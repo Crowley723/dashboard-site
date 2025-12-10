@@ -38,6 +38,7 @@ func AppContextMiddleware(baseCtx *AppContext) func(http.Handler) http.Handler {
 				SessionManager: baseCtx.SessionManager,
 				OIDCProvider:   baseCtx.OIDCProvider,
 				Cache:          baseCtx.Cache,
+				Storage:        baseCtx.Storage,
 				Request:        r,
 				Response:       w,
 			}

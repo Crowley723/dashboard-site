@@ -1,0 +1,139 @@
+package storage
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"homelab-dashboard/internal/models"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+type UserQueries struct {
+	pool *pgxpool.Pool
+}
+
+func NewUserQueries(pool *pgxpool.Pool) *UserQueries {
+	return &UserQueries{pool: pool}
+}
+
+// Create adds a user to the database.
+func (q *UserQueries) Create(ctx context.Context, sub, iss, username, displayName, email string) (*models.User, error) {
+	query := `
+		INSERT INTO users (sub, iss, username, displayName, email, last_logged_in, created_at)
+		VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+	`
+
+	result, err := q.pool.Exec(ctx, query, sub, iss, username, displayName, email)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create user: %w", err)
+	}
+	if result.RowsAffected() < 1 {
+		return nil, fmt.Errorf("failed to create user: no rows inserted")
+	}
+
+	if result.RowsAffected() > 1 {
+		return nil, fmt.Errorf("failed to create user: multiple rows inserted")
+	}
+
+	return q.GetByID(ctx, iss, sub)
+}
+
+// Upsert adds a user to the database, or updates the existing user, including their groups.
+func (q *UserQueries) Upsert(ctx context.Context, sub, iss, username, displayName, email string, groups []string) (*models.User, error) {
+	userQuery := `
+        INSERT INTO users (sub, iss, username, display_name, email, last_logged_in, created_at)
+        VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ON CONFLICT (iss, sub) 
+        DO UPDATE SET 
+            username = EXCLUDED.username,
+            email = EXCLUDED.email,
+            last_logged_in = CURRENT_TIMESTAMP
+    `
+
+	_, err := q.pool.Exec(ctx, userQuery, sub, iss, username, displayName, email)
+	if err != nil {
+		return nil, fmt.Errorf("failed to upsert user: %w", err)
+	}
+
+	deleteGroupsQuery := `
+        DELETE FROM user_groups 
+        WHERE owner_iss = $1 AND owner_sub = $2
+    `
+	_, err = q.pool.Exec(ctx, deleteGroupsQuery, iss, sub)
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete old groups: %w", err)
+	}
+
+	if len(groups) > 0 {
+		insertGroupsQuery := `
+            INSERT INTO user_groups (owner_iss, owner_sub, group_name)
+            VALUES ($1, $2, unnest($3::text[]))
+        `
+		_, err = q.pool.Exec(ctx, insertGroupsQuery, iss, sub, groups)
+		if err != nil {
+			return nil, fmt.Errorf("failed to insert groups: %w", err)
+		}
+	}
+
+	return q.GetByID(ctx, iss, sub)
+}
+
+// GetByID returns a user, including groups, given their iss and sub claims.
+func (q *UserQueries) GetByID(ctx context.Context, iss, sub string) (*models.User, error) {
+	query := `
+		SELECT iss, sub, username, email,display_name, last_logged_in, created_at
+		FROM users
+		WHERE iss = $1 AND sub = $2
+	`
+
+	groupsQuery := `
+		SELECT group_name 
+        FROM user_groups
+        WHERE owner_iss = $1 AND owner_sub = $2`
+
+	var user models.User
+	err := q.pool.QueryRow(ctx, query, iss, sub).Scan(
+		&user.Iss,
+		&user.Sub,
+		&user.Username,
+		&user.DisplayName,
+		&user.Email,
+		&user.LastLoggedIn,
+		&user.CreatedAt,
+	)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("user not found")
+		}
+		return nil, fmt.Errorf("failed to get user by id: %w", err)
+	}
+
+	rows, err := q.pool.Query(ctx, groupsQuery, user.Iss, user.Sub)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get groups for user '%s:%s': %w", user.Sub, user.Iss, err)
+	}
+	defer rows.Close()
+
+	var groups []string
+	for rows.Next() {
+		var groupName string
+		if err := rows.Scan(&groupName); err != nil {
+			return nil, fmt.Errorf("failed to scan group name: %w", err)
+		}
+		groups = append(groups, groupName)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating groups: %w", err)
+	}
+
+	user.Groups = groups
+	if user.Groups == nil {
+		user.Groups = []string{}
+	}
+
+	return &user, nil
+}

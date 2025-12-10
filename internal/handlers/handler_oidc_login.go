@@ -3,6 +3,7 @@ package handlers
 import (
 	"homelab-dashboard/internal/middlewares"
 	"net/http"
+	"strings"
 )
 
 func GETLoginHandler(ctx *middlewares.AppContext) {
@@ -19,6 +20,12 @@ func GETLoginHandler(ctx *middlewares.AppContext) {
 			redirectTo = "/"
 		}
 	}
+
+	if strings.Contains(redirectTo, "/error") {
+		ctx.Logger.Debug("Referer is error page, redirecting to root instead", "original_referer", redirectTo)
+		redirectTo = "/"
+	}
+
 	ctx.Logger.Info("Redirecting to location after login", "location", redirectTo)
 	ctx.SessionManager.SetRedirectAfterLogin(ctx, redirectTo)
 

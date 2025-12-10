@@ -16,7 +16,7 @@ var migrationsFS embed.FS
 
 type DatabaseProvider struct {
 	pool *pgxpool.Pool
-	cfg  *config.Config
+	cfg  *config.Config //nolint:unused
 }
 
 func NewDatabaseProvider(ctx context.Context, cfg *config.Config) (*DatabaseProvider, error) {
@@ -120,4 +120,12 @@ func (p *DatabaseProvider) RunMigrations(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (p *DatabaseProvider) Users() *UserQueries {
+	return NewUserQueries(p.pool)
+}
+
+func (p *DatabaseProvider) Certificates() *CertificateQueries {
+	return NewCertificateQueries(p.pool)
 }

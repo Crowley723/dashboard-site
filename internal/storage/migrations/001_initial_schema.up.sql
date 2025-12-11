@@ -16,7 +16,7 @@ CREATE TABLE user_groups (
     group_name TEXT NOT NULL,
 
     PRIMARY KEY (owner_iss, owner_sub, group_name),
-    FOREIGN KEY (owner_iss, owner_sub) REFERENCES users(iss, sub)
+    FOREIGN KEY (owner_iss, owner_sub) REFERENCES users(iss, sub) ON DELETE CASCADE
 );
 
 CREATE TABLE certificate_requests (
@@ -41,12 +41,12 @@ CREATE TABLE certificate_requests (
     serial_number TEXT,
     certificate_pem TEXT,
 
-    FOREIGN KEY (owner_iss, owner_sub) REFERENCES users(iss, sub)
+    FOREIGN KEY (owner_iss, owner_sub) REFERENCES users(iss, sub) ON DELETE RESTRICT
 );
 
 CREATE TABLE certificate_events (
     id SERIAL PRIMARY KEY NOT NULL,
-    request_id INTEGER NOT NULL,
+    certificate_request_id INTEGER NOT NULL,
     requester_iss TEXT NOT NULL,
     requester_sub TEXT NOT NULL,
     reviewer_iss TEXT NOT NULL,
@@ -56,15 +56,15 @@ CREATE TABLE certificate_events (
     review_notes TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 
-    FOREIGN KEY (request_id) REFERENCES certificate_requests(id),
-    FOREIGN KEY (reviewer_iss, reviewer_sub) REFERENCES users(iss, sub),
-    FOREIGN KEY (requester_iss, requester_sub) REFERENCES users(iss, sub)
-)
+    FOREIGN KEY (certificate_request_id) REFERENCES certificate_requests(id) ON DELETE CASCADE,
+    FOREIGN KEY (reviewer_iss, reviewer_sub) REFERENCES users(iss, sub) ON DELETE RESTRICT,
+    FOREIGN KEY (requester_iss, requester_sub) REFERENCES users(iss, sub) ON DELETE RESTRICT
+);
 
 CREATE INDEX idx_cert_requests_owner ON certificate_requests(owner_iss, owner_sub);
 CREATE INDEX idx_cert_events_status ON certificate_requests(status);
-CREATE INDEX idx_cert_events_request_id ON certificate_events(request_id);
+CREATE INDEX idx_cert_events_request_id ON certificate_events(certificate_request_id);
 CREATE INDEX idx_cert_events_requester ON certificate_events(requester_iss, requester_sub);
-CREATE INDEX idx_cert_events_reviewer ON certificate_events(reviewer_iss, reviewer_sub)
+CREATE INDEX idx_cert_events_reviewer ON certificate_events(reviewer_iss, reviewer_sub);
 
 

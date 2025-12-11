@@ -94,6 +94,21 @@ func (mr *MockSessionProviderMockRecorder) CreateSessionWithTokenExpiry(ctx, idT
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSessionWithTokenExpiry", reflect.TypeOf((*MockSessionProvider)(nil).CreateSessionWithTokenExpiry), ctx, idToken, user)
 }
 
+// GetAuthenticatedUser mocks base method.
+func (m *MockSessionProvider) GetAuthenticatedUser(ctx *middlewares.AppContext) (*models.User, bool) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAuthenticatedUser", ctx)
+	ret0, _ := ret[0].(*models.User)
+	ret1, _ := ret[1].(bool)
+	return ret0, ret1
+}
+
+// GetAuthenticatedUser indicates an expected call of GetAuthenticatedUser.
+func (mr *MockSessionProviderMockRecorder) GetAuthenticatedUser(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAuthenticatedUser", reflect.TypeOf((*MockSessionProvider)(nil).GetAuthenticatedUser), ctx)
+}
+
 // GetCreatedAt mocks base method.
 func (m *MockSessionProvider) GetCreatedAt(ctx *middlewares.AppContext) (time.Time, bool) {
 	m.ctrl.T.Helper()
@@ -107,21 +122,6 @@ func (m *MockSessionProvider) GetCreatedAt(ctx *middlewares.AppContext) (time.Ti
 func (mr *MockSessionProviderMockRecorder) GetCreatedAt(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCreatedAt", reflect.TypeOf((*MockSessionProvider)(nil).GetCreatedAt), ctx)
-}
-
-// GetCurrentUser mocks base method.
-func (m *MockSessionProvider) GetCurrentUser(ctx *middlewares.AppContext) (*models.User, bool) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetCurrentUser", ctx)
-	ret0, _ := ret[0].(*models.User)
-	ret1, _ := ret[1].(bool)
-	return ret0, ret1
-}
-
-// GetCurrentUser indicates an expected call of GetCurrentUser.
-func (mr *MockSessionProviderMockRecorder) GetCurrentUser(ctx any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCurrentUser", reflect.TypeOf((*MockSessionProvider)(nil).GetCurrentUser), ctx)
 }
 
 // GetExpiresAt mocks base method.

@@ -11,7 +11,7 @@ import (
 func GetMetricsGET(ctx *middlewares.AppContext) {
 	queryParam := ctx.Request.URL.Query().Get("queries")
 	queries := strings.Split(queryParam, ",")
-	user, userExists := ctx.SessionManager.GetCurrentUser(ctx)
+	user, userExists := ctx.SessionManager.GetAuthenticatedUser(ctx)
 
 	var userGroups []string
 	if userExists {
@@ -74,7 +74,7 @@ func addRecordsIfAuthorized(ctx *middlewares.AppContext, queryNames []string, us
 func GetQueriesGET(ctx *middlewares.AppContext) {
 	queryParam := ctx.Request.URL.Query().Get("queries")
 	queries := strings.Split(queryParam, ",")
-	user, userExists := ctx.SessionManager.GetCurrentUser(ctx)
+	user, userExists := ctx.SessionManager.GetAuthenticatedUser(ctx)
 
 	var userGroups []string
 	if userExists {

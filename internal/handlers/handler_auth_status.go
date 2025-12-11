@@ -21,7 +21,7 @@ func GETAuthStatusHandler(ctx *middlewares.AppContext) {
 		return
 	}
 
-	user, ok := ctx.SessionManager.GetCurrentUser(ctx)
+	user, ok := ctx.SessionManager.GetAuthenticatedUser(ctx)
 	if user == nil {
 		ctx.WriteJSON(http.StatusUnauthorized, response)
 		return

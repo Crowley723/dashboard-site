@@ -35,7 +35,7 @@ type SessionProvider interface {
 	CreateSessionWithTokenExpiry(ctx *AppContext, idToken *oidc.IDToken, user *models.User) error
 	IsSessionValid(ctx *AppContext) bool
 	IsUserAuthenticated(ctx *AppContext) bool
-	GetCurrentUser(ctx *AppContext) (user *models.User, ok bool)
+	GetAuthenticatedUser(ctx *AppContext) (user *models.User, ok bool)
 	Logout(ctx *AppContext) error
 
 	LoadAndSave(next http.Handler) http.Handler

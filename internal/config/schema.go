@@ -172,9 +172,26 @@ var DefaultStorageConfig = StorageConfig{
 }
 
 type FeaturesConfig struct {
-	mTLSIssuer bool `yaml:"mtls_issuer"`
+	MTLSManagement MTLSManagement `yaml:"mtls_management,omitempty"`
 }
 
 var DefaultFeaturesConfig = FeaturesConfig{
-	mTLSIssuer: false,
+	MTLSManagement: DefaultMTLSIssuerConfig,
+}
+
+type MTLSManagement struct {
+	Enabled                         bool   `yaml:"enabled"`
+	AdminGroup                      string `yaml:"admin_group"`
+	AutoApproveAdminRequests        bool   `yaml:"auto_approve_admin_requests"`
+	AllowAdminsToApproveOwnRequests bool   `yaml:"allow_admins_to_approve_own_requests"`
+	MinCertificateValidityDays      int    `yaml:"min_certificate_validity_days"`
+	MaxCertificateValidityDays      int    `yaml:"max_certificate_validity_days"`
+}
+
+var DefaultMTLSIssuerConfig = MTLSManagement{
+	Enabled:                         false,
+	AutoApproveAdminRequests:        false,
+	AllowAdminsToApproveOwnRequests: true,
+	MinCertificateValidityDays:      30,
+	MaxCertificateValidityDays:      365,
 }

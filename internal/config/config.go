@@ -173,6 +173,16 @@ func validateConfig(config *Config) error {
 		return err
 	}
 
+	err = config.validateStorageConfig()
+	if err != nil {
+		return err
+	}
+
+	err = config.ValidateFeaturesConfig()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -274,7 +284,7 @@ func (c *Config) validateSessionConfig() error {
 	}
 
 	if c.Sessions.Store == "" {
-		c.Sessions.Store = "memory"
+		c.Sessions.Store = DefaultSessionConfig.Store
 	} else {
 		switch c.Sessions.Store {
 		case "memory":
@@ -379,6 +389,10 @@ func (c *Config) validateDataQueriesConfig() (err error) {
 }
 
 func (c *Config) validateCacheConfig() error {
+	if c.Cache.Type == "" {
+		c.Cache.Type = "memory"
+	}
+
 	switch c.Cache.Type {
 	case "memory":
 		break
@@ -404,6 +418,13 @@ func (c *Config) validateRedisConfig() error {
 
 	if _, _, err := net.SplitHostPort(c.Redis.Address); err != nil {
 		return fmt.Errorf("invalid redis address format (expected host:port): %w", err)
+	}
+
+	// Apply default indices if not set
+	if c.Redis.SessionIndex == 0 && c.Redis.CacheIndex == 0 && c.Redis.LeaderIndex == 0 {
+		c.Redis.SessionIndex = DefaultRedisConfig.SessionIndex
+		c.Redis.CacheIndex = DefaultRedisConfig.CacheIndex
+		c.Redis.LeaderIndex = DefaultRedisConfig.LeaderIndex
 	}
 
 	if c.Redis.SessionIndex < 0 {
@@ -455,7 +476,12 @@ func (c *Config) validateRedisConfig() error {
 }
 
 func (c *Config) validateDistributedConfig() error {
-	if c.Distributed == nil || !c.Distributed.Enabled {
+	if c.Distributed == nil {
+		return nil
+	}
+
+	// Apply default enabled state if not explicitly set
+	if !c.Distributed.Enabled {
 		return nil
 	}
 
@@ -463,6 +489,73 @@ func (c *Config) validateDistributedConfig() error {
 		c.Distributed.TTL = DefaultDistributedConfig.TTL
 	} else if c.Distributed.TTL > time.Minute {
 		return fmt.Errorf("distributed ttl cannot be more than 1 minute")
+	}
+
+	return nil
+}
+
+func (c *Config) validateStorageConfig() error {
+	if c.Storage == nil || !c.Storage.Enabled {
+		return nil
+	}
+
+	if c.Storage.Host == "" {
+		return fmt.Errorf("storage.host is required when storage is enabled")
+	}
+
+	if c.Storage.Port <= 0 || c.Storage.Port > 65535 {
+		return fmt.Errorf("storage.port must be between 1 and 65535, got %d", c.Storage.Port)
+	}
+
+	if c.Storage.Database == "" {
+		return fmt.Errorf("storage.database is required when storage is enabled")
+	}
+
+	return nil
+}
+
+func (c *Config) ValidateFeaturesConfig() error {
+	// Initialize Features with defaults if not set
+	if c.Features == nil {
+		defaultConfig := DefaultFeaturesConfig
+		c.Features = &defaultConfig
+	}
+
+	if c.Features.MTLSManagement.Enabled {
+		if err := c.ValidateMTLSManagementConfig(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *Config) ValidateMTLSManagementConfig() error {
+	if c.Features == nil || !c.Features.MTLSManagement.Enabled {
+		return nil
+	}
+
+	// mTLS management requires storage to be enabled
+	if c.Storage == nil || !c.Storage.Enabled {
+		return fmt.Errorf("storage must be enabled when mtls_management is enabled")
+	}
+
+	// Validate admin group is set
+	if c.Features.MTLSManagement.AdminGroup == "" {
+		return fmt.Errorf("features.mtls_management.admin_group is required when mtls_management is enabled")
+	}
+
+	// Apply default validity days if not set
+	if c.Features.MTLSManagement.MinCertificateValidityDays == 0 {
+		c.Features.MTLSManagement.MinCertificateValidityDays = DefaultMTLSIssuerConfig.MinCertificateValidityDays
+	}
+
+	if c.Features.MTLSManagement.MaxCertificateValidityDays == 0 {
+		c.Features.MTLSManagement.MaxCertificateValidityDays = DefaultMTLSIssuerConfig.MaxCertificateValidityDays
+	}
+
+	if c.Features.MTLSManagement.MaxCertificateValidityDays < c.Features.MTLSManagement.MinCertificateValidityDays {
+		return fmt.Errorf("features.mtls_management.max_certificate_validity_days cannot be less than min_certificate_validity_days")
 	}
 
 	return nil

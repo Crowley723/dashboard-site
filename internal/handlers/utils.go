@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"fmt"
+	"homelab-dashboard/internal/models"
 	"strings"
 )
 
@@ -22,4 +24,16 @@ func RedactEmail(email string) string {
 	middle := strings.Repeat("*", len(localRunes)-2)
 
 	return first + middle + last + "@" + domain
+}
+
+// generateCommonName creates a unique CN for the user's mTLS certificate
+func deriveCommonName(user *models.User) string {
+	return fmt.Sprintf("%s/%s", user.Iss, user.Sub)
+}
+
+func deriveOrganizationalUnits(user *models.User) []string {
+	if len(user.Groups) == 0 {
+		return []string{"Users"}
+	}
+	return user.Groups
 }

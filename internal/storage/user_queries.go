@@ -127,7 +127,7 @@ func (q *UserQueries) GetByID(ctx context.Context, iss, sub string) (*models.Use
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating groups: %w", err)
+		return nil, fmt.Errorf("failed to iterate groups: %w", err)
 	}
 
 	user.Groups = groups

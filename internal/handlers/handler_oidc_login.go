@@ -26,7 +26,6 @@ func GETLoginHandler(ctx *middlewares.AppContext) {
 		redirectTo = "/"
 	}
 
-	ctx.Logger.Info("Redirecting to location after login", "location", redirectTo)
 	ctx.SessionManager.SetRedirectAfterLogin(ctx, redirectTo)
 
 	authURL, err := ctx.OIDCProvider.StartLogin(ctx)
@@ -36,7 +35,7 @@ func GETLoginHandler(ctx *middlewares.AppContext) {
 		return
 	}
 
-	ctx.Logger.Info("Redirecting to OIDC Provider", "url", authURL)
+	ctx.Logger.Debug("Redirecting to OIDC Provider", "url", authURL)
 
 	ctx.WriteJSON(http.StatusOK, map[string]string{
 		"status":       "redirect_required",

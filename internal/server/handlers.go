@@ -18,7 +18,7 @@ func setupRouter(ctx *middlewares.AppContext) *chi.Mux {
 
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
-	r.Use(middleware.Logger)
+	//r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middlewares.MetricsMiddleware)
 	r.Use(middleware.Timeout(60 * time.Second))
@@ -58,6 +58,21 @@ func setupRouter(ctx *middlewares.AppContext) *chi.Mux {
 			r.Get("/logout", ctx.HandlerFunc(handlers.POSTLogoutHandler)) //TODO: Remove this
 		})
 
+		r.Route("/certificates", func(r chi.Router) {
+			r.Group(func(r chi.Router) {
+				r.Use(middlewares.RequireAuth)
+				r.Post("/request", ctx.HandlerFunc(handlers.POSTCertificateRequest))
+				r.Get("/my-requests", ctx.HandlerFunc(handlers.GETUserCertificateRequests))
+				r.Get("/request/{id}", ctx.HandlerFunc(handlers.GETCertificateRequest))
+			})
+
+			r.Group(func(r chi.Router) {
+				r.Use(middlewares.RequireAdminAndAuth)
+				r.Get("/requests", ctx.HandlerFunc(handlers.GETCertificateRequests))
+				r.Post("/requests/{id}/review", ctx.HandlerFunc(handlers.POSTCertificateRequestReview))
+			})
+		})
+
 		r.Get("/queries", ctx.HandlerFunc(handlers.GetQueriesGET))
 		r.Get("/data", ctx.HandlerFunc(handlers.GetMetricsGET))
 
@@ -74,7 +89,7 @@ func setupDebugRouter() *chi.Mux {
 
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
-	r.Use(middleware.Logger)
+	//r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 

@@ -80,3 +80,18 @@ func (s CertificateRequestStatus) IsTerminal() bool {
 func (s CertificateRequestStatus) RequiresAction() bool {
 	return s == StatusAwaitingReview || s == StatusIssued
 }
+
+// PaginationParams holds pagination parameters
+type PaginationParams struct {
+	Limit  int
+	Offset int
+}
+
+// PaginatedResult holds paginated results
+type PaginatedResult struct {
+	Requests []*CertificateRequest
+	Total    int
+	Limit    int
+	Offset   int
+	HasMore  bool
+}

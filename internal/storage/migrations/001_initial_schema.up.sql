@@ -1,4 +1,4 @@
-CREATE TABLE users (
+CREATE TABLE users(
     iss TEXT NOT NULL,
     sub TEXT NOT NULL,
     username TEXT NOT NULL,
@@ -10,7 +10,7 @@ CREATE TABLE users (
     PRIMARY KEY (iss, sub)
 );
 
-CREATE TABLE user_groups (
+CREATE TABLE user_groups(
     owner_iss TEXT NOT NULL,
     owner_sub TEXT NOT NULL,
     group_name TEXT NOT NULL,
@@ -19,7 +19,7 @@ CREATE TABLE user_groups (
     FOREIGN KEY (owner_iss, owner_sub) REFERENCES users(iss, sub) ON DELETE CASCADE
 );
 
-CREATE TABLE certificate_requests (
+CREATE TABLE certificate_requests(
     id SERIAL PRIMARY KEY NOT NULL,
     owner_iss TEXT NOT NULL,
     owner_sub TEXT NOT NULL,
@@ -44,7 +44,7 @@ CREATE TABLE certificate_requests (
     FOREIGN KEY (owner_iss, owner_sub) REFERENCES users(iss, sub) ON DELETE RESTRICT
 );
 
-CREATE TABLE certificate_events (
+CREATE TABLE certificate_events(
     id SERIAL PRIMARY KEY NOT NULL,
     certificate_request_id INTEGER NOT NULL,
     requester_iss TEXT NOT NULL,

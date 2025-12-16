@@ -45,6 +45,8 @@ func POSTCertificateRequest(ctx *middlewares.AppContext) {
 
 	organizationalUnits := deriveOrganizationalUnits(user)
 
+	requestStatus := string(models.StatusAwaitingReview)
+
 	certRequest, err := ctx.Storage.Certificates().CreateRequest(
 		ctx,
 		user.Sub,
@@ -75,28 +77,19 @@ func POSTCertificateRequest(ctx *middlewares.AppContext) {
 		"ous", organizationalUnits,
 	)
 
-	ctx.WriteJSON(http.StatusCreated, certRequest)
-}
+	if ctx.Config.Features.MTLSManagement.AutoApproveAdminRequests && slices.Contains(user.Groups, ctx.Config.Features.MTLSManagement.AdminGroup) {
+		err = ctx.Storage.Certificates().UpdateCertificateStatus(ctx, certRequest.ID, models.StatusApproved, user.Iss, user.Sub, "Auto Approved")
+		if err != nil {
+			ctx.Logger.Error("failed to auto approve certificate request", "error", err)
+			ctx.SetJSONError(http.StatusInternalServerError, "Failed to auto approve certificate request")
+			return
+		}
+		ctx.Logger.Debug("request is auto-approved", "iss", user.Iss, "sub", user.Sub, "request_status", requestStatus)
+	}
 
-//// Get first page (20 items)
-//result, err := ctx.Storage.Certificates().GetRequestsPaginated(ctx, models.PaginationParams{
-//	Limit:  20,
-//	Offset: 0,
-//})
-//
-//// Get second page
-//result, err := ctx.Storage.Certificates().GetRequestsPaginated(ctx, models.PaginationParams{
-//	Limit:  20,
-//	Offset: 20,
-//})
-//
-//// Check if there are more pages
-//if result.HasMore {
-//	fmt.Printf("Showing %d-%d of %d total\n",
-//		result.Offset+1,
-//		result.Offset+len(result.Requests),
-//		result.Total)
-//}
+	updatedRequest, _ := ctx.Storage.Certificates().GetRequestByID(ctx, certRequest.ID)
+	ctx.WriteJSON(http.StatusCreated, updatedRequest)
+}
 
 func GETCertificateRequests(ctx *middlewares.AppContext) {
 	user, ok := ctx.SessionManager.GetAuthenticatedUser(ctx)
@@ -148,7 +141,9 @@ func GETCertificateRequest(ctx *middlewares.AppContext) {
 		return
 	}
 
-	if requests != nil && ((requests.OwnerSub != user.Username || requests.OwnerIss != user.Iss) && !slices.Contains(user.Groups, ctx.Config.Features.MTLSManagement.AdminGroup)) {
+	if requests != nil &&
+		!user.MatchesUser(requests.OwnerIss, requests.OwnerSub) &&
+		!slices.Contains(user.Groups, ctx.Config.Features.MTLSManagement.AdminGroup) {
 		ctx.SetJSONError(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 		return
 	}
@@ -161,8 +156,83 @@ func GETCertificateRequest(ctx *middlewares.AppContext) {
 	ctx.WriteJSON(http.StatusOK, requests)
 }
 
-func POSTCertificateRequestReview(ctx *middlewares.AppContext) {
-	panic("implement me")
+func POSTCertificateReview(ctx *middlewares.AppContext) {
+	requestIdParam := chi.URLParam(ctx.Request, "id")
+	if requestIdParam == "" {
+		ctx.SetJSONError(http.StatusBadRequest, http.StatusText(http.StatusBadRequest))
+		return
+	}
+
+	requestId, err := strconv.Atoi(strings.TrimSpace(requestIdParam))
+	if err != nil {
+		ctx.SetJSONError(http.StatusBadRequest, http.StatusText(http.StatusBadRequest))
+		return
+	}
+
+	user, ok := ctx.SessionManager.GetAuthenticatedUser(ctx)
+	if !ok || user == nil {
+		ctx.SetJSONError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
+		return
+	}
+
+	var review struct {
+		NewStatus   models.CertificateRequestStatus `json:"new_status"`
+		ReviewNotes string                          `json:"review_notes"`
+	}
+
+	if err := json.NewDecoder(ctx.Request.Body).Decode(&review); err != nil {
+		ctx.SetJSONError(http.StatusBadRequest, http.StatusText(http.StatusBadRequest))
+		return
+	}
+
+	review.NewStatus = models.CertificateRequestStatus(strings.TrimSpace(string(review.NewStatus)))
+
+	if review.NewStatus != models.StatusApproved && review.NewStatus != models.StatusRejected {
+		ctx.SetJSONError(http.StatusBadRequest,
+			"Invalid status. Must be 'approved' or 'rejected'")
+		return
+	}
+
+	request, err := ctx.Storage.Certificates().GetRequestByID(ctx, requestId)
+	if err != nil {
+		ctx.Logger.Error("failed to get certificate requests",
+			"error", err)
+		ctx.SetJSONError(http.StatusInternalServerError, "Failed to fetch certificate request")
+		return
+	}
+
+	if ctx.Config.Features.MTLSManagement.AllowAdminsToApproveOwnRequests && user.MatchesUser(request.OwnerIss, request.OwnerSub) {
+		ctx.SetJSONError(http.StatusForbidden, "You are not allowed to approve your own requests")
+		return
+	}
+
+	if request == nil {
+		ctx.SetJSONStatus(http.StatusOK, "No certificate requests found")
+		return
+	}
+
+	if request.Status != models.StatusAwaitingReview {
+		ctx.SetJSONError(http.StatusBadRequest,
+			fmt.Sprintf("Cannot review request with status '%s'. Only requests with status 'awaiting_review' can be reviewed.",
+				request.Status))
+		return
+	}
+
+	err = ctx.Storage.Certificates().UpdateCertificateStatus(ctx, request.ID, review.NewStatus, user.Iss, user.Sub, review.ReviewNotes)
+	if err != nil {
+		ctx.Logger.Error("failed to update certificate request status", "error", err)
+		ctx.SetJSONError(http.StatusInternalServerError, "Failed to update certificate request status")
+		return
+	}
+
+	ctx.Logger.Info("certificate request reviewed",
+		"request_id", requestId,
+		"reviewer", user.Username,
+		"new_status", review.NewStatus,
+	)
+
+	updatedRequest, _ := ctx.Storage.Certificates().GetRequestByID(ctx, requestId)
+	ctx.WriteJSON(http.StatusOK, updatedRequest)
 }
 
 func GETUserCertificateRequests(ctx *middlewares.AppContext) {

@@ -50,15 +50,15 @@ const (
 	StatusCompleted      CertificateRequestStatus = "completed"
 )
 
-func (s CertificateRequestStatus) CanTransitionTo(next CertificateRequestStatus) bool {
-	// Rejected, Failed, and Completed are final states
-	validTransitions := map[CertificateRequestStatus][]CertificateRequestStatus{
-		StatusAwaitingReview: {StatusApproved, StatusRejected},
-		StatusApproved:       {StatusPending},
-		StatusPending:        {StatusIssued, StatusFailed},
-		StatusIssued:         {StatusCompleted},
-	}
+// Rejected, Failed, and Completed are final states
+var validTransitions = map[CertificateRequestStatus][]CertificateRequestStatus{
+	StatusAwaitingReview: {StatusApproved, StatusRejected},
+	StatusApproved:       {StatusPending},
+	StatusPending:        {StatusIssued, StatusFailed},
+	StatusIssued:         {StatusCompleted},
+}
 
+func (s CertificateRequestStatus) CanTransitionTo(next CertificateRequestStatus) bool {
 	allowed, ok := validTransitions[s]
 	if !ok {
 		return false
@@ -71,6 +71,10 @@ func (s CertificateRequestStatus) CanTransitionTo(next CertificateRequestStatus)
 	}
 
 	return false
+}
+
+func (s CertificateRequestStatus) GetValidTransitions() []CertificateRequestStatus {
+	return validTransitions[s]
 }
 
 func (s CertificateRequestStatus) IsTerminal() bool {

@@ -62,7 +62,7 @@ CREATE TABLE certificate_events(
 );
 
 CREATE INDEX idx_cert_requests_owner ON certificate_requests(owner_iss, owner_sub);
-CREATE INDEX idx_cert_events_status ON certificate_requests(status);
+CREATE INDEX idx_cert_requests_status ON certificate_requests(status);
 CREATE INDEX idx_cert_events_request_id ON certificate_events(certificate_request_id);
 CREATE INDEX idx_cert_events_requester ON certificate_events(requester_iss, requester_sub);
 CREATE INDEX idx_cert_events_reviewer ON certificate_events(reviewer_iss, reviewer_sub);

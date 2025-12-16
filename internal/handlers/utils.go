@@ -28,7 +28,9 @@ func RedactEmail(email string) string {
 
 // generateCommonName creates a unique CN for the user's mTLS certificate
 func deriveCommonName(user *models.User) string {
-	return fmt.Sprintf("%s/%s", user.Iss, user.Sub)
+	issuerDomain := strings.TrimPrefix(user.Iss, "https://")
+	issuerDomain = strings.TrimPrefix(issuerDomain, "http://")
+	return fmt.Sprintf("%s@%s", user.Sub, issuerDomain)
 }
 
 func deriveOrganizationalUnits(user *models.User) []string {

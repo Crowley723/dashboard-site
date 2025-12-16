@@ -69,7 +69,7 @@ func setupRouter(ctx *middlewares.AppContext) *chi.Mux {
 			r.Group(func(r chi.Router) {
 				r.Use(middlewares.RequireAdminAndAuth)
 				r.Get("/requests", ctx.HandlerFunc(handlers.GETCertificateRequests))
-				r.Post("/requests/{id}/review", ctx.HandlerFunc(handlers.POSTCertificateRequestReview))
+				r.Post("/requests/{id}/review", ctx.HandlerFunc(handlers.POSTCertificateReview))
 			})
 		})
 

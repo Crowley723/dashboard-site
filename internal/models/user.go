@@ -1,6 +1,8 @@
 package models
 
-import "time"
+import (
+	"time"
+)
 
 type User struct {
 	Sub          string    `json:"sub"`
@@ -11,4 +13,8 @@ type User struct {
 	Groups       []string  `json:"groups"`
 	LastLoggedIn time.Time `json:"last_logged_in"`
 	CreatedAt    time.Time `json:"created_at"`
+}
+
+func (u *User) MatchesUser(iss, sub string) bool {
+	return u.Iss == iss && u.Sub == sub
 }

@@ -4,11 +4,14 @@ CREATE TABLE users(
     username TEXT NOT NULL,
     display_name TEXT NOT NULL,
     email TEXT NOT NULL,
+    is_system BOOLEAN NOT NULL DEFAULT FALSE,
     last_logged_in TIMESTAMP,
     created_at TIMESTAMP,
 
     PRIMARY KEY (iss, sub)
 );
+
+CREATE UNIQUE INDEX idx_users_system ON users(is_system) WHERE is_system = TRUE;
 
 CREATE TABLE user_groups(
     owner_iss TEXT NOT NULL,
@@ -27,13 +30,18 @@ CREATE TABLE certificate_requests(
 
     -- Request details
     common_name TEXT NOT NULL,
-    dns_names TEXT[] NOT NULL DEFAULT '{}',
-    organizational_units TEXT[] NOT NULL DEFAULT '{}',
+    dns_names TEXT[] DEFAULT '{}',
+    organizational_units TEXT[] DEFAULT '{}',
     validity_days INTEGER NOT NULL DEFAULT 365,
 
     -- Status Tracking
     status TEXT NOT NULL DEFAULT 'pending', -- 'pending, 'approved', 'rejected', 'issued'
     requested_at TIMESTAMP NOT NULL DEFAULT NOW(),
+
+    -- Kubernetes Certificate metadata
+    k8s_certificate_name TEXT,
+    k8s_namespace TEXT,
+    k8s_secret_name TEXT,
 
     -- Certificate details (after issued)
     issued_at TIMESTAMP,
@@ -63,6 +71,7 @@ CREATE TABLE certificate_events(
 
 CREATE INDEX idx_cert_requests_owner ON certificate_requests(owner_iss, owner_sub);
 CREATE INDEX idx_cert_requests_status ON certificate_requests(status);
+CREATE INDEX idx_cert_requests_k8s_name ON certificate_requests(k8s_certificate_name, k8s_namespace);
 CREATE INDEX idx_cert_events_request_id ON certificate_events(certificate_request_id);
 CREATE INDEX idx_cert_events_requester ON certificate_events(requester_iss, requester_sub);
 CREATE INDEX idx_cert_events_reviewer ON certificate_events(reviewer_iss, reviewer_sub);

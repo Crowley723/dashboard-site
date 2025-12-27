@@ -7,6 +7,7 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { requireAuth } from '@/utils/Auth.ts';
+import { useAuth } from '@/hooks/useAuth';
 
 export const Route = createFileRoute('/settings')({
   component: SettingsLayout,
@@ -19,27 +20,52 @@ export const Route = createFileRoute('/settings')({
   },
 });
 
-const settingsNavItems = [
-  {
-    title: 'Certificates',
-    url: '/settings/certs',
-    icon: Certificate,
-    isActive: true,
-    items: [
-      { title: 'Certificates', url: '/settings/certs' },
-      { title: 'Requests', url: '/settings/certs/requests' },
-      { title: 'Settings', url: '/settings/certs/settings' },
-    ],
-  },
-  {
+export default function SettingsLayout() {
+  const { isMTLSUser, isMTLSAdmin } = useAuth();
+
+  // Build certificate menu items based on user permissions
+  const certificateItems = [];
+  if (isMTLSUser() || isMTLSAdmin()) {
+    certificateItems.push({ title: 'Certificates', url: '/settings/certs' });
+    certificateItems.push({
+      title: 'Requests',
+      url: '/settings/certs/requests',
+    });
+  }
+  if (isMTLSAdmin()) {
+    certificateItems.push({
+      title: 'Admin Requests',
+      url: '/settings/certs/admin/requests',
+    });
+  }
+  if (isMTLSAdmin()) {
+    certificateItems.push({
+      title: 'Settings',
+      url: '/settings/certs/settings',
+    });
+  }
+
+  const settingsNavItems = [];
+
+  // Only show certificates section if user has access
+  if (certificateItems.length > 0) {
+    settingsNavItems.push({
+      title: 'Certificates',
+      url: '/settings/certs',
+      icon: Certificate,
+      isActive: true,
+      items: certificateItems,
+    });
+  }
+
+  // General settings (always visible)
+  settingsNavItems.push({
     title: 'General',
     url: '/settings',
     icon: Settings,
     items: [{ title: 'Profile', url: '/settings/profile' }],
-  },
-];
+  });
 
-export default function SettingsLayout() {
   return (
     <SidebarProvider className="flex flex-col">
       <div className="flex flex-1">

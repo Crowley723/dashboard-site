@@ -1,6 +1,7 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Navigate } from '@tanstack/react-router';
 import { requireAuth } from '@/utils/Auth.ts';
 import { useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 import {
   Accordion,
   AccordionContent,
@@ -16,6 +17,11 @@ import {
   TableHead,
   TableRow,
 } from '@/components/ui/table';
+import { useMyCertificateRequests } from '@/api/Certificates';
+import type { CertificateRequestStatus } from '@/types/Certificates';
+import { UserDisplay } from '@/components/UserDisplay.tsx';
+import { RequestCertificateDialog } from '@/components/RequestCertificateDialog.tsx';
+import { getRelativeTimeString } from '@/hooks/RelativeTimeString.tsx';
 
 export const Route = createFileRoute('/settings/certs/requests')({
   component: RouteComponent,
@@ -28,168 +34,132 @@ export const Route = createFileRoute('/settings/certs/requests')({
   },
 });
 
-interface CertificateRequest {
-  id: string;
-  commonName: string;
-  dnsNames: string[];
-  organization: string;
-  organizationalUnits: string[];
-  requestedAt: string;
-  requestedBy: string;
-  status: 'pending' | 'approved' | 'rejected' | 'issued';
-  reviewedAt?: string;
-  reviewedBy?: string;
-  rejectionReason?: string;
-  notes?: string;
-}
-
-const mockRequests: CertificateRequest[] = [
-  {
-    id: '1',
-    commonName: 'new-service.example.com',
-    dnsNames: ['new-service.example.com', '*.new-service.example.com'],
-    organization: 'Crowley Labs',
-    organizationalUnits: ['Engineering', 'Platform'],
-    requestedAt: '2024-11-05T14:30:00Z',
-    requestedBy: 'john.doe@example.com',
-    status: 'pending',
-    notes: 'Certificate needed for new microservice deployment',
-  },
-  {
-    id: '2',
-    commonName: 'staging.api.example.com',
-    dnsNames: ['staging.api.example.com'],
-    organization: 'Crowley Labs',
-    organizationalUnits: ['Engineering'],
-    requestedAt: '2024-11-04T10:15:00Z',
-    requestedBy: 'jane.smith@example.com',
-    status: 'approved',
-    reviewedAt: '2024-11-04T11:00:00Z',
-    reviewedBy: 'admin@example.com',
-    notes: 'Staging environment certificate',
-  },
-  {
-    id: '3',
-    commonName: 'test.internal.example.com',
-    dnsNames: ['test.internal.example.com'],
-    organization: 'Crowley Labs',
-    organizationalUnits: ['QA'],
-    requestedAt: '2024-11-03T16:45:00Z',
-    requestedBy: 'bob.wilson@example.com',
-    status: 'rejected',
-    reviewedAt: '2024-11-03T17:30:00Z',
-    reviewedBy: 'admin@example.com',
-    rejectionReason: 'Invalid DNS name - internal domain not approved',
-  },
-  {
-    id: '4',
-    commonName: 'prod.api.example.com',
-    dnsNames: ['prod.api.example.com', 'api.example.com'],
-    organization: 'Crowley Labs',
-    organizationalUnits: ['Engineering', 'Production'],
-    requestedAt: '2024-11-01T09:00:00Z',
-    requestedBy: 'alice.brown@example.com',
-    status: 'issued',
-    reviewedAt: '2024-11-01T10:00:00Z',
-    reviewedBy: 'admin@example.com',
-    notes: 'Production API certificate - approved and issued',
-  },
-];
-
 function RouteComponent() {
-  const [requests] = useState<CertificateRequest[]>(mockRequests);
-  const [processingId, setProcessingId] = useState<string | null>(null);
+  const { isMTLSUser, isMTLSAdmin, isLoading: authLoading } = useAuth();
+  const {
+    data: requests,
+    isLoading,
+    isError,
+    error,
+  } = useMyCertificateRequests();
+  const [dialogOpen, setDialogOpen] = useState(false);
 
-  const handleApprove = async (requestId: string) => {
-    setProcessingId(requestId);
-    // TODO: Implement actual approve API call
-    console.log('Approving request:', requestId);
-    setTimeout(() => {
-      setProcessingId(null);
-      alert('Request approval functionality coming soon!');
-    }, 1000);
-  };
+  // Authorization check - only MTLS users can access this page
+  if (authLoading) {
+    return (
+      <div className="container mx-auto p-6 max-w-6xl">
+        <div className="text-center py-12">Loading...</div>
+      </div>
+    );
+  }
 
-  const handleReject = async (requestId: string) => {
-    setProcessingId(requestId);
-    // TODO: Implement actual reject API call
-    console.log('Rejecting request:', requestId);
-    setTimeout(() => {
-      setProcessingId(null);
-      alert('Request rejection functionality coming soon!');
-    }, 1000);
-  };
+  if (!isMTLSUser() && !isMTLSAdmin()) {
+    return <Navigate to="/settings" />;
+  }
 
-  const handleIssue = async (requestId: string) => {
-    setProcessingId(requestId);
-    // TODO: Implement actual issue API call
-    console.log('Issuing certificate for request:', requestId);
-    setTimeout(() => {
-      setProcessingId(null);
-      alert('Certificate issuance functionality coming soon!');
-    }, 1000);
-  };
-
-  const getStatusBadge = (status: CertificateRequest['status']) => {
-    const config = {
-      pending: { variant: 'outline' as const, label: 'Pending Review' },
-      approved: { variant: 'default' as const, label: 'Approved' },
-      rejected: { variant: 'destructive' as const, label: 'Rejected' },
-      issued: { variant: 'secondary' as const, label: 'Issued' },
+  const getStatusBadge = (status: CertificateRequestStatus) => {
+    const variants: Record<
+      CertificateRequestStatus,
+      'default' | 'outline' | 'secondary' | 'destructive'
+    > = {
+      awaiting_review: 'outline',
+      approved: 'default',
+      rejected: 'destructive',
+      pending: 'outline',
+      issued: 'default',
+      failed: 'destructive',
+      completed: 'secondary',
     };
 
-    const { variant, label } = config[status];
-    return <Badge variant={variant}>{label}</Badge>;
+    const labels: Record<CertificateRequestStatus, string> = {
+      awaiting_review: 'Awaiting Review',
+      approved: 'Approved',
+      rejected: 'Rejected',
+      pending: 'Pending',
+      issued: 'Issued',
+      failed: 'Failed',
+      completed: 'Completed',
+    };
+
+    return <Badge variant={variants[status]}>{labels[status]}</Badge>;
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('en-US', {
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return `${date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
-      hour: '2-digit',
+    })} at ${date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
       minute: '2-digit',
-    });
+      hour12: true,
+      timeZoneName: 'short',
+    })}`;
   };
 
-  const getRelativeTime = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffHours / 24);
+  if (isLoading) {
+    return (
+      <div className="container mx-auto p-6 max-w-6xl">
+        <div className="text-center py-12">Loading requests...</div>
+      </div>
+    );
+  }
 
-    if (diffDays > 0) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
-    if (diffHours > 0)
-      return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-    return 'Just now';
-  };
+  if (isError) {
+    return (
+      <div className="container mx-auto p-6 max-w-6xl">
+        <div className="text-center py-12 text-destructive">
+          Error loading requests: {error?.message}
+        </div>
+      </div>
+    );
+  }
+
+  const certificateRequests = Array.isArray(requests) ? requests : [];
 
   return (
     <div className="container mx-auto p-6 max-w-6xl">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">Certificate Requests</h1>
-        <p className="text-muted-foreground">
-          Review and manage certificate signing requests
-        </p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Certificate Requests</h1>
+          <p className="text-muted-foreground">
+            View your certificate requests and submit new ones
+          </p>
+        </div>
+        <RequestCertificateDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+        >
+          <Button>Request Certificate</Button>
+        </RequestCertificateDialog>
       </div>
 
       <Accordion type="single" collapsible className="space-y-4">
-        {requests.map((request) => {
+        {certificateRequests.map((request) => {
           return (
             <AccordionItem
               key={request.id}
-              value={request.id}
+              value={request.id.toString()}
               className="border border-border rounded-lg px-4 !border-b"
             >
               <AccordionTrigger className="hover:no-underline">
                 <div className="flex items-center justify-between w-full pr-4">
                   <div className="flex items-center gap-4">
                     <div className="text-left">
-                      <div className="font-medium">{request.commonName}</div>
+                      <div className="font-medium">
+                        <UserDisplay
+                          displayName={request.owner_display_name}
+                          username={request.owner_username}
+                          sub={request.owner_sub}
+                          iss={request.owner_iss}
+                        />
+                      </div>
                       <div className="text-sm text-muted-foreground">
-                        Requested by {request.requestedBy} •{' '}
-                        {getRelativeTime(request.requestedAt)}
+                        {request.requested_at === undefined
+                          ? ''
+                          : ` Requested ${getRelativeTimeString(new Date(request.requested_at))}`}
                       </div>
                     </div>
                   </div>
@@ -204,109 +174,146 @@ function RouteComponent() {
                     <TableBody>
                       <TableRow>
                         <TableHead className="w-1/3">Common Name</TableHead>
-                        <TableCell>{request.commonName}</TableCell>
+                        <TableCell>{request.common_name}</TableCell>
                       </TableRow>
-                      <TableRow>
-                        <TableHead>DNS Names</TableHead>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-2">
-                            {request.dnsNames.map((dns, idx) => (
-                              <Badge key={idx} variant="outline">
-                                {dns}
-                              </Badge>
-                            ))}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableHead>Organization</TableHead>
-                        <TableCell>{request.organization}</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableHead>Organizational Units</TableHead>
-                        <TableCell>
-                          {request.organizationalUnits.join(', ')}
-                        </TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableHead>Requested At</TableHead>
-                        <TableCell>{formatDate(request.requestedAt)}</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableHead>Requested By</TableHead>
-                        <TableCell>{request.requestedBy}</TableCell>
-                      </TableRow>
-                      {request.reviewedAt && (
-                        <>
-                          <TableRow>
-                            <TableHead>Reviewed At</TableHead>
-                            <TableCell>
-                              {formatDate(request.reviewedAt)}
-                            </TableCell>
-                          </TableRow>
-                          <TableRow>
-                            <TableHead>Reviewed By</TableHead>
-                            <TableCell>{request.reviewedBy}</TableCell>
-                          </TableRow>
-                        </>
-                      )}
-                      {request.rejectionReason && (
+
+                      {request.dns_names?.length > 0 && (
                         <TableRow>
-                          <TableHead>Rejection Reason</TableHead>
-                          <TableCell className="text-destructive">
-                            {request.rejectionReason}
+                          <TableHead>DNS Names</TableHead>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-2">
+                              {request.dns_names.map((dns, idx) => (
+                                <Badge key={idx} variant="outline">
+                                  {dns}
+                                </Badge>
+                              ))}
+                            </div>
                           </TableCell>
                         </TableRow>
                       )}
-                      {request.notes && (
+
+                      <TableRow>
+                        <TableHead>Organizational Units</TableHead>
+                        <TableCell>
+                          {request.organizational_units &&
+                          request.organizational_units.length > 0
+                            ? request.organizational_units.join(', ')
+                            : 'None'}
+                        </TableCell>
+                      </TableRow>
+
+                      {request.serial_number && (
                         <TableRow>
-                          <TableHead>Notes</TableHead>
-                          <TableCell>{request.notes}</TableCell>
+                          <TableHead>Serial Number</TableHead>
+                          <TableCell className="font-mono text-sm">
+                            {request.serial_number}
+                          </TableCell>
                         </TableRow>
                       )}
+
+                      <TableRow>
+                        <TableHead>Validity Period</TableHead>
+                        <TableCell>{request.validity_days} days</TableCell>
+                      </TableRow>
+
+                      <TableRow>
+                        <TableHead>Requested At</TableHead>
+                        <TableCell>
+                          {formatDate(request.requested_at)}
+                        </TableCell>
+                      </TableRow>
+
+                      {request.issued_at && (
+                        <TableRow>
+                          <TableHead>Issued At</TableHead>
+                          <TableCell>{formatDate(request.issued_at)}</TableCell>
+                        </TableRow>
+                      )}
+
+                      {request.expires_at && (
+                        <TableRow>
+                          <TableHead>Expires At</TableHead>
+                          <TableCell>
+                            {formatDate(request.expires_at)}
+                          </TableCell>
+                        </TableRow>
+                      )}
+
+                      {request.message && (
+                        <TableRow>
+                          <TableHead>Request Message</TableHead>
+                          <TableCell>{request.message}</TableCell>
+                        </TableRow>
+                      )}
+
                       <TableRow>
                         <TableHead>Status</TableHead>
                         <TableCell>{getStatusBadge(request.status)}</TableCell>
                       </TableRow>
+
+                      <TableRow>
+                        <TableHead>Owner</TableHead>
+                        <TableCell>
+                          <UserDisplay
+                            displayName={request.owner_display_name}
+                            username={request.owner_username}
+                            sub={request.owner_sub}
+                            iss={request.owner_iss}
+                          />
+                        </TableCell>
+                      </TableRow>
                     </TableBody>
                   </Table>
 
+                  {request.events && request.events.length > 0 && (
+                    <div>
+                      <h3 className="font-semibold mb-2">Review History</h3>
+                      <div className="space-y-2">
+                        {request.events.map((event) => (
+                          <div
+                            key={event.id}
+                            className="text-sm border-l-2 border-muted pl-3"
+                          >
+                            <div className="font-medium">
+                              Status changed to:{' '}
+                              {getStatusBadge(event.new_status)}
+                            </div>
+                            <div className="text-muted-foreground">
+                              Reviewed by:{' '}
+                              <UserDisplay
+                                displayName={event.reviewer_display_name}
+                                username={event.reviewer_username}
+                                sub={event.reviewer_sub}
+                                iss={event.reviewer_iss}
+                              />
+                            </div>
+                            {event.review_notes && (
+                              <div className="text-muted-foreground">
+                                Notes: {event.review_notes}
+                              </div>
+                            )}
+                            <div className="text-xs text-muted-foreground">
+                              {formatDate(event.created_at)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex gap-2 pt-2">
-                    {request.status === 'pending' && (
-                      <>
-                        <Button
-                          variant="default"
-                          onClick={() => handleApprove(request.id)}
-                          disabled={processingId === request.id}
-                        >
-                          {processingId === request.id
-                            ? 'Approving...'
-                            : 'Approve'}
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          onClick={() => handleReject(request.id)}
-                          disabled={processingId === request.id}
-                        >
-                          {processingId === request.id
-                            ? 'Rejecting...'
-                            : 'Reject'}
-                        </Button>
-                      </>
+                    {request.status === 'issued' && (
+                      <Button>Download Certificate</Button>
                     )}
-                    {request.status === 'approved' && (
-                      <Button
-                        variant="default"
-                        onClick={() => handleIssue(request.id)}
-                        disabled={processingId === request.id}
-                      >
-                        {processingId === request.id
-                          ? 'Issuing...'
-                          : 'Issue Certificate'}
+                    {request.status === 'awaiting_review' && (
+                      <Button variant="outline" disabled>
+                        Awaiting Admin Review
                       </Button>
                     )}
-                    {request.status === 'issued' && (
-                      <Button variant="outline">View Certificate</Button>
+                    {request.status === 'rejected' && (
+                      <Button variant="destructive" disabled>
+                        Request Rejected
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -316,9 +323,12 @@ function RouteComponent() {
         })}
       </Accordion>
 
-      {requests.length === 0 && (
+      {certificateRequests.length === 0 && (
         <div className="text-center py-12 text-muted-foreground">
-          No certificate requests found
+          <p className="mb-4">No certificate requests found</p>
+          <Button onClick={() => setDialogOpen(true)}>
+            Request Your First Certificate
+          </Button>
         </div>
       )}
     </div>

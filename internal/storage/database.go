@@ -2,9 +2,12 @@ package storage
 
 import (
 	"context"
+	"database/sql"
 	"embed"
+	"errors"
 	"fmt"
 	"homelab-dashboard/internal/config"
+	"log/slog"
 	"sort"
 	"strings"
 
@@ -16,20 +19,20 @@ var migrationsFS embed.FS
 
 type DatabaseProvider struct {
 	pool *pgxpool.Pool
-	cfg  *config.Config //nolint:unused
+	cfg  *config.Config
 }
 
 func NewDatabaseProvider(ctx context.Context, cfg *config.Config) (*DatabaseProvider, error) {
-	dbPool, err := pgxpool.New(ctx, GetConnectionStringFromConfig(cfg))
+	pPool, err := pgxpool.New(ctx, GetConnectionStringFromConfig(cfg))
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	if err := dbPool.Ping(ctx); err != nil {
+	if err := pPool.Ping(ctx); err != nil {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	return &DatabaseProvider{pool: dbPool}, nil
+	return &DatabaseProvider{pool: pPool, cfg: cfg}, nil
 }
 
 func (p *DatabaseProvider) GetPool() *pgxpool.Pool {
@@ -120,6 +123,101 @@ func (p *DatabaseProvider) RunMigrations(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (p *DatabaseProvider) EnsureSystemUser(ctx context.Context, logger *slog.Logger) error {
+	tx, err := p.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	var existingIss, existingSub string
+	err = tx.QueryRow(ctx, `
+		SELECT iss, sub FROM users WHERE is_system = TRUE
+	`).Scan(&existingIss, &existingSub)
+
+	systemSub := "system"
+
+	if errors.Is(err, sql.ErrNoRows) {
+		_, err = tx.Exec(ctx, `
+			INSERT INTO users (iss, sub, username, display_name, email, is_system, created_at)
+			VALUES ($1, $2, $3, $4, $5, TRUE, NOW())
+		`, p.cfg.Server.ExternalURL, systemSub, SystemUsername, SystemDisplayName, SystemEmail)
+
+		if err != nil {
+			return fmt.Errorf("failed to create system user: %w", err)
+		}
+
+		logger.Info("created system user", "iss", p.cfg.Server.ExternalURL, "sub", systemSub)
+
+	} else if err != nil {
+		return fmt.Errorf("failed to check for system user: %w", err)
+	} else {
+		if existingIss != p.cfg.Server.ExternalURL {
+			logger.Warn("external URL changed, updating system user",
+				"old_iss", existingIss,
+				"new_iss", p.cfg.Server.ExternalURL,
+			)
+
+			// Update the system user's iss
+			_, err = tx.Exec(ctx, `
+				UPDATE users 
+				SET iss = $1, username = $2, display_name = $3, email = $4
+				WHERE is_system = TRUE
+			`, p.cfg.Server.ExternalURL, SystemUsername, SystemDisplayName, SystemEmail)
+
+			if err != nil {
+				return fmt.Errorf("failed to update system user: %w", err)
+			}
+
+			_, err = tx.Exec(ctx, `
+				UPDATE certificate_requests 
+				SET owner_iss = $1 
+				WHERE owner_iss = $2 AND owner_sub = $3
+			`, p.cfg.Server.ExternalURL, existingIss, systemSub)
+
+			if err != nil {
+				return fmt.Errorf("failed to update certificate_requests: %w", err)
+			}
+
+			// Update all references in certificate_events (requester)
+			_, err = tx.Exec(ctx, `
+				UPDATE certificate_events 
+				SET requester_iss = $1 
+				WHERE requester_iss = $2 AND requester_sub = $3
+			`, p.cfg.Server.ExternalURL, existingIss, systemSub)
+
+			if err != nil {
+				return fmt.Errorf("failed to update certificate_events requester: %w", err)
+			}
+
+			// Update all references in certificate_events (reviewer)
+			_, err = tx.Exec(ctx, `
+				UPDATE certificate_events 
+				SET reviewer_iss = $1 
+				WHERE reviewer_iss = $2 AND reviewer_sub = $3
+			`, p.cfg.Server.ExternalURL, existingIss, systemSub)
+
+			if err != nil {
+				return fmt.Errorf("failed to update certificate_events reviewer: %w", err)
+			}
+		}
+	}
+
+	return tx.Commit(ctx)
+}
+
+func (p *DatabaseProvider) GetSystemUser(ctx context.Context) (iss, sub string, err error) {
+	err = p.pool.QueryRow(ctx, `
+		SELECT iss, sub FROM users WHERE is_system = TRUE
+	`).Scan(&iss, &sub)
+
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", "", fmt.Errorf("system user not found")
+	}
+
+	return iss, sub, err
 }
 
 func (p *DatabaseProvider) Users() *UserQueries {

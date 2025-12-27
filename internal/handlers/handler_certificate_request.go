@@ -5,18 +5,38 @@ import (
 	"fmt"
 	"homelab-dashboard/internal/middlewares"
 	"homelab-dashboard/internal/models"
+	"homelab-dashboard/internal/storage"
 	"net/http"
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 )
 
+type CertificateRequestResponse struct {
+	ID                  int                             `json:"id"`
+	OwnerIss            string                          `json:"owner_iss"`
+	OwnerSub            string                          `json:"owner_sub"`
+	OwnerUsername       string                          `json:"owner_username"`
+	OwnerDisplayName    string                          `json:"owner_display_name"`
+	Message             string                          `json:"message,omitempty"`
+	Events              []models.CertificateEvent       `json:"events,omitempty"`
+	CommonName          string                          `json:"common_name"`
+	DNSNames            []string                        `json:"dns_names,omitempty"`
+	OrganizationalUnits []string                        `json:"organizational_units,omitempty"`
+	ValidityDays        int                             `json:"validity_days"`
+	Status              models.CertificateRequestStatus `json:"status,omitempty"`
+	RequestedAt         time.Time                       `json:"requested_at"`
+	IssuedAt            *time.Time                      `json:"issued_at,omitempty"`
+	ExpiresAt           *time.Time                      `json:"expires_at,omitempty"`
+	SerialNumber        *string                         `json:"serial_number,omitempty"`
+}
+
 func POSTCertificateRequest(ctx *middlewares.AppContext) {
 	user, ok := ctx.SessionManager.GetAuthenticatedUser(ctx)
 	if !ok {
-		ctx.Logger.Warn("session not found")
 		ctx.SetJSONError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
 		return
 	}
@@ -55,7 +75,7 @@ func POSTCertificateRequest(ctx *middlewares.AppContext) {
 		string(models.StatusAwaitingReview),
 		req.Message,
 		[]string{}, //empty dns name for client certs
-		organizationalUnits,
+		nil,        // not implemented
 		req.ValidityDays,
 	)
 
@@ -78,13 +98,13 @@ func POSTCertificateRequest(ctx *middlewares.AppContext) {
 	)
 
 	if ctx.Config.Features.MTLSManagement.AutoApproveAdminRequests && slices.Contains(user.Groups, ctx.Config.Features.MTLSManagement.AdminGroup) {
-		err = ctx.Storage.Certificates().UpdateCertificateStatus(ctx, certRequest.ID, models.StatusApproved, user.Iss, user.Sub, "Auto Approved")
+		err = ctx.Storage.Certificates().UpdateCertificateStatus(ctx, certRequest.ID, models.StatusApproved, ctx.Config.Server.ExternalURL, storage.SystemSub, "Auto Approved")
 		if err != nil {
 			ctx.Logger.Error("failed to auto approve certificate request", "error", err)
 			ctx.SetJSONError(http.StatusInternalServerError, "Failed to auto approve certificate request")
 			return
 		}
-		ctx.Logger.Debug("request is auto-approved", "iss", user.Iss, "sub", user.Sub, "request_status", requestStatus)
+		ctx.Logger.Debug("request was auto-approved", "iss", user.Iss, "sub", user.Sub, "request_status", requestStatus)
 	}
 
 	updatedRequest, _ := ctx.Storage.Certificates().GetRequestByID(ctx, certRequest.ID)
@@ -107,7 +127,7 @@ func GETCertificateRequests(ctx *middlewares.AppContext) {
 	}
 
 	if requests == nil {
-		ctx.SetJSONStatus(http.StatusOK, "No certificate requests found")
+		ctx.WriteJSON(http.StatusOK, []interface{}{})
 		return
 	}
 
@@ -149,7 +169,7 @@ func GETCertificateRequest(ctx *middlewares.AppContext) {
 	}
 
 	if requests == nil {
-		ctx.SetJSONStatus(http.StatusOK, "No certificate requests found")
+		ctx.WriteJSON(http.StatusOK, []interface{}{})
 		return
 	}
 
@@ -251,9 +271,22 @@ func GETUserCertificateRequests(ctx *middlewares.AppContext) {
 	}
 
 	if requests == nil {
-		ctx.SetJSONStatus(http.StatusOK, "No certificate requests found")
+		ctx.WriteJSON(http.StatusOK, []interface{}{})
 		return
 	}
 
-	ctx.WriteJSON(http.StatusOK, requests)
+	ctx.WriteJSON(http.StatusOK, redactK8sFields(requests))
+}
+
+func redactK8sFields(requests []*models.CertificateRequest) []*models.CertificateRequest {
+	result := make([]*models.CertificateRequest, len(requests))
+	for i, req := range requests {
+		reqCopy := *req
+		reqCopy.K8sCertificateName = nil
+		reqCopy.K8sNamespace = nil
+		reqCopy.K8sSecretName = nil
+		reqCopy.CertificatePem = nil
+		result[i] = &reqCopy
+	}
+	return result
 }

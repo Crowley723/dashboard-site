@@ -215,6 +215,10 @@ func (c *Config) validateServerConfig() error {
 		c.Server.Port = DefaultServerConfig.Port
 	}
 
+	if c.Server.ExternalURL == "" {
+		return fmt.Errorf("server.external_url is required")
+	}
+
 	if c.Server.Debug != nil && c.Server.Debug.Enabled {
 		if c.Server.Debug.Host == "" {
 			c.Server.Debug.Host = DefaultDebugConfig.Host
@@ -545,6 +549,10 @@ func (c *Config) ValidateMTLSManagementConfig() error {
 		return fmt.Errorf("features.mtls_management.admin_group is required when mtls_management is enabled")
 	}
 
+	if c.Features.MTLSManagement.UserGroup == "" {
+		return fmt.Errorf("features.mtls_management.user_group is required when mtls_management is enabled")
+	}
+
 	// Apply default validity days if not set
 	if c.Features.MTLSManagement.MinCertificateValidityDays == 0 {
 		c.Features.MTLSManagement.MinCertificateValidityDays = DefaultMTLSIssuerConfig.MinCertificateValidityDays
@@ -556,6 +564,50 @@ func (c *Config) ValidateMTLSManagementConfig() error {
 
 	if c.Features.MTLSManagement.MaxCertificateValidityDays < c.Features.MTLSManagement.MinCertificateValidityDays {
 		return fmt.Errorf("features.mtls_management.max_certificate_validity_days cannot be less than min_certificate_validity_days")
+	}
+
+	// Apply default Kubernetes configuration if not set
+	if c.Features.MTLSManagement.Kubernetes == nil {
+		c.Features.MTLSManagement.Kubernetes = DefaultKubernetesConfig
+	}
+
+	if c.Features.MTLSManagement.Kubernetes.Namespace == "" {
+		c.Features.MTLSManagement.Kubernetes.Namespace = DefaultKubernetesConfig.Namespace
+	}
+
+	// If not in-cluster, kubeconfig path should be provided (empty string means use default kubeconfig location)
+	// We don't enforce kubeconfig path as client-go will use default locations if empty
+
+	// Apply default background job config if not set
+	if c.Features.MTLSManagement.BackgroundJobConfig == nil {
+		c.Features.MTLSManagement.BackgroundJobConfig = DefaultMTLSBackgroundJobConfig
+	}
+
+	if c.Features.MTLSManagement.BackgroundJobConfig.ApprovedCertificatePollingInterval == 0 {
+		c.Features.MTLSManagement.BackgroundJobConfig.ApprovedCertificatePollingInterval = DefaultMTLSBackgroundJobConfig.ApprovedCertificatePollingInterval
+	}
+
+	if c.Features.MTLSManagement.BackgroundJobConfig.IssuedCertificatePollingInterval == 0 {
+		c.Features.MTLSManagement.BackgroundJobConfig.IssuedCertificatePollingInterval = DefaultMTLSBackgroundJobConfig.IssuedCertificatePollingInterval
+	}
+
+	// Validate certificate issuer configuration
+	if c.Features.MTLSManagement.CertificateIssuer == nil {
+		return fmt.Errorf("features.mtls_management.certificate_issuer is required when mtls_management is enabled")
+	}
+
+	if c.Features.MTLSManagement.CertificateIssuer.Name == "" {
+		return fmt.Errorf("features.mtls_management.certificate_issuer.name is required when mtls_management is enabled")
+	}
+
+	if c.Features.MTLSManagement.CertificateIssuer.Kind == "" {
+		return fmt.Errorf("features.mtls_management.certificate_issuer.kind is required when mtls_management is enabled")
+	}
+
+	// Validate issuer kind is either Issuer or ClusterIssuer
+	kind := c.Features.MTLSManagement.CertificateIssuer.Kind
+	if kind != "Issuer" && kind != "ClusterIssuer" {
+		return fmt.Errorf("features.mtls_management.certificate_issuer.kind must be either 'Issuer' or 'ClusterIssuer', got '%s'", kind)
 	}
 
 	return nil

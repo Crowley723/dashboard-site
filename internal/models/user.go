@@ -11,6 +11,7 @@ type User struct {
 	DisplayName  string    `json:"display_name"`
 	Email        string    `json:"email"`
 	Groups       []string  `json:"groups"`
+	IsSystem     bool      `json:"is_system"`
 	LastLoggedIn time.Time `json:"last_logged_in"`
 	CreatedAt    time.Time `json:"created_at"`
 }

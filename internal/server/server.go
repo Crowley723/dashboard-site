@@ -8,6 +8,7 @@ import (
 	"homelab-dashboard/internal/config"
 	"homelab-dashboard/internal/data"
 	"homelab-dashboard/internal/distributed"
+	"homelab-dashboard/internal/k8s"
 	"homelab-dashboard/internal/metrics"
 	"homelab-dashboard/internal/middlewares"
 	"homelab-dashboard/internal/storage"
@@ -33,6 +34,7 @@ type Server struct {
 	dataService *data.Service
 	cache       data.CacheProvider
 	election    *distributed.Election
+	jobManager  *JobManager
 	ctx         *context.Context
 	cancel      context.CancelFunc
 }
@@ -116,12 +118,41 @@ func New(cfg *config.Config) (*Server, error) {
 			cancel()
 			return nil, err
 		}
+
+		if err := dbProvider.EnsureSystemUser(ctx, logger); err != nil {
+			cancel()
+			return nil, fmt.Errorf("failed to ensure system user: %w", err)
+		}
 		logger.Info("Database migrations completed successfully")
 
 		database = dbProvider
 	}
 
-	appCtx := middlewares.NewAppContext(ctx, cfg, logger, cache, sessionManager, oidcProvider, database)
+	var kubernetesClient *k8s.Client
+	if cfg.Features.MTLSManagement.Enabled {
+		kubernetesClient, err = k8s.NewClient(ctx, cfg, logger)
+		if err != nil {
+			logger.Error("failed to initialize kubernetes client", "error", err)
+			cancel()
+			return nil, err
+		}
+	}
+
+	appCtx := middlewares.NewAppContext(ctx, cfg, logger, cache, sessionManager, oidcProvider, database, kubernetesClient)
+
+	jobManager := NewJobManager(election, logger)
+
+	interval := calculateFetchInterval(cfg, cfg.Data.FallbackFetchInterval)
+	dataFetchJob := NewDataFetchJob(dataService, appCtx, interval, logger)
+	jobManager.Register(dataFetchJob)
+
+	if cfg.Features.MTLSManagement.Enabled {
+		certificateCreationJob := NewCertificateCreationJob(appCtx, cfg.Features.MTLSManagement.BackgroundJobConfig.ApprovedCertificatePollingInterval)
+		jobManager.Register(certificateCreationJob)
+
+		certificateIssuedJob := NewCertificateIssuedStatusJob(appCtx, cfg.Features.MTLSManagement.BackgroundJobConfig.IssuedCertificatePollingInterval)
+		jobManager.Register(certificateIssuedJob)
+	}
 
 	router := setupRouter(appCtx)
 	server := &http.Server{
@@ -147,25 +178,18 @@ func New(cfg *config.Config) (*Server, error) {
 		debugServer: debugServer,
 		dataService: dataService,
 		election:    election,
+		jobManager:  jobManager,
 		ctx:         &ctx,
 		cancel:      cancel,
 	}, nil
 }
 
 func (s *Server) Start() error {
-
 	if s.election != nil {
 		go s.election.Start(*s.appCtx)
-
-		go s.monitorLeadership(*s.appCtx)
-	} else {
-		timeInterval := calculateFetchInterval(s.cfg, s.cfg.Data.FallbackFetchInterval)
-		go func() {
-			if err := s.runBackgroundDataFetching(s.appCtx, timeInterval); err != nil {
-				s.logger.Error("background data fetching stopped", "error", err)
-			}
-		}()
 	}
+
+	s.jobManager.Start(*s.appCtx)
 
 	router := setupRouter(s.appCtx)
 	server := &http.Server{
@@ -209,6 +233,9 @@ func (s *Server) Start() error {
 	defer shutdownCancel()
 
 	s.logger.Info("Shutting down server")
+
+	s.jobManager.Shutdown(shutdownCtx)
+
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		s.logger.Error("Server forced to shutdown", "error", err)
 		return err
@@ -266,44 +293,4 @@ func calculateFetchInterval(cfg *config.Config, defaultInterval time.Duration) t
 		minTTL = time.Second * 30
 	}
 	return minTTL
-}
-
-func (s *Server) monitorLeadership(ctx context.Context) {
-	var fetchCtx context.Context
-	var fetchCancel context.CancelFunc
-
-	ticker := time.NewTicker(s.cfg.Distributed.TTL / 3)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			if fetchCancel != nil {
-				s.logger.Info("stopping data fetching due to shutdown")
-				fetchCancel()
-			}
-			return
-
-		case <-ticker.C:
-			isLeader := s.election.IsLeader()
-
-			if isLeader && fetchCancel == nil {
-				s.logger.Info("starting data fetching as leader")
-
-				fetchCtx, fetchCancel = context.WithCancel(ctx)
-				interval := calculateFetchInterval(s.cfg, s.cfg.Data.FallbackFetchInterval)
-
-				go func(fctx context.Context) {
-					if err := s.runBackgroundDataFetching(fctx, interval); err != nil {
-						s.logger.Error("data fetching stopped", "error", err)
-					}
-				}(fetchCtx)
-
-			} else if !isLeader && fetchCancel != nil {
-				s.logger.Info("stopping data fetching, lost leadership")
-				fetchCancel()
-				fetchCancel = nil
-			}
-		}
-	}
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"homelab-dashboard/internal/models"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -41,7 +42,7 @@ func (q *CertificateQueries) CreateRequest(ctx context.Context, sub, iss, common
 
 func (q *CertificateQueries) GetRequestByID(ctx context.Context, id int) (*models.CertificateRequest, error) {
 	query := `
-		SELECT id, owner_iss, owner_sub, message, common_name, dns_names, organizational_units, validity_days, status, requested_at, issued_at, expires_at, serial_number, certificate_pem
+		SELECT id, owner_iss, owner_sub, message, common_name, dns_names, organizational_units, validity_days, status, requested_at, k8s_certificate_name, k8s_namespace, k8s_secret_name, issued_at, expires_at, serial_number, certificate_pem
 		FROM certificate_requests
 		WHERE id = $1
 	`
@@ -64,6 +65,9 @@ func (q *CertificateQueries) GetRequestByID(ctx context.Context, id int) (*model
 		&certificateRequest.ValidityDays,
 		&certificateRequest.Status,
 		&certificateRequest.RequestedAt,
+		&certificateRequest.K8sCertificateName,
+		&certificateRequest.K8sNamespace,
+		&certificateRequest.K8sSecretName,
 		&certificateRequest.IssuedAt,
 		&certificateRequest.ExpiresAt,
 		&certificateRequest.SerialNumber,
@@ -116,7 +120,7 @@ func (q *CertificateQueries) GetRequestByID(ctx context.Context, id int) (*model
 
 func (q *CertificateQueries) GetRequests(ctx context.Context) ([]*models.CertificateRequest, error) {
 	query := `
-       SELECT id, owner_iss, owner_sub, message, common_name, dns_names, organizational_units, validity_days, status, requested_at, issued_at, expires_at, serial_number, certificate_pem
+       SELECT id, owner_iss, owner_sub, message, common_name, dns_names, organizational_units, validity_days, status, requested_at, k8s_certificate_name, k8s_namespace, k8s_secret_name, issued_at, expires_at, serial_number, certificate_pem
        FROM certificate_requests
        ORDER BY requested_at DESC
     `
@@ -150,6 +154,9 @@ func (q *CertificateQueries) GetRequests(ctx context.Context) ([]*models.Certifi
 			&req.ValidityDays,
 			&req.Status,
 			&req.RequestedAt,
+			&req.K8sCertificateName,
+			&req.K8sNamespace,
+			&req.K8sSecretName,
 			&req.IssuedAt,
 			&req.ExpiresAt,
 			&req.SerialNumber,
@@ -213,17 +220,34 @@ func (q *CertificateQueries) GetRequests(ctx context.Context) ([]*models.Certifi
 
 func (q *CertificateQueries) GetRequestsByUser(ctx context.Context, sub, iss string) ([]*models.CertificateRequest, error) {
 	query := `
-       SELECT id, owner_iss, owner_sub, message, common_name, dns_names, organizational_units, validity_days, status, requested_at, issued_at, expires_at, serial_number, certificate_pem
-       FROM certificate_requests
-       WHERE owner_sub = $1 AND  owner_iss = $2
-       ORDER BY requested_at DESC
+       SELECT
+			cr.id, cr.owner_iss, cr.owner_sub, cr.message, cr.common_name,
+			cr.dns_names, cr.organizational_units, cr.validity_days, cr.status,
+			cr.requested_at, cr.k8s_certificate_name, cr.k8s_namespace, cr.k8s_secret_name,
+			cr.issued_at, cr.expires_at, cr.serial_number, cr.certificate_pem,
+			owner.username as owner_username,
+			owner.display_name as owner_display_name
+		FROM certificate_requests cr
+		JOIN users owner ON cr.owner_iss = owner.iss AND cr.owner_sub = owner.sub
+		WHERE cr.owner_sub = $1 AND cr.owner_iss = $2
+		ORDER BY cr.requested_at DESC
     `
 
 	eventsQuery := `
-       SELECT id, certificate_request_id, requester_iss, requester_sub, reviewer_iss, reviewer_sub, new_status, review_notes, created_at
-       FROM certificate_events
-       WHERE certificate_request_id = ANY($1)
-       ORDER BY certificate_request_id, created_at
+       SELECT 
+			ce.id, ce.certificate_request_id, 
+			ce.requester_iss, ce.requester_sub,
+			requester.username as requester_username,
+			requester.display_name as requester_display_name,
+			ce.reviewer_iss, ce.reviewer_sub,
+			reviewer.username as reviewer_username,
+			reviewer.display_name as reviewer_display_name,
+			ce.new_status, ce.review_notes, ce.created_at
+		FROM certificate_events ce
+		JOIN users requester ON ce.requester_iss = requester.iss AND ce.requester_sub = requester.sub
+		JOIN users reviewer ON ce.reviewer_iss = reviewer.iss AND ce.reviewer_sub = reviewer.sub
+		WHERE ce.certificate_request_id = ANY($1)
+		ORDER BY ce.certificate_request_id, ce.created_at
     `
 
 	rows, err := q.pool.Query(ctx, query, sub, iss)
@@ -248,10 +272,15 @@ func (q *CertificateQueries) GetRequestsByUser(ctx context.Context, sub, iss str
 			&req.ValidityDays,
 			&req.Status,
 			&req.RequestedAt,
+			&req.K8sCertificateName,
+			&req.K8sNamespace,
+			&req.K8sSecretName,
 			&req.IssuedAt,
 			&req.ExpiresAt,
 			&req.SerialNumber,
 			&req.CertificatePem,
+			&req.OwnerUsername,
+			&req.OwnerDisplayName,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan certificate request: %w", err)
 		}
@@ -288,8 +317,12 @@ func (q *CertificateQueries) GetRequestsByUser(ctx context.Context, sub, iss str
 			&event.CertificateRequestID,
 			&event.RequesterIss,
 			&event.RequesterSub,
+			&event.RequesterUsername,
+			&event.RequesterDisplayName,
 			&event.ReviewerIss,
 			&event.ReviewerSub,
+			&event.ReviewerUsername,
+			&event.ReviewerDisplayName,
 			&event.NewStatus,
 			&event.ReviewNotes,
 			&event.CreatedAt,
@@ -331,7 +364,7 @@ func (q *CertificateQueries) GetRequestsPaginated(ctx context.Context, params mo
 
 	// Get paginated requests
 	query := `
-       SELECT id, owner_iss, owner_sub, message, common_name, dns_names, organizational_units, validity_days, status, requested_at, issued_at, expires_at, serial_number, certificate_pem
+       SELECT id, owner_iss, owner_sub, message, common_name, dns_names, organizational_units, validity_days, status, requested_at, k8s_certificate_name, k8s_namespace, k8s_secret_name, issued_at, expires_at, serial_number, certificate_pem
        FROM certificate_requests
        ORDER BY requested_at DESC
        LIMIT $1 OFFSET $2
@@ -359,6 +392,9 @@ func (q *CertificateQueries) GetRequestsPaginated(ctx context.Context, params mo
 			&req.ValidityDays,
 			&req.Status,
 			&req.RequestedAt,
+			&req.K8sCertificateName,
+			&req.K8sNamespace,
+			&req.K8sSecretName,
 			&req.IssuedAt,
 			&req.ExpiresAt,
 			&req.SerialNumber,
@@ -475,6 +511,182 @@ func (q *CertificateQueries) UpdateCertificateStatus(ctx context.Context, reques
 	_, err = tx.Exec(ctx, insertEventQuery, requestId, requesterIss, requesterSub, reviewerIss, reviewerSub, newStatus, notes)
 	if err != nil {
 		return fmt.Errorf("failed to insert event for certificate request '%d': %w", requestId, err)
+	}
+
+	return tx.Commit(ctx)
+}
+
+// UpdateCertificateK8sMetadata updates the Kubernetes resource metadata for a certificate request
+func (q *CertificateQueries) UpdateCertificateK8sMetadata(ctx context.Context, requestID int, certName, namespace, secretName string) error {
+	query := `
+		UPDATE certificate_requests
+		SET k8s_certificate_name = $1,
+			k8s_namespace = $2,
+			k8s_secret_name = $3
+		WHERE id = $4
+	`
+
+	result, err := q.pool.Exec(ctx, query, certName, namespace, secretName, requestID)
+	if err != nil {
+		return fmt.Errorf("failed to update k8s metadata for request %d: %w", requestID, err)
+	}
+
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("certificate request %d not found", requestID)
+	}
+
+	return nil
+}
+
+// GetApprovedRequests returns all certificate requests with status = APPROVED
+func (q *CertificateQueries) GetApprovedRequests(ctx context.Context) ([]*models.CertificateRequest, error) {
+	query := `
+		SELECT id, owner_iss, owner_sub, message, common_name, dns_names, organizational_units, validity_days, status, requested_at, k8s_certificate_name, k8s_namespace, k8s_secret_name, issued_at, expires_at, serial_number, certificate_pem
+		FROM certificate_requests
+		WHERE status = $1
+		ORDER BY requested_at ASC
+	`
+
+	rows, err := q.pool.Query(ctx, query, models.StatusApproved)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get approved requests: %w", err)
+	}
+	defer rows.Close()
+
+	var requests []*models.CertificateRequest
+	for rows.Next() {
+		var req models.CertificateRequest
+		if err := rows.Scan(
+			&req.ID,
+			&req.OwnerIss,
+			&req.OwnerSub,
+			&req.Message,
+			&req.CommonName,
+			&req.DNSNames,
+			&req.OrganizationalUnits,
+			&req.ValidityDays,
+			&req.Status,
+			&req.RequestedAt,
+			&req.K8sCertificateName,
+			&req.K8sNamespace,
+			&req.K8sSecretName,
+			&req.IssuedAt,
+			&req.ExpiresAt,
+			&req.SerialNumber,
+			&req.CertificatePem,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan approved request: %w", err)
+		}
+		requests = append(requests, &req)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate approved requests: %w", err)
+	}
+
+	return requests, nil
+}
+
+// GetPendingRequests returns all certificate requests with status = PENDING (awaiting K8s Certificate to be ready)
+func (q *CertificateQueries) GetPendingRequests(ctx context.Context) ([]*models.CertificateRequest, error) {
+	query := `
+		SELECT id, owner_iss, owner_sub, message, common_name, dns_names, organizational_units, validity_days, status, requested_at, k8s_certificate_name, k8s_namespace, k8s_secret_name, issued_at, expires_at, serial_number, certificate_pem
+		FROM certificate_requests
+		WHERE status = $1 AND k8s_certificate_name IS NOT NULL
+		ORDER BY requested_at ASC
+	`
+
+	rows, err := q.pool.Query(ctx, query, models.StatusPending)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pending requests: %w", err)
+	}
+	defer rows.Close()
+
+	var requests []*models.CertificateRequest
+	for rows.Next() {
+		var req models.CertificateRequest
+		if err := rows.Scan(
+			&req.ID,
+			&req.OwnerIss,
+			&req.OwnerSub,
+			&req.Message,
+			&req.CommonName,
+			&req.DNSNames,
+			&req.OrganizationalUnits,
+			&req.ValidityDays,
+			&req.Status,
+			&req.RequestedAt,
+			&req.K8sCertificateName,
+			&req.K8sNamespace,
+			&req.K8sSecretName,
+			&req.IssuedAt,
+			&req.ExpiresAt,
+			&req.SerialNumber,
+			&req.CertificatePem,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan pending request: %w", err)
+		}
+		requests = append(requests, &req)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate pending requests: %w", err)
+	}
+
+	return requests, nil
+}
+
+// UpdateCertificateIssued updates a certificate request to ISSUED status with the certificate details
+func (q *CertificateQueries) UpdateCertificateIssued(ctx context.Context, requestID int, certPEM, serialNumber string, issuedAt, expiresAt time.Time, systemUserIss, systemUserSub string) error {
+	tx, err := q.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("transaction start failed: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// Get request owner for the event
+	getRequestQuery := `
+		SELECT owner_iss, owner_sub
+		FROM certificate_requests
+		WHERE id = $1
+	`
+
+	var requesterIss, requesterSub string
+	err = tx.QueryRow(ctx, getRequestQuery, requestID).Scan(&requesterIss, &requesterSub)
+	if err != nil {
+		return fmt.Errorf("failed to get request owner: %w", err)
+	}
+
+	// Update the request with certificate details
+	updateQuery := `
+		UPDATE certificate_requests
+		SET status = $1,
+			certificate_pem = $2,
+			serial_number = $3,
+			issued_at = $4,
+			expires_at = $5
+		WHERE id = $6
+	`
+
+	result, err := tx.Exec(ctx, updateQuery, models.StatusIssued, certPEM, serialNumber, issuedAt, expiresAt, requestID)
+	if err != nil {
+		return fmt.Errorf("failed to update certificate to issued: %w", err)
+	}
+
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("certificate request %d not found", requestID)
+	}
+
+	// Insert event
+	insertEventQuery := `
+		INSERT INTO certificate_events
+		(certificate_request_id, requester_iss, requester_sub, reviewer_iss, reviewer_sub, new_status, review_notes)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`
+
+	_, err = tx.Exec(ctx, insertEventQuery, requestID, requesterIss, requesterSub, systemUserIss, systemUserSub, models.StatusIssued, "Certificate issued by cert-manager")
+	if err != nil {
+		return fmt.Errorf("failed to insert issued event: %w", err)
 	}
 
 	return tx.Commit(ctx)

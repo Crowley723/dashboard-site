@@ -19,12 +19,14 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Port  int                `yaml:"port"`
-	Debug *ServerDebugConfig `yaml:"debug"`
+	Port        int                `yaml:"port"`
+	ExternalURL string             `yaml:"external_url"`
+	Debug       *ServerDebugConfig `yaml:"debug"`
 }
 
 var DefaultServerConfig = ServerConfig{
-	Port: 8080,
+	Port:        8080,
+	ExternalURL: "localhost:8080",
 }
 
 type ServerDebugConfig struct {
@@ -180,12 +182,42 @@ var DefaultFeaturesConfig = FeaturesConfig{
 }
 
 type MTLSManagement struct {
-	Enabled                         bool   `yaml:"enabled"`
-	AdminGroup                      string `yaml:"admin_group"`
-	AutoApproveAdminRequests        bool   `yaml:"auto_approve_admin_requests"`
-	AllowAdminsToApproveOwnRequests bool   `yaml:"allow_admins_to_approve_own_requests"`
-	MinCertificateValidityDays      int    `yaml:"min_certificate_validity_days"`
-	MaxCertificateValidityDays      int    `yaml:"max_certificate_validity_days"`
+	Enabled                         bool                     `yaml:"enabled"`
+	AdminGroup                      string                   `yaml:"admin_group"`
+	UserGroup                       string                   `yaml:"user_group"`
+	AutoApproveAdminRequests        bool                     `yaml:"auto_approve_admin_requests"`
+	AllowAdminsToApproveOwnRequests bool                     `yaml:"allow_admins_to_approve_own_requests"`
+	MinCertificateValidityDays      int                      `yaml:"min_certificate_validity_days"`
+	MaxCertificateValidityDays      int                      `yaml:"max_certificate_validity_days"`
+	Kubernetes                      *KubernetesConfig        `yaml:"kubernetes,omitempty"`
+	CertificateIssuer               *CertificateIssuer       `yaml:"certificate_issuer,omitempty"`
+	BackgroundJobConfig             *MTLSBackgroundJobConfig `yaml:"background_job_config,omitempty"`
+}
+
+type KubernetesConfig struct {
+	Namespace  string `yaml:"namespace"`
+	Kubeconfig string `yaml:"kubeconfig"`
+	InCluster  bool   `yaml:"in_cluster"`
+}
+
+var DefaultKubernetesConfig = &KubernetesConfig{
+	InCluster: true,
+	Namespace: "conduit",
+}
+
+type CertificateIssuer struct {
+	Name string `yaml:"name"`
+	Kind string `yaml:"kind"`
+}
+
+type MTLSBackgroundJobConfig struct {
+	ApprovedCertificatePollingInterval time.Duration `yaml:"approved_certificate_polling_interval"`
+	IssuedCertificatePollingInterval   time.Duration `yaml:"issued_certificate_polling_interval"`
+}
+
+var DefaultMTLSBackgroundJobConfig = &MTLSBackgroundJobConfig{
+	ApprovedCertificatePollingInterval: 30 * time.Second,
+	IssuedCertificatePollingInterval:   30 * time.Second,
 }
 
 var DefaultMTLSIssuerConfig = MTLSManagement{
@@ -194,4 +226,7 @@ var DefaultMTLSIssuerConfig = MTLSManagement{
 	AllowAdminsToApproveOwnRequests: true,
 	MinCertificateValidityDays:      30,
 	MaxCertificateValidityDays:      365,
+	Kubernetes:                      DefaultKubernetesConfig,
+	CertificateIssuer:               nil,
+	BackgroundJobConfig:             DefaultMTLSBackgroundJobConfig,
 }

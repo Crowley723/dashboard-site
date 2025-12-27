@@ -19,6 +19,7 @@ import { Route as BlogSlugRouteImport } from './routes/blog/$slug'
 import { Route as SettingsCertsIndexRouteImport } from './routes/settings/certs/index'
 import { Route as SettingsCertsSettingsRouteImport } from './routes/settings/certs/settings'
 import { Route as SettingsCertsRequestsRouteImport } from './routes/settings/certs/requests'
+import { Route as SettingsCertsAdminRequestsRouteImport } from './routes/settings/certs/admin/requests'
 
 const ErrorRoute = ErrorRouteImport.update({
   id: '/error',
@@ -70,6 +71,12 @@ const SettingsCertsRequestsRoute = SettingsCertsRequestsRouteImport.update({
   path: '/certs/requests',
   getParentRoute: () => SettingsRouteRoute,
 } as any)
+const SettingsCertsAdminRequestsRoute =
+  SettingsCertsAdminRequestsRouteImport.update({
+    id: '/certs/admin/requests',
+    path: '/certs/admin/requests',
+    getParentRoute: () => SettingsRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -82,6 +89,7 @@ export interface FileRoutesByFullPath {
   '/settings/certs/requests': typeof SettingsCertsRequestsRoute
   '/settings/certs/settings': typeof SettingsCertsSettingsRoute
   '/settings/certs': typeof SettingsCertsIndexRoute
+  '/settings/certs/admin/requests': typeof SettingsCertsAdminRequestsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -93,6 +101,7 @@ export interface FileRoutesByTo {
   '/settings/certs/requests': typeof SettingsCertsRequestsRoute
   '/settings/certs/settings': typeof SettingsCertsSettingsRoute
   '/settings/certs': typeof SettingsCertsIndexRoute
+  '/settings/certs/admin/requests': typeof SettingsCertsAdminRequestsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -106,6 +115,7 @@ export interface FileRoutesById {
   '/settings/certs/requests': typeof SettingsCertsRequestsRoute
   '/settings/certs/settings': typeof SettingsCertsSettingsRoute
   '/settings/certs/': typeof SettingsCertsIndexRoute
+  '/settings/certs/admin/requests': typeof SettingsCertsAdminRequestsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -120,6 +130,7 @@ export interface FileRouteTypes {
     | '/settings/certs/requests'
     | '/settings/certs/settings'
     | '/settings/certs'
+    | '/settings/certs/admin/requests'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -131,6 +142,7 @@ export interface FileRouteTypes {
     | '/settings/certs/requests'
     | '/settings/certs/settings'
     | '/settings/certs'
+    | '/settings/certs/admin/requests'
   id:
     | '__root__'
     | '/'
@@ -143,6 +155,7 @@ export interface FileRouteTypes {
     | '/settings/certs/requests'
     | '/settings/certs/settings'
     | '/settings/certs/'
+    | '/settings/certs/admin/requests'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -226,6 +239,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsCertsRequestsRouteImport
       parentRoute: typeof SettingsRouteRoute
     }
+    '/settings/certs/admin/requests': {
+      id: '/settings/certs/admin/requests'
+      path: '/certs/admin/requests'
+      fullPath: '/settings/certs/admin/requests'
+      preLoaderRoute: typeof SettingsCertsAdminRequestsRouteImport
+      parentRoute: typeof SettingsRouteRoute
+    }
   }
 }
 
@@ -234,6 +254,7 @@ interface SettingsRouteRouteChildren {
   SettingsCertsRequestsRoute: typeof SettingsCertsRequestsRoute
   SettingsCertsSettingsRoute: typeof SettingsCertsSettingsRoute
   SettingsCertsIndexRoute: typeof SettingsCertsIndexRoute
+  SettingsCertsAdminRequestsRoute: typeof SettingsCertsAdminRequestsRoute
 }
 
 const SettingsRouteRouteChildren: SettingsRouteRouteChildren = {
@@ -241,6 +262,7 @@ const SettingsRouteRouteChildren: SettingsRouteRouteChildren = {
   SettingsCertsRequestsRoute: SettingsCertsRequestsRoute,
   SettingsCertsSettingsRoute: SettingsCertsSettingsRoute,
   SettingsCertsIndexRoute: SettingsCertsIndexRoute,
+  SettingsCertsAdminRequestsRoute: SettingsCertsAdminRequestsRoute,
 }
 
 const SettingsRouteRouteWithChildren = SettingsRouteRoute._addFileChildren(

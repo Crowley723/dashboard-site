@@ -83,7 +83,7 @@ func (q *UserQueries) Upsert(ctx context.Context, sub, iss, username, displayNam
 // GetByID returns a user, including groups, given their iss and sub claims.
 func (q *UserQueries) GetByID(ctx context.Context, iss, sub string) (*models.User, error) {
 	query := `
-		SELECT iss, sub, username, email,display_name, last_logged_in, created_at
+		SELECT iss, sub, username, email,display_name, is_system, last_logged_in, created_at
 		FROM users
 		WHERE iss = $1 AND sub = $2
 	`
@@ -100,6 +100,7 @@ func (q *UserQueries) GetByID(ctx context.Context, iss, sub string) (*models.Use
 		&user.Username,
 		&user.DisplayName,
 		&user.Email,
+		&user.IsSystem,
 		&user.LastLoggedIn,
 		&user.CreatedAt,
 	)

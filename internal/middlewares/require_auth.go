@@ -15,7 +15,6 @@ func RequireAuth(next http.Handler) http.Handler {
 
 		_, ok := appCtx.SessionManager.GetUser(appCtx)
 		if !ok {
-			appCtx.Logger.Warn("session not found")
 			appCtx.SetJSONError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
 			return
 		}

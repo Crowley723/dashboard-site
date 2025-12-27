@@ -3,6 +3,7 @@ package handlers
 import (
 	"homelab-dashboard/internal/middlewares"
 	"net/http"
+	"strings"
 )
 
 func GETLoginHandler(ctx *middlewares.AppContext) {
@@ -12,12 +13,20 @@ func GETLoginHandler(ctx *middlewares.AppContext) {
 		return
 	}
 
-	currentURL := ctx.Request.Header.Get("Referer")
-	if currentURL == "" {
-		currentURL = "/"
+	redirectTo := ctx.Request.URL.Query().Get("rd")
+	if redirectTo == "" {
+		redirectTo = ctx.Request.Header.Get("Referer")
+		if redirectTo == "" {
+			redirectTo = "/"
+		}
 	}
 
-	ctx.SessionManager.SetRedirectAfterLogin(ctx, currentURL)
+	if strings.Contains(redirectTo, "/error") {
+		ctx.Logger.Debug("Referer is error page, redirecting to root instead", "original_referer", redirectTo)
+		redirectTo = "/"
+	}
+
+	ctx.SessionManager.SetRedirectAfterLogin(ctx, redirectTo)
 
 	authURL, err := ctx.OIDCProvider.StartLogin(ctx)
 	if err != nil {
@@ -26,7 +35,7 @@ func GETLoginHandler(ctx *middlewares.AppContext) {
 		return
 	}
 
-	ctx.Logger.Info("Redirecting to OIDC Provider", "url", authURL)
+	ctx.Logger.Debug("Redirecting to OIDC Provider", "url", authURL)
 
 	ctx.WriteJSON(http.StatusOK, map[string]string{
 		"status":       "redirect_required",

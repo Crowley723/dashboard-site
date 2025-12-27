@@ -34,9 +34,15 @@ type CertificateRequestResponse struct {
 	SerialNumber        *string                         `json:"serial_number,omitempty"`
 }
 
+// POSTCertificateRequest is used by any authenticated user to create a certificate request
 func POSTCertificateRequest(ctx *middlewares.AppContext) {
 	user, ok := ctx.SessionManager.GetAuthenticatedUser(ctx)
 	if !ok {
+		ctx.SetJSONError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
+		return
+	}
+
+	if !slices.Contains(user.Groups, ctx.Config.Features.MTLSManagement.UserGroup) && !slices.Contains(user.Groups, ctx.Config.Features.MTLSManagement.AdminGroup) {
 		ctx.SetJSONError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
 		return
 	}
@@ -111,6 +117,7 @@ func POSTCertificateRequest(ctx *middlewares.AppContext) {
 	ctx.WriteJSON(http.StatusCreated, updatedRequest)
 }
 
+// GETCertificateRequests is used to expose all certificate requests to admin users.
 func GETCertificateRequests(ctx *middlewares.AppContext) {
 	user, ok := ctx.SessionManager.GetAuthenticatedUser(ctx)
 	if !ok || user == nil {
@@ -131,9 +138,10 @@ func GETCertificateRequests(ctx *middlewares.AppContext) {
 		return
 	}
 
-	ctx.WriteJSON(http.StatusOK, requests)
+	ctx.WriteJSON(http.StatusOK, redactCertificateFields(requests))
 }
 
+// GETCertificateRequest is used to expose a single certificate request
 func GETCertificateRequest(ctx *middlewares.AppContext) {
 	requestIdParam := chi.URLParam(ctx.Request, "id")
 	if requestIdParam == "" {
@@ -173,9 +181,13 @@ func GETCertificateRequest(ctx *middlewares.AppContext) {
 		return
 	}
 
-	ctx.WriteJSON(http.StatusOK, requests)
+	ctx.WriteJSON(http.StatusOK, redactCertificateFields(
+		[]*models.CertificateRequest{
+			requests,
+		}))
 }
 
+// POSTCertificateReview is used by admins to post a reject/approval for a specific certificate request with comments.
 func POSTCertificateReview(ctx *middlewares.AppContext) {
 	requestIdParam := chi.URLParam(ctx.Request, "id")
 	if requestIdParam == "" {
@@ -255,6 +267,7 @@ func POSTCertificateReview(ctx *middlewares.AppContext) {
 	ctx.WriteJSON(http.StatusOK, updatedRequest)
 }
 
+// GETUserCertificateRequests exposes information about certificate requests to the owner
 func GETUserCertificateRequests(ctx *middlewares.AppContext) {
 	user, ok := ctx.SessionManager.GetAuthenticatedUser(ctx)
 	if !ok || user == nil {
@@ -275,10 +288,10 @@ func GETUserCertificateRequests(ctx *middlewares.AppContext) {
 		return
 	}
 
-	ctx.WriteJSON(http.StatusOK, redactK8sFields(requests))
+	ctx.WriteJSON(http.StatusOK, redactCertificateFields(requests))
 }
 
-func redactK8sFields(requests []*models.CertificateRequest) []*models.CertificateRequest {
+func redactCertificateFields(requests []*models.CertificateRequest) []*models.CertificateRequest {
 	result := make([]*models.CertificateRequest, len(requests))
 	for i, req := range requests {
 		reqCopy := *req

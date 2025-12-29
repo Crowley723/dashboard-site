@@ -24,11 +24,7 @@ func TestGetMetricsGET(t *testing.T) {
 			expectedCount:  1,
 			setupMocks: func(tc *testutil.TestContext) {
 				cachedData := tc.CreateCachedDataWithScalar("cpu_usage", 85.5, false, "")
-
-				tc.MockSession.EXPECT().
-					GetCurrentUser(tc.AppContext).
-					Return(nil, false).
-					Times(1)
+				tc.MockSession.EXPECT().GetAuthenticatedUser(tc.AppContext).Return(nil, false)
 
 				tc.MockCache.EXPECT().
 					Get(tc.AppContext.Context, "cpu_usage").
@@ -53,10 +49,14 @@ func TestGetMetricsGET(t *testing.T) {
 			setupMocks: func(tc *testutil.TestContext) {
 				cachedData := tc.CreateCachedDataWithScalar("cpu_usage", 85.5, true, "admin")
 
-				tc.MockSession.EXPECT().
-					GetCurrentUser(tc.AppContext).
-					Return(&models.User{Groups: []string{"admin"}}, true).
-					Times(1)
+				testUser := &models.User{
+					Sub:      "sub_claim",
+					Iss:      "iss_claim",
+					Username: "steve",
+					Groups:   []string{"admin"},
+				}
+
+				tc.MockSession.EXPECT().GetAuthenticatedUser(tc.AppContext).Return(testUser, true)
 
 				tc.MockCache.EXPECT().
 					Get(tc.AppContext.Context, "cpu_usage").
@@ -80,11 +80,7 @@ func TestGetMetricsGET(t *testing.T) {
 			expectedCount:  0,
 			setupMocks: func(tc *testutil.TestContext) {
 				cachedData := tc.CreateCachedDataWithScalar("cpu_usage", 85.5, true, "admin")
-
-				tc.MockSession.EXPECT().
-					GetCurrentUser(tc.AppContext).
-					Return(&models.User{Groups: []string{}}, true).
-					Times(1)
+				tc.MockSession.EXPECT().GetAuthenticatedUser(tc.AppContext).Return(nil, false)
 
 				tc.MockCache.EXPECT().
 					Get(tc.AppContext.Context, "cpu_usage").
@@ -103,15 +99,12 @@ func TestGetMetricsGET(t *testing.T) {
 			expectedStatus: 200,
 			expectedCount:  0,
 			setupMocks: func(tc *testutil.TestContext) {
-				tc.MockSession.EXPECT().
-					GetCurrentUser(tc.AppContext).
-					Return(nil, false).
-					Times(1)
-
 				tc.MockCache.EXPECT().
 					Get(tc.AppContext.Context, "nonexistent_metric").
 					Return(tc.CreateCachedDataWithScalar("", 0, false, ""), false).
 					Times(1)
+
+				tc.MockSession.EXPECT().GetAuthenticatedUser(tc.AppContext).Return(nil, false)
 			},
 			validate: func(t *testing.T, results []interface{}) {
 			},
@@ -124,11 +117,7 @@ func TestGetMetricsGET(t *testing.T) {
 			setupMocks: func(tc *testutil.TestContext) {
 				cpuData := tc.CreateCachedDataWithScalar("cpu_usage", 85.5, false, "")
 				memData := tc.CreateCachedDataWithScalar("memory_usage", 65.2, false, "")
-
-				tc.MockSession.EXPECT().
-					GetCurrentUser(tc.AppContext).
-					Return(nil, false).
-					Times(1)
+				tc.MockSession.EXPECT().GetAuthenticatedUser(tc.AppContext).Return(nil, false)
 
 				tc.MockCache.EXPECT().
 					Get(tc.AppContext.Context, "cpu_usage").
@@ -164,11 +153,7 @@ func TestGetMetricsGET(t *testing.T) {
 			expectedCount:  1,
 			setupMocks: func(tc *testutil.TestContext) {
 				cpuData := tc.CreateCachedDataWithScalar("cpu_usage", 85.5, false, "")
-
-				tc.MockSession.EXPECT().
-					GetCurrentUser(tc.AppContext).
-					Return(nil, false).
-					Times(1)
+				tc.MockSession.EXPECT().GetAuthenticatedUser(tc.AppContext).Return(nil, false)
 
 				tc.MockCache.EXPECT().
 					Get(tc.AppContext.Context, "cpu_usage").
@@ -193,11 +178,7 @@ func TestGetMetricsGET(t *testing.T) {
 			expectedCount:  1,
 			setupMocks: func(tc *testutil.TestContext) {
 				cpuData := tc.CreateCachedDataWithScalar("cpu_usage", 85.5, false, "")
-
-				tc.MockSession.EXPECT().
-					GetCurrentUser(tc.AppContext).
-					Return(nil, false).
-					Times(1)
+				tc.MockSession.EXPECT().GetAuthenticatedUser(tc.AppContext).Return(nil, false)
 
 				tc.MockCache.EXPECT().
 					ListAll(tc.AppContext.Context).

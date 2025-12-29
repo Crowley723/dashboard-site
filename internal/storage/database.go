@@ -22,7 +22,7 @@ type DatabaseProvider struct {
 	cfg  *config.Config
 }
 
-func NewDatabaseProvider(ctx context.Context, cfg *config.Config) (*DatabaseProvider, error) {
+func NewStorageProvider(ctx context.Context, cfg *config.Config) (StorageProvider, error) {
 	pPool, err := pgxpool.New(ctx, GetConnectionStringFromConfig(cfg))
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
@@ -218,16 +218,4 @@ func (p *DatabaseProvider) GetSystemUser(ctx context.Context) (iss, sub string, 
 	}
 
 	return iss, sub, err
-}
-
-func (p *DatabaseProvider) Users() *UserQueries {
-	return NewUserQueries(p.pool)
-}
-
-func (p *DatabaseProvider) Certificates() *CertificateQueries {
-	return NewCertificateQueries(p.pool)
-}
-
-func (p *DatabaseProvider) Audit() *AuditQueries {
-	return NewAuditQueries(p.pool)
 }

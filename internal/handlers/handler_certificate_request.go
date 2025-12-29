@@ -73,7 +73,7 @@ func POSTCertificateRequest(ctx *middlewares.AppContext) {
 
 	requestStatus := string(models.StatusAwaitingReview)
 
-	certRequest, err := ctx.Storage.Certificates().CreateRequest(
+	certRequest, err := ctx.Storage.CreateCertificateRequest(
 		ctx,
 		user.Sub,
 		user.Iss,
@@ -104,7 +104,7 @@ func POSTCertificateRequest(ctx *middlewares.AppContext) {
 	)
 
 	if ctx.Config.Features.MTLSManagement.AutoApproveAdminRequests && slices.Contains(user.Groups, ctx.Config.Features.MTLSManagement.AdminGroup) {
-		err = ctx.Storage.Certificates().UpdateCertificateStatus(ctx, certRequest.ID, models.StatusApproved, ctx.Config.Server.ExternalURL, storage.SystemSub, "Auto Approved")
+		err = ctx.Storage.UpdateCertificateRequestStatus(ctx, certRequest.ID, models.StatusApproved, ctx.Config.Server.ExternalURL, storage.SystemSub, "Auto Approved")
 		if err != nil {
 			ctx.Logger.Error("failed to auto approve certificate request", "error", err)
 			ctx.SetJSONError(http.StatusInternalServerError, "Failed to auto approve certificate request")
@@ -113,7 +113,7 @@ func POSTCertificateRequest(ctx *middlewares.AppContext) {
 		ctx.Logger.Debug("request was auto-approved", "iss", user.Iss, "sub", user.Sub, "request_status", requestStatus)
 	}
 
-	updatedRequest, _ := ctx.Storage.Certificates().GetRequestByID(ctx, certRequest.ID)
+	updatedRequest, _ := ctx.Storage.GetCertificateRequestByID(ctx, certRequest.ID)
 	ctx.WriteJSON(http.StatusCreated, updatedRequest)
 }
 
@@ -125,7 +125,7 @@ func GETCertificateRequests(ctx *middlewares.AppContext) {
 		return
 	}
 
-	requests, err := ctx.Storage.Certificates().GetRequests(ctx)
+	requests, err := ctx.Storage.GetCertificateRequests(ctx)
 	if err != nil {
 		ctx.Logger.Error("failed to get certificate requests",
 			"error", err)
@@ -161,7 +161,7 @@ func GETCertificateRequest(ctx *middlewares.AppContext) {
 		return
 	}
 
-	requests, err := ctx.Storage.Certificates().GetRequestByID(ctx, requestId)
+	requests, err := ctx.Storage.GetCertificateRequestByID(ctx, requestId)
 	if err != nil {
 		ctx.Logger.Error("failed to get certificate requests",
 			"error", err)
@@ -225,7 +225,7 @@ func POSTCertificateReview(ctx *middlewares.AppContext) {
 		return
 	}
 
-	request, err := ctx.Storage.Certificates().GetRequestByID(ctx, requestId)
+	request, err := ctx.Storage.GetCertificateRequestByID(ctx, requestId)
 	if err != nil {
 		ctx.Logger.Error("failed to get certificate requests",
 			"error", err)
@@ -250,7 +250,7 @@ func POSTCertificateReview(ctx *middlewares.AppContext) {
 		return
 	}
 
-	err = ctx.Storage.Certificates().UpdateCertificateStatus(ctx, request.ID, review.NewStatus, user.Iss, user.Sub, review.ReviewNotes)
+	err = ctx.Storage.UpdateCertificateRequestStatus(ctx, request.ID, review.NewStatus, user.Iss, user.Sub, review.ReviewNotes)
 	if err != nil {
 		ctx.Logger.Error("failed to update certificate request status", "error", err)
 		ctx.SetJSONError(http.StatusInternalServerError, "Failed to update certificate request status")
@@ -263,7 +263,7 @@ func POSTCertificateReview(ctx *middlewares.AppContext) {
 		"new_status", review.NewStatus,
 	)
 
-	updatedRequest, _ := ctx.Storage.Certificates().GetRequestByID(ctx, requestId)
+	updatedRequest, _ := ctx.Storage.GetCertificateRequestByID(ctx, requestId)
 	ctx.WriteJSON(http.StatusOK, updatedRequest)
 }
 
@@ -275,7 +275,7 @@ func GETUserCertificateRequests(ctx *middlewares.AppContext) {
 		return
 	}
 
-	requests, err := ctx.Storage.Certificates().GetRequestsByUser(ctx, user.Sub, user.Iss)
+	requests, err := ctx.Storage.GetCertificateRequestsByUser(ctx, user.Sub, user.Iss)
 	if err != nil {
 		ctx.Logger.Error("failed to get certificate requests",
 			"error", err)

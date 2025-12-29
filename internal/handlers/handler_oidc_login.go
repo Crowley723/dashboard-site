@@ -8,7 +8,7 @@ import (
 
 func GETLoginHandler(ctx *middlewares.AppContext) {
 	if ctx.SessionManager.IsAuthenticated(ctx) {
-		ctx.Logger.Info("User already authenticated")
+		ctx.Logger.Debug("User already authenticated")
 		ctx.SetJSONStatus(http.StatusOK, "ok")
 		return
 	}

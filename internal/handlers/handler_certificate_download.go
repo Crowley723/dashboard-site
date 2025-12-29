@@ -66,7 +66,7 @@ func POSTCertificateUnlock(ctx *middlewares.AppContext) {
 		return
 	}
 
-	request, err := ctx.Storage.Certificates().GetRequestByID(ctx, certificateId)
+	request, err := ctx.Storage.GetCertificateRequestByID(ctx, certificateId)
 	if err != nil {
 		if errors.Is(err, storage.CertificateRequestNotFoundError) {
 			ctx.SetJSONError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
@@ -180,7 +180,7 @@ func GETCertificateDownload(ctx *middlewares.AppContext) {
 		return
 	}
 
-	request, err := ctx.Storage.Certificates().GetRequestByID(ctx, certificateId)
+	request, err := ctx.Storage.GetCertificateRequestByID(ctx, certificateId)
 	if err != nil {
 		if errors.Is(err, storage.CertificateRequestNotFoundError) {
 			ctx.SetJSONError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
@@ -221,7 +221,7 @@ func GETCertificateDownload(ctx *middlewares.AppContext) {
 		ctx.SetJSONError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 		return
 	}
-	_, err = ctx.Storage.Audit().LogDownload(ctx, certificateId, user.Sub, user.Iss, host, ctx.Request.UserAgent(), *uasurfer.Parse(ctx.Request.UserAgent()))
+	_, err = ctx.Storage.InsertAuditLogCertificateDownload(ctx, certificateId, user.Sub, user.Iss, host, ctx.Request.UserAgent(), *uasurfer.Parse(ctx.Request.UserAgent()))
 	if err != nil {
 		ctx.Logger.Error("failed to insert download audit log", "error", err)
 		ctx.SetJSONError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))

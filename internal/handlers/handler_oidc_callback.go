@@ -54,7 +54,7 @@ func GETCallbackHandler(ctx *middlewares.AppContext) {
 		"email", RedactEmail(user.Email),
 	)
 
-	resultUser, err := ctx.Storage.Users().Upsert(ctx, user.Sub, user.Iss, user.Username, user.DisplayName, user.Email, user.Groups)
+	resultUser, err := ctx.Storage.UpsertUser(ctx, user.Sub, user.Iss, user.Username, user.DisplayName, user.Email, user.Groups)
 	if err != nil {
 		ctx.Logger.Error("Failed to upsert user to database",
 			"err", err,
@@ -85,6 +85,12 @@ func GETCallbackHandler(ctx *middlewares.AppContext) {
 		ctx.Redirect(errorURL, http.StatusFound)
 		return
 	}
+
+	ctx.Logger.Debug("User successfully authenticated",
+		"user_id", user.Sub,
+		"username", user.Username,
+		"email", user.Email,
+	)
 
 	redirectTo := ctx.SessionManager.GetRedirectAfterLogin(ctx)
 	if redirectTo != "" {

@@ -9,24 +9,15 @@ import (
 
 	"github.com/avct/uasurfer"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type AuditQueries struct {
-	pool *pgxpool.Pool
-}
-
-func NewAuditQueries(pool *pgxpool.Pool) *AuditQueries {
-	return &AuditQueries{pool: pool}
-}
-
-func (a *AuditQueries) LogDownload(ctx context.Context, certId int, sub, iss, ipAddress, rawUserAgent string, userAgent uasurfer.UserAgent) (*models.CertificateDownload, error) {
+func (p *DatabaseProvider) InsertAuditLogCertificateDownload(ctx context.Context, certId int, sub, iss, ipAddress, rawUserAgent string, userAgent uasurfer.UserAgent) (*models.CertificateDownload, error) {
 	query := `
 		INSERT INTO certificate_downloads (certificate_request_id, downloader_sub, downloader_iss, ip_address, user_agent, browser_name, browser_version, os_name, os_version, device_type, downloaded_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP)
 	`
 
-	result, err := a.pool.Exec(ctx, query,
+	result, err := p.pool.Exec(ctx, query,
 		certId, sub, iss, ipAddress, rawUserAgent,
 		userAgent.Browser.Name.String(),
 		utils.UserAgentVersionToString(userAgent.Browser.Version),
@@ -45,11 +36,11 @@ func (a *AuditQueries) LogDownload(ctx context.Context, certId int, sub, iss, ip
 		return nil, fmt.Errorf("failed to insert download log: multiple rows inserted")
 	}
 
-	return a.GetByID(ctx, certId)
+	return p.GetCertificateDownloadAuditLogByID(ctx, certId)
 }
 
-// GetByID returns a single download log entry by its ID
-func (a *AuditQueries) GetByID(ctx context.Context, id int) (*models.CertificateDownload, error) {
+// GetCertificateDownloadAuditLogByID returns a single download log entry by its ID
+func (p *DatabaseProvider) GetCertificateDownloadAuditLogByID(ctx context.Context, id int) (*models.CertificateDownload, error) {
 	query := `
         SELECT id, certificate_request_id, downloader_sub, downloader_iss, ip_address, user_agent,
                browser_name, browser_version, os_name, os_version, device_type, downloaded_at
@@ -58,7 +49,7 @@ func (a *AuditQueries) GetByID(ctx context.Context, id int) (*models.Certificate
     `
 
 	var d models.CertificateDownload
-	err := a.pool.QueryRow(ctx, query, id).Scan(
+	err := p.pool.QueryRow(ctx, query, id).Scan(
 		&d.ID,
 		&d.CertificateRequestID,
 		&d.Sub,
@@ -83,7 +74,7 @@ func (a *AuditQueries) GetByID(ctx context.Context, id int) (*models.Certificate
 	return &d, nil
 }
 
-func (a *AuditQueries) GetRecent(ctx context.Context, limit int) ([]models.CertificateDownload, error) {
+func (p *DatabaseProvider) GetRecentCertificateDownloadLogs(ctx context.Context, limit int) ([]models.CertificateDownload, error) {
 	query := `
         SELECT id, certificate_request_id, sub, iss, ip_address, user_agent,
                browser_name, browser_version, os_name, os_version, device_type, downloaded_at
@@ -92,7 +83,7 @@ func (a *AuditQueries) GetRecent(ctx context.Context, limit int) ([]models.Certi
         LIMIT $1
     `
 
-	rows, err := a.pool.Query(ctx, query, limit)
+	rows, err := p.pool.Query(ctx, query, limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query recent download logs: %w", err)
 	}

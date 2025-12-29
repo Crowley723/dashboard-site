@@ -30,7 +30,7 @@ func TestGetLoginHandler_ShouldReturnRedirectURL(t *testing.T) {
 	tc.AssertContentType(t, "application/json")
 	tc.AssertJSONField(t, "status", "redirect_required")
 	tc.AssertJSONField(t, "redirect_url", expectedRedirectURL)
-	tc.AssertLogsContainMessage(t, slog.LevelInfo, "Redirecting to OIDC Provider")
+	tc.AssertLogsContainMessage(t, slog.LevelDebug, "Redirecting to OIDC Provider")
 }
 
 func TestGetLoginHandler_ShouldRedirectAlreadyAuthenticatedUser(t *testing.T) {
@@ -44,7 +44,7 @@ func TestGetLoginHandler_ShouldRedirectAlreadyAuthenticatedUser(t *testing.T) {
 	tc.AssertStatus(t, http.StatusOK)
 	tc.AssertContentType(t, "application/json")
 	tc.AssertJSONField(t, "status", "ok")
-	tc.AssertLogsContainMessage(t, slog.LevelInfo, "User already authenticated")
+	tc.AssertLogsContainMessage(t, slog.LevelDebug, "User already authenticated")
 
 }
 
@@ -65,7 +65,7 @@ func TestGetLoginHandler_ShouldRedirectWithReferrer(t *testing.T) {
 	tc.AssertContentType(t, "application/json")
 	tc.AssertJSONField(t, "status", "redirect_required")
 	tc.AssertJSONField(t, "redirect_url", expectedRedirectURL)
-	tc.AssertLogsContainMessage(t, slog.LevelInfo, "Redirecting to OIDC Provider")
+	tc.AssertLogsContainMessage(t, slog.LevelDebug, "Redirecting to OIDC Provider")
 }
 
 func TestGetLoginHandler_ShouldErrorOnStartLoginError(t *testing.T) {

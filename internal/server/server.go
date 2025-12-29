@@ -103,9 +103,9 @@ func New(cfg *config.Config) (*Server, error) {
 		}
 	}
 
-	var database *storage.DatabaseProvider
+	var database storage.StorageProvider
 	if cfg.Storage.Enabled == true {
-		dbProvider, err := storage.NewDatabaseProvider(ctx, cfg)
+		dbProvider, err := storage.NewStorageProvider(ctx, cfg)
 		if err != nil {
 			logger.Error("failed to initialize database provider", "error", err)
 			cancel()

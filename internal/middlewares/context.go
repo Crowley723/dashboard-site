@@ -18,7 +18,7 @@ type AppContext struct {
 	SessionManager   SessionProvider
 	OIDCProvider     OIDCProvider
 	Cache            data.CacheProvider
-	Storage          *storage.DatabaseProvider
+	Storage          storage.StorageProvider
 	KubernetesClient *k8s.Client
 
 	Request  *http.Request
@@ -84,7 +84,7 @@ func (ctx *AppContext) Redirect(url string, status int) {
 	http.Redirect(ctx.Response, ctx.Request, url, status)
 }
 
-func NewAppContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, cache data.CacheProvider, sessionManager SessionProvider, oidcProvider OIDCProvider, database *storage.DatabaseProvider, kubernetesClient *k8s.Client) *AppContext {
+func NewAppContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, cache data.CacheProvider, sessionManager SessionProvider, oidcProvider OIDCProvider, storage storage.StorageProvider, kubernetesClient *k8s.Client) *AppContext {
 	return &AppContext{
 		Context:          ctx,
 		Config:           cfg,
@@ -92,7 +92,7 @@ func NewAppContext(ctx context.Context, cfg *config.Config, logger *slog.Logger,
 		SessionManager:   sessionManager,
 		OIDCProvider:     oidcProvider,
 		Cache:            cache,
-		Storage:          database,
+		Storage:          storage,
 		KubernetesClient: kubernetesClient,
 	}
 }

@@ -114,7 +114,7 @@ func BenchmarkIsStringInSlice(b *testing.B) {
 
 // Test with a larger slice
 func BenchmarkIsStringInSliceLarge(b *testing.B) {
-	// Create a larger haystack
+	// CreateUser a larger haystack
 	haystack := make([]string, 1000)
 	for i := 0; i < 1000; i++ {
 		haystack[i] = fmt.Sprintf("item_%d", i)

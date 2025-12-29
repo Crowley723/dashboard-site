@@ -8,19 +8,10 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type CertificateQueries struct {
-	pool *pgxpool.Pool
-}
-
-func NewCertificateQueries(pool *pgxpool.Pool) *CertificateQueries {
-	return &CertificateQueries{pool: pool}
-}
-
-// CreateRequest adds a certificate request to the database.
-func (q *CertificateQueries) CreateRequest(ctx context.Context, sub, iss, commonName, status, message string, dnsNames, organizationalUnits []string, validityDays int) (*models.CertificateRequest, error) {
+// CreateCertificateRequest adds a certificate request to the database.
+func (p *DatabaseProvider) CreateCertificateRequest(ctx context.Context, sub, iss, commonName, status, message string, dnsNames, organizationalUnits []string, validityDays int) (*models.CertificateRequest, error) {
 	query := `
 		INSERT INTO certificate_requests (owner_sub, owner_iss, common_name, status, message, dns_names, organizational_units, validity_days)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -28,7 +19,7 @@ func (q *CertificateQueries) CreateRequest(ctx context.Context, sub, iss, common
 	`
 
 	var requestID int
-	err := q.pool.QueryRow(ctx, query,
+	err := p.pool.QueryRow(ctx, query,
 		sub, iss, commonName, status, message,
 		dnsNames, organizationalUnits, validityDays,
 	).Scan(&requestID)
@@ -37,10 +28,10 @@ func (q *CertificateQueries) CreateRequest(ctx context.Context, sub, iss, common
 		return nil, fmt.Errorf("failed to create certificate request: %w", err)
 	}
 
-	return q.GetRequestByID(ctx, requestID)
+	return p.GetCertificateRequestByID(ctx, requestID)
 }
 
-func (q *CertificateQueries) GetRequestByID(ctx context.Context, id int) (*models.CertificateRequest, error) {
+func (p *DatabaseProvider) GetCertificateRequestByID(ctx context.Context, id int) (*models.CertificateRequest, error) {
 	query := `
 		SELECT id, owner_iss, owner_sub, message, common_name, dns_names, organizational_units, validity_days, status, requested_at, k8s_certificate_name, k8s_namespace, k8s_secret_name, issued_at, expires_at, serial_number, certificate_pem
 		FROM certificate_requests
@@ -54,7 +45,7 @@ func (q *CertificateQueries) GetRequestByID(ctx context.Context, id int) (*model
 		`
 
 	var certificateRequest models.CertificateRequest
-	err := q.pool.QueryRow(ctx, query, id).Scan(
+	err := p.pool.QueryRow(ctx, query, id).Scan(
 		&certificateRequest.ID,
 		&certificateRequest.OwnerIss,
 		&certificateRequest.OwnerSub,
@@ -81,7 +72,7 @@ func (q *CertificateQueries) GetRequestByID(ctx context.Context, id int) (*model
 		return nil, fmt.Errorf("failed to get certificate request by id: %w", err)
 	}
 
-	rows, err := q.pool.Query(ctx, eventsQuery, id)
+	rows, err := p.pool.Query(ctx, eventsQuery, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get events for certificate request '%d': %w", id, err)
 	}
@@ -118,7 +109,7 @@ func (q *CertificateQueries) GetRequestByID(ctx context.Context, id int) (*model
 	return &certificateRequest, nil
 }
 
-func (q *CertificateQueries) GetRequests(ctx context.Context) ([]*models.CertificateRequest, error) {
+func (p *DatabaseProvider) GetCertificateRequests(ctx context.Context) ([]*models.CertificateRequest, error) {
 	query := `
        SELECT id, owner_iss, owner_sub, message, common_name, dns_names, organizational_units, validity_days, status, requested_at, k8s_certificate_name, k8s_namespace, k8s_secret_name, issued_at, expires_at, serial_number, certificate_pem
        FROM certificate_requests
@@ -132,7 +123,7 @@ func (q *CertificateQueries) GetRequests(ctx context.Context) ([]*models.Certifi
        ORDER BY certificate_request_id, created_at
     `
 
-	rows, err := q.pool.Query(ctx, query)
+	rows, err := p.pool.Query(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get certificate requests: %w", err)
 	}
@@ -178,13 +169,13 @@ func (q *CertificateQueries) GetRequests(ctx context.Context) ([]*models.Certifi
 	}
 
 	// Fetch all events for all requests in one query
-	eventRows, err := q.pool.Query(ctx, eventsQuery, requestIDs)
+	eventRows, err := p.pool.Query(ctx, eventsQuery, requestIDs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get events for certificate requests: %w", err)
 	}
 	defer eventRows.Close()
 
-	// Create a map for quick lookup
+	// CreateUser a map for quick lookup
 	requestMap := make(map[int]*models.CertificateRequest)
 	for _, req := range requests {
 		requestMap[req.ID] = req
@@ -218,7 +209,7 @@ func (q *CertificateQueries) GetRequests(ctx context.Context) ([]*models.Certifi
 	return requests, nil
 }
 
-func (q *CertificateQueries) GetRequestsByUser(ctx context.Context, sub, iss string) ([]*models.CertificateRequest, error) {
+func (p *DatabaseProvider) GetCertificateRequestsByUser(ctx context.Context, sub, iss string) ([]*models.CertificateRequest, error) {
 	query := `
        SELECT
 			cr.id, cr.owner_iss, cr.owner_sub, cr.message, cr.common_name,
@@ -250,7 +241,7 @@ func (q *CertificateQueries) GetRequestsByUser(ctx context.Context, sub, iss str
 		ORDER BY ce.certificate_request_id, ce.created_at
     `
 
-	rows, err := q.pool.Query(ctx, query, sub, iss)
+	rows, err := p.pool.Query(ctx, query, sub, iss)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get certificate requests for user '%s/%s': %w", iss, sub, err)
 	}
@@ -298,13 +289,13 @@ func (q *CertificateQueries) GetRequestsByUser(ctx context.Context, sub, iss str
 	}
 
 	// Fetch all events for all requests in one query
-	eventRows, err := q.pool.Query(ctx, eventsQuery, requestIDs)
+	eventRows, err := p.pool.Query(ctx, eventsQuery, requestIDs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get events for certificate requests: %w", err)
 	}
 	defer eventRows.Close()
 
-	// Create a map for quick lookup
+	// CreateUser a map for quick lookup
 	requestMap := make(map[int]*models.CertificateRequest)
 	for _, req := range requests {
 		requestMap[req.ID] = req
@@ -342,7 +333,7 @@ func (q *CertificateQueries) GetRequestsByUser(ctx context.Context, sub, iss str
 	return requests, nil
 }
 
-func (q *CertificateQueries) GetRequestsPaginated(ctx context.Context, params models.PaginationParams) (*models.PaginatedCertResult, error) {
+func (p *DatabaseProvider) GetCertificateRequestsPaginated(ctx context.Context, params models.PaginationParams) (*models.PaginatedCertResult, error) {
 	// Set default limit if not provided
 	if params.Limit <= 0 {
 		params.Limit = 20
@@ -358,7 +349,7 @@ func (q *CertificateQueries) GetRequestsPaginated(ctx context.Context, params mo
 	// Get total count
 	countQuery := `SELECT COUNT(*) FROM certificate_requests`
 	var total int
-	if err := q.pool.QueryRow(ctx, countQuery).Scan(&total); err != nil {
+	if err := p.pool.QueryRow(ctx, countQuery).Scan(&total); err != nil {
 		return nil, fmt.Errorf("failed to get total count: %w", err)
 	}
 
@@ -370,7 +361,7 @@ func (q *CertificateQueries) GetRequestsPaginated(ctx context.Context, params mo
        LIMIT $1 OFFSET $2
     `
 
-	rows, err := q.pool.Query(ctx, query, params.Limit, params.Offset)
+	rows, err := p.pool.Query(ctx, query, params.Limit, params.Offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get certificate requests: %w", err)
 	}
@@ -431,13 +422,13 @@ func (q *CertificateQueries) GetRequestsPaginated(ctx context.Context, params mo
        ORDER BY certificate_request_id, created_at
     `
 
-	eventRows, err := q.pool.Query(ctx, eventsQuery, requestIDs)
+	eventRows, err := p.pool.Query(ctx, eventsQuery, requestIDs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get events for certificate requests: %w", err)
 	}
 	defer eventRows.Close()
 
-	// Create a map for quick lookup
+	// CreateUser a map for quick lookup
 	requestMap := make(map[int]*models.CertificateRequest)
 	for _, req := range requests {
 		requestMap[req.ID] = req
@@ -471,8 +462,8 @@ func (q *CertificateQueries) GetRequestsPaginated(ctx context.Context, params mo
 	return result, nil
 }
 
-func (q *CertificateQueries) UpdateCertificateStatus(ctx context.Context, requestId int, newStatus models.CertificateRequestStatus, reviewerIss, reviewerSub, notes string) error {
-	tx, err := q.pool.Begin(ctx)
+func (p *DatabaseProvider) UpdateCertificateRequestStatus(ctx context.Context, requestId int, newStatus models.CertificateRequestStatus, reviewerIss, reviewerSub, notes string) error {
+	tx, err := p.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("transaction start failed: %w", err)
 	}
@@ -517,7 +508,7 @@ func (q *CertificateQueries) UpdateCertificateStatus(ctx context.Context, reques
 }
 
 // UpdateCertificateK8sMetadata updates the Kubernetes resource metadata for a certificate request
-func (q *CertificateQueries) UpdateCertificateK8sMetadata(ctx context.Context, requestID int, certName, namespace, secretName string) error {
+func (p *DatabaseProvider) UpdateCertificateK8sMetadata(ctx context.Context, requestID int, certName, namespace, secretName string) error {
 	query := `
 		UPDATE certificate_requests
 		SET k8s_certificate_name = $1,
@@ -526,7 +517,7 @@ func (q *CertificateQueries) UpdateCertificateK8sMetadata(ctx context.Context, r
 		WHERE id = $4
 	`
 
-	result, err := q.pool.Exec(ctx, query, certName, namespace, secretName, requestID)
+	result, err := p.pool.Exec(ctx, query, certName, namespace, secretName, requestID)
 	if err != nil {
 		return fmt.Errorf("failed to update k8s metadata for request %d: %w", requestID, err)
 	}
@@ -538,8 +529,8 @@ func (q *CertificateQueries) UpdateCertificateK8sMetadata(ctx context.Context, r
 	return nil
 }
 
-// GetApprovedRequests returns all certificate requests with status = APPROVED
-func (q *CertificateQueries) GetApprovedRequests(ctx context.Context) ([]*models.CertificateRequest, error) {
+// GetApprovedCertificateRequests returns all certificate requests with status = APPROVED
+func (p *DatabaseProvider) GetApprovedCertificateRequests(ctx context.Context) ([]*models.CertificateRequest, error) {
 	query := `
 		SELECT id, owner_iss, owner_sub, message, common_name, dns_names, organizational_units, validity_days, status, requested_at, k8s_certificate_name, k8s_namespace, k8s_secret_name, issued_at, expires_at, serial_number, certificate_pem
 		FROM certificate_requests
@@ -547,7 +538,7 @@ func (q *CertificateQueries) GetApprovedRequests(ctx context.Context) ([]*models
 		ORDER BY requested_at ASC
 	`
 
-	rows, err := q.pool.Query(ctx, query, models.StatusApproved)
+	rows, err := p.pool.Query(ctx, query, models.StatusApproved)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get approved requests: %w", err)
 	}
@@ -587,8 +578,8 @@ func (q *CertificateQueries) GetApprovedRequests(ctx context.Context) ([]*models
 	return requests, nil
 }
 
-// GetPendingRequests returns all certificate requests with status = PENDING (awaiting K8s Certificate to be ready)
-func (q *CertificateQueries) GetPendingRequests(ctx context.Context) ([]*models.CertificateRequest, error) {
+// GetPendingCertificateRequests returns all certificate requests with status = PENDING (awaiting K8s Certificate to be ready)
+func (p *DatabaseProvider) GetPendingCertificateRequests(ctx context.Context) ([]*models.CertificateRequest, error) {
 	query := `
 		SELECT id, owner_iss, owner_sub, message, common_name, dns_names, organizational_units, validity_days, status, requested_at, k8s_certificate_name, k8s_namespace, k8s_secret_name, issued_at, expires_at, serial_number, certificate_pem
 		FROM certificate_requests
@@ -596,7 +587,7 @@ func (q *CertificateQueries) GetPendingRequests(ctx context.Context) ([]*models.
 		ORDER BY requested_at ASC
 	`
 
-	rows, err := q.pool.Query(ctx, query, models.StatusPending)
+	rows, err := p.pool.Query(ctx, query, models.StatusPending)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pending requests: %w", err)
 	}
@@ -636,9 +627,9 @@ func (q *CertificateQueries) GetPendingRequests(ctx context.Context) ([]*models.
 	return requests, nil
 }
 
-// UpdateCertificateIssued updates a certificate request to ISSUED status with the certificate details
-func (q *CertificateQueries) UpdateCertificateIssued(ctx context.Context, requestID int, certPEM, serialNumber string, issuedAt, expiresAt time.Time, systemUserIss, systemUserSub string) error {
-	tx, err := q.pool.Begin(ctx)
+// UpdateCertificateRequestIssued updates a certificate request to ISSUED status with the certificate details
+func (p *DatabaseProvider) UpdateCertificateRequestIssued(ctx context.Context, requestID int, certPEM, serialNumber string, issuedAt, expiresAt time.Time, systemUserIss, systemUserSub string) error {
+	tx, err := p.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("transaction start failed: %w", err)
 	}

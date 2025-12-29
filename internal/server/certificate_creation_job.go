@@ -80,7 +80,7 @@ func (j *CertificateCreationJob) Run(ctx context.Context) error {
 }
 
 func getApprovedCertificates(ctx *middlewares.AppContext) ([]*models.CertificateRequest, error) {
-	certs, err := ctx.Storage.Certificates().GetApprovedRequests(ctx)
+	certs, err := ctx.Storage.GetApprovedCertificateRequests(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +101,7 @@ func handleApprovedCertificates(ctx *middlewares.AppContext, certs []*models.Cer
 		}
 
 		// Mark it as pending
-		err = ctx.Storage.Certificates().UpdateCertificateStatus(
+		err = ctx.Storage.UpdateCertificateRequestStatus(
 			ctx,
 			cert.ID,
 			models.StatusPending,
@@ -126,7 +126,7 @@ func handleApprovedCertificates(ctx *middlewares.AppContext, certs []*models.Cer
 				if err != nil {
 					ctx.Logger.Error("error creating certificate from request", "error", err, "request_id", cert.ID)
 					// Rollback: mark as APPROVED again so it can be retried later
-					rollbackErr := ctx.Storage.Certificates().UpdateCertificateStatus(
+					rollbackErr := ctx.Storage.UpdateCertificateRequestStatus(
 						ctx,
 						cert.ID,
 						models.StatusApproved,
@@ -148,7 +148,7 @@ func handleApprovedCertificates(ctx *middlewares.AppContext, certs []*models.Cer
 			createdCert = existingCert
 		}
 
-		err = ctx.Storage.Certificates().UpdateCertificateK8sMetadata(
+		err = ctx.Storage.UpdateCertificateK8sMetadata(
 			ctx,
 			cert.ID,
 			createdCert.Name,

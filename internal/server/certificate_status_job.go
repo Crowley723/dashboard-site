@@ -79,7 +79,7 @@ func (j *CertificateIssuedStatusJob) Run(ctx context.Context) error {
 }
 
 func getIssuedCertificates(ctx *middlewares.AppContext) ([]*models.CertificateRequest, error) {
-	certs, err := ctx.Storage.Certificates().GetPendingRequests(ctx)
+	certs, err := ctx.Storage.GetPendingCertificateRequests(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func handleIssuedCertificates(ctx *middlewares.AppContext, certs []*models.Certi
 				continue
 			}
 
-			err = ctx.Storage.Certificates().UpdateCertificateIssued(ctx, cert.ID, string(certPEM), certDetails.SerialNumber, certDetails.NotBefore, certDetails.NotAfter, systemIss, systemSub)
+			err = ctx.Storage.UpdateCertificateRequestIssued(ctx, cert.ID, string(certPEM), certDetails.SerialNumber, certDetails.NotBefore, certDetails.NotAfter, systemIss, systemSub)
 			if err != nil {
 				ctx.Logger.Error("unable to update certificate status", "error", err, "request_id", cert.ID)
 				continue

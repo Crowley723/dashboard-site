@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"strconv"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -41,17 +42,23 @@ func LoadConfig() (*Config, error) {
 }
 
 var (
-	EnvOIDCClientID          = "DASHBOARD_OIDC_CLIENT_ID"
-	EnvOIDCClientSecret      = "DASHBOARD_OIDC_CLIENT_SECRET"
-	EnvOIDCIssuerURL         = "DASHBOARD_OIDC_ISSUER_URL"
-	EnvOIDCRedirectURL       = "DASHBOARD_OIDC_REDIRECT_URL"
-	EnvDataPrometheusURL     = "DASHBOARD_DATA_PROMETHEUS_URL"
-	EnvDataBasicAuthUsername = "DASHBOARD_DATA_BASIC_AUTH_USERNAME"
-	EnvDataBasicAuthPassword = "DASHBOARD_DATA_BASIC_AUTH_PASSWORD"
-	EnvRedisPassword         = "DASHBOARD_REDIS_PASSWORD"
-	EnvRedisUsername         = "DASHBOARD_REDIS_USERNAME"
-	EnvRedisSentinelUsername = "DASHBOARD_REDIS_SENTINEL_USERNAME"
-	EnvRedisSentinelPassword = "DASHBOARD_REDIS_SENTINEL_PASSWORD"
+	EnvOIDCClientID             = "DASHBOARD_OIDC_CLIENT_ID"
+	EnvOIDCClientSecret         = "DASHBOARD_OIDC_CLIENT_SECRET"
+	EnvOIDCIssuerURL            = "DASHBOARD_OIDC_ISSUER_URL"
+	EnvOIDCRedirectURL          = "DASHBOARD_OIDC_REDIRECT_URL"
+	EnvDataPrometheusURL        = "DASHBOARD_DATA_PROMETHEUS_URL"
+	EnvDataBasicAuthUsername    = "DASHBOARD_DATA_BASIC_AUTH_USERNAME"
+	EnvDataBasicAuthPassword    = "DASHBOARD_DATA_BASIC_AUTH_PASSWORD"
+	EnvRedisPassword            = "DASHBOARD_REDIS_PASSWORD"
+	EnvRedisUsername            = "DASHBOARD_REDIS_USERNAME"
+	EnvRedisSentinelUsername    = "DASHBOARD_REDIS_SENTINEL_USERNAME"
+	EnvRedisSentinelPassword    = "DASHBOARD_REDIS_SENTINEL_PASSWORD"
+	EnvMTLSDownloadTokenHMACKey = "DASHBOARD_MTLS_DOWNLOAD_TOKEN_HMAC_KEY"
+	EnvStorageHost              = "DASHBOARD_STORAGE_HOST"
+	EnvStoragePort              = "DASHBOARD_STORAGE_PORT"
+	EnvStorageUsername          = "DASHBOARD_STORAGE_USERNAME"
+	EnvStoragePassword          = "DASHBOARD_STORAGE_PASSWORD"
+	EnvStorageDatabase          = "DASHBOARD_STORAGE_DATABASE"
 )
 
 func applyEnvironmentOverrides(config *Config) {
@@ -121,6 +128,50 @@ func applyEnvironmentOverrides(config *Config) {
 			config.Redis.Sentinel = &RedisSentinelConfig{}
 		}
 		config.Redis.Sentinel.SentinelPassword = sentinelPassword
+	}
+
+	if hmacKey := os.Getenv(EnvMTLSDownloadTokenHMACKey); hmacKey != "" {
+		if config.Features == nil {
+			config.Features = &FeaturesConfig{}
+		}
+		config.Features.MTLSManagement.DownloadTokenHMACKey = hmacKey
+	}
+
+	if host := os.Getenv(EnvStorageHost); host != "" {
+		if config.Storage == nil {
+			config.Storage = &StorageConfig{}
+		}
+		config.Storage.Host = host
+	}
+
+	if portStr := os.Getenv(EnvStoragePort); portStr != "" {
+		if config.Storage == nil {
+			config.Storage = &StorageConfig{}
+		}
+		if port, err := strconv.Atoi(portStr); err == nil {
+			config.Storage.Port = port
+		}
+	}
+
+	if username := os.Getenv(EnvStorageUsername); username != "" {
+		if config.Storage == nil {
+			config.Storage = &StorageConfig{}
+		}
+		config.Storage.Username = username
+	}
+
+	if password := os.Getenv(EnvStoragePassword); password != "" {
+		if config.Storage == nil {
+			config.Storage = &StorageConfig{}
+		}
+		config.Storage.Password = password
+	}
+
+	if database := os.Getenv(EnvStorageDatabase); database != "" {
+		if config.Storage == nil {
+			config.Storage = &StorageConfig{}
+		}
+		config.Storage.Database = database
 	}
 }
 

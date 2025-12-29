@@ -55,7 +55,6 @@ func setupRouter(ctx *middlewares.AppContext) *chi.Mux {
 			r.Get("/login", ctx.HandlerFunc(handlers.GETLoginHandler))
 			r.Get("/callback", ctx.HandlerFunc(handlers.GETCallbackHandler))
 			r.Post("/logout", ctx.HandlerFunc(handlers.POSTLogoutHandler))
-			r.Get("/logout", ctx.HandlerFunc(handlers.POSTLogoutHandler)) //TODO: Remove this
 		})
 
 		r.Route("/certificates", func(r chi.Router) {
@@ -64,6 +63,8 @@ func setupRouter(ctx *middlewares.AppContext) *chi.Mux {
 				r.Post("/request", ctx.HandlerFunc(handlers.POSTCertificateRequest))
 				r.Get("/my-requests", ctx.HandlerFunc(handlers.GETUserCertificateRequests))
 				r.Get("/request/{id}", ctx.HandlerFunc(handlers.GETCertificateRequest))
+				r.Get("/{id}/download", ctx.HandlerFunc(handlers.GETCertificateDownload))
+				r.Post("/{id}/unlock", ctx.HandlerFunc(handlers.POSTCertificateUnlock))
 			})
 
 			r.Group(func(r chi.Router) {

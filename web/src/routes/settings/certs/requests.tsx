@@ -21,7 +21,9 @@ import { useMyCertificateRequests } from '@/api/Certificates';
 import type { CertificateRequestStatus } from '@/types/Certificates';
 import { UserDisplay } from '@/components/UserDisplay.tsx';
 import { RequestCertificateDialog } from '@/components/RequestCertificateDialog.tsx';
+import { DownloadCertificateDialog } from '@/components/DownloadCertificateDialog.tsx';
 import { getRelativeTimeString } from '@/hooks/RelativeTimeString.tsx';
+import { RefreshCw, Check } from 'lucide-react';
 
 export const Route = createFileRoute('/settings/certs/requests')({
   component: RouteComponent,
@@ -41,10 +43,43 @@ function RouteComponent() {
     isLoading,
     isError,
     error,
+    refetch,
   } = useMyCertificateRequests();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
+  const [selectedCertificateId, setSelectedCertificateId] = useState<
+    number | null
+  >(null);
+  const [lastManualRefresh, setLastManualRefresh] = useState<number>(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
-  // Authorization check - only MTLS users can access this page
+  const handleManualRefresh = async () => {
+    const now = Date.now();
+    const timeSinceLastRefresh = now - lastManualRefresh;
+
+    setIsRefreshing(true);
+    setShowSuccess(false);
+
+    if (timeSinceLastRefresh < 10000) {
+      setTimeout(() => {
+        setIsRefreshing(false);
+      }, 1500);
+      return;
+    }
+
+    setLastManualRefresh(now);
+    await refetch();
+
+    setTimeout(() => {
+      setIsRefreshing(false);
+      setShowSuccess(true);
+      setTimeout(() => {
+        setShowSuccess(false);
+      }, 2000);
+    }, 1500);
+  };
+
   if (authLoading) {
     return (
       <div className="container mx-auto p-6 max-w-6xl">
@@ -60,15 +95,21 @@ function RouteComponent() {
   const getStatusBadge = (status: CertificateRequestStatus) => {
     const variants: Record<
       CertificateRequestStatus,
-      'default' | 'outline' | 'secondary' | 'destructive'
+      | 'default'
+      | 'outline'
+      | 'secondary'
+      | 'destructive'
+      | 'warning'
+      | 'success'
+      | 'info'
     > = {
-      awaiting_review: 'outline',
-      approved: 'default',
-      rejected: 'destructive',
-      pending: 'outline',
-      issued: 'default',
-      failed: 'destructive',
-      completed: 'secondary',
+      awaiting_review: 'warning', // Yellow
+      approved: 'info', // Blue
+      rejected: 'destructive', // Red
+      pending: 'secondary', // Gray
+      issued: 'success', // Green
+      failed: 'destructive', // Red
+      completed: 'secondary', // Gray
     };
 
     const labels: Record<CertificateRequestStatus, string> = {
@@ -128,12 +169,27 @@ function RouteComponent() {
             View your certificate requests and submit new ones
           </p>
         </div>
-        <RequestCertificateDialog
-          open={dialogOpen}
-          onOpenChange={setDialogOpen}
-        >
-          <Button>Request Certificate</Button>
-        </RequestCertificateDialog>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleManualRefresh}
+            disabled={isRefreshing}
+            className={showSuccess ? 'text-green-600' : ''}
+          >
+            {showSuccess ? (
+              <Check />
+            ) : (
+              <RefreshCw className={isRefreshing ? 'animate-spin' : ''} />
+            )}
+          </Button>
+          <RequestCertificateDialog
+            open={dialogOpen}
+            onOpenChange={setDialogOpen}
+          >
+            <Button>Request Certificate</Button>
+          </RequestCertificateDialog>
+        </div>
       </div>
 
       <Accordion type="single" collapsible className="space-y-4">
@@ -303,7 +359,14 @@ function RouteComponent() {
 
                   <div className="flex gap-2 pt-2">
                     {request.status === 'issued' && (
-                      <Button>Download Certificate</Button>
+                      <Button
+                        onClick={() => {
+                          setSelectedCertificateId(request.id);
+                          setDownloadDialogOpen(true);
+                        }}
+                      >
+                        Download Certificate
+                      </Button>
                     )}
                     {request.status === 'awaiting_review' && (
                       <Button variant="outline" disabled>
@@ -330,6 +393,14 @@ function RouteComponent() {
             Request Your First Certificate
           </Button>
         </div>
+      )}
+
+      {selectedCertificateId && (
+        <DownloadCertificateDialog
+          certificateId={selectedCertificateId}
+          open={downloadDialogOpen}
+          onOpenChange={setDownloadDialogOpen}
+        />
       )}
     </div>
   );

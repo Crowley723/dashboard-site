@@ -21,6 +21,7 @@ import {
 import { useMyCertificateRequests } from '@/api/Certificates';
 import type { CertificateRequestStatus } from '@/types/Certificates';
 import { UserDisplay } from '@/components/UserDisplay.tsx';
+import { DownloadCertificateDialog } from '@/components/DownloadCertificateDialog.tsx';
 
 export const Route = createFileRoute('/settings/certs/')({
   component: RouteComponent,
@@ -43,6 +44,10 @@ function RouteComponent() {
     error,
   } = useMyCertificateRequests();
   const [searchQuery, setSearchQuery] = useState('');
+  const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
+  const [selectedCertificateId, setSelectedCertificateId] = useState<
+    number | null
+  >(null);
 
   // Authorization check - only MTLS users can access this page
   if (authLoading) {
@@ -60,15 +65,21 @@ function RouteComponent() {
   const getStatusBadge = (status: CertificateRequestStatus) => {
     const variants: Record<
       CertificateRequestStatus,
-      'default' | 'outline' | 'secondary' | 'destructive'
+      | 'default'
+      | 'outline'
+      | 'secondary'
+      | 'destructive'
+      | 'warning'
+      | 'success'
+      | 'info'
     > = {
-      awaiting_review: 'outline',
-      approved: 'default',
-      rejected: 'destructive',
-      pending: 'outline',
-      issued: 'default',
-      failed: 'destructive',
-      completed: 'secondary',
+      awaiting_review: 'warning', // Yellow
+      approved: 'info', // Blue
+      rejected: 'destructive', // Red
+      pending: 'secondary', // Gray
+      issued: 'success', // Green
+      failed: 'destructive', // Red
+      completed: 'secondary', // Gray
     };
 
     const labels: Record<CertificateRequestStatus, string> = {
@@ -348,7 +359,14 @@ function RouteComponent() {
 
                   <div className="flex gap-2 pt-2">
                     {cert.status === 'issued' && (
-                      <Button>Download Certificate</Button>
+                      <Button
+                        onClick={() => {
+                          setSelectedCertificateId(cert.id);
+                          setDownloadDialogOpen(true);
+                        }}
+                      >
+                        Download Certificate
+                      </Button>
                     )}
                     {cert.status === 'awaiting_review' && (
                       <Button variant="outline" disabled>
@@ -383,6 +401,14 @@ function RouteComponent() {
             Request one here
           </Button>
         </div>
+      )}
+
+      {selectedCertificateId && (
+        <DownloadCertificateDialog
+          certificateId={selectedCertificateId}
+          open={downloadDialogOpen}
+          onOpenChange={setDownloadDialogOpen}
+        />
       )}
     </div>
   );

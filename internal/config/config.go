@@ -553,6 +553,14 @@ func (c *Config) ValidateMTLSManagementConfig() error {
 		return fmt.Errorf("features.mtls_management.user_group is required when mtls_management is enabled")
 	}
 
+	if c.Features.MTLSManagement.DownloadTokenHMACKey == "" {
+		return fmt.Errorf("features.mtls_management.download_token_hmac_key is required when mtls_management is enabled")
+	}
+
+	if len(c.Features.MTLSManagement.DownloadTokenHMACKey) <= 32 {
+		return fmt.Errorf("features.mtls_management.download_token_hmac_key must be at least 32 characters")
+	}
+
 	// Apply default validity days if not set
 	if c.Features.MTLSManagement.MinCertificateValidityDays == 0 {
 		c.Features.MTLSManagement.MinCertificateValidityDays = DefaultMTLSIssuerConfig.MinCertificateValidityDays
@@ -575,8 +583,13 @@ func (c *Config) ValidateMTLSManagementConfig() error {
 		c.Features.MTLSManagement.Kubernetes.Namespace = DefaultKubernetesConfig.Namespace
 	}
 
-	// If not in-cluster, kubeconfig path should be provided (empty string means use default kubeconfig location)
-	// We don't enforce kubeconfig path as client-go will use default locations if empty
+	if c.Features.MTLSManagement.CertificateSubject == nil {
+		c.Features.MTLSManagement.CertificateSubject = DefaultCertificateSubject
+	}
+
+	if c.Features.MTLSManagement.CertificateSubject.Organization == "" {
+		c.Features.MTLSManagement.CertificateSubject.Organization = DefaultCertificateSubject.Organization
+	}
 
 	// Apply default background job config if not set
 	if c.Features.MTLSManagement.BackgroundJobConfig == nil {

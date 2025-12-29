@@ -8,7 +8,7 @@ import (
 )
 
 // ParseCertificateDetails extracts details from a PEM-encoded certificate
-func ParseCertificateDetails(certPEM []byte) (*models.CertificateDetails, error) {
+func ParseCertificateDetails(certPEM []byte) (*models.IssuedCertificateDetails, error) {
 	block, _ := pem.Decode(certPEM)
 	if block == nil {
 		return nil, fmt.Errorf("failed to decode PEM block")
@@ -19,7 +19,7 @@ func ParseCertificateDetails(certPEM []byte) (*models.CertificateDetails, error)
 		return nil, fmt.Errorf("failed to parse certificate: %w", err)
 	}
 
-	return &models.CertificateDetails{
+	return &models.IssuedCertificateDetails{
 		SerialNumber: cert.SerialNumber.String(),
 		Subject:      cert.Subject.String(),
 		Issuer:       cert.Issuer.String(),

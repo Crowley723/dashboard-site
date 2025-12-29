@@ -59,7 +59,7 @@ func (j *CertificateIssuedStatusJob) Run(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			j.appCtx.Logger.Info("Background issued certificate job canceled")
+			j.appCtx.Logger.Debug("Background issued certificate job canceled")
 			return ctx.Err()
 		case <-ticker.C:
 			certs, err := getIssuedCertificates(j.appCtx)
@@ -123,10 +123,10 @@ func handleIssuedCertificates(ctx *middlewares.AppContext, certs []*models.Certi
 				continue
 			}
 
-			ctx.Logger.Info("Certificate Issuance Completed",
+			ctx.Logger.Debug("Certificate Issuance Completed",
 				"request_id", cert.ID,
-				"k8s_name", cert.K8sCertificateName,
-				"namespace", cert.K8sNamespace)
+				"k8s_name", k8sCert.Name,
+				"namespace", k8sCert.Namespace)
 		}
 	}
 

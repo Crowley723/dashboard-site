@@ -102,25 +102,78 @@ async function reviewCertificateRequest(
   return response.json();
 }
 
-// Get all certificate requests (admin only)
+interface UnlockCertificateInput {
+  passphrase: string;
+}
+
+interface UnlockCertificateResponse {
+  unlocked: boolean;
+  error?: string;
+  download_token?: string;
+  expires_in?: number;
+}
+
+async function unlockCertificate(
+  id: number,
+  input: UnlockCertificateInput
+): Promise<UnlockCertificateResponse> {
+  const response = await fetch(`/api/certificates/${id}/unlock`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ message: response.statusText }));
+    throw new Error(
+      error.message || error.error || 'Failed to unlock certificate'
+    );
+  }
+
+  return response.json();
+}
+
+async function downloadCertificate(id: number, token: string): Promise<Blob> {
+  const response = await fetch(
+    `/api/certificates/${id}/download?token=${encodeURIComponent(token)}`,
+    {
+      credentials: 'include',
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ message: response.statusText }));
+    throw new Error(error.message || 'Failed to download certificate');
+  }
+
+  return response.blob();
+}
+
 export function useCertificateRequests() {
   return useQuery({
     queryKey: certificateKeys.lists(),
     queryFn: fetchAllCertificateRequests,
     staleTime: 1000 * 60 * 5, // 5 minutes
+    refetchInterval: 30000, // Auto-refresh every 30 seconds
   });
 }
 
-// Get my certificate requests
 export function useMyCertificateRequests() {
   return useQuery({
     queryKey: certificateKeys.myRequests(),
     queryFn: fetchMyCertificateRequests,
     staleTime: 1000 * 60 * 5,
+    refetchInterval: 30000, // Auto-refresh every 30 seconds
   });
 }
 
-// Get single certificate request
 export function useCertificateRequest(id: number) {
   return useQuery({
     queryKey: certificateKeys.detail(id),
@@ -130,20 +183,17 @@ export function useCertificateRequest(id: number) {
   });
 }
 
-// Create certificate request
 export function useCreateCertificateRequest() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: createCertificateRequest,
     onSuccess: () => {
-      // Invalidate and refetch
       queryClient.invalidateQueries({ queryKey: certificateKeys.myRequests() });
     },
   });
 }
 
-// Review certificate request (admin only)
 export function useReviewCertificateRequest() {
   const queryClient = useQueryClient();
 
@@ -151,11 +201,24 @@ export function useReviewCertificateRequest() {
     mutationFn: ({ id, ...input }: ReviewCertificateInput & { id: number }) =>
       reviewCertificateRequest(id, input),
     onSuccess: (data) => {
-      // Invalidate and refetch
       queryClient.invalidateQueries({ queryKey: certificateKeys.lists() });
       queryClient.invalidateQueries({
         queryKey: certificateKeys.detail(data.id),
       });
     },
+  });
+}
+
+export function useUnlockCertificate() {
+  return useMutation({
+    mutationFn: ({ id, ...input }: UnlockCertificateInput & { id: number }) =>
+      unlockCertificate(id, input),
+  });
+}
+
+export function useDownloadCertificate() {
+  return useMutation({
+    mutationFn: ({ id, token }: { id: number; token: string }) =>
+      downloadCertificate(id, token),
   });
 }

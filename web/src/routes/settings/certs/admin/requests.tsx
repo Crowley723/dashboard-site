@@ -25,6 +25,8 @@ import {
 } from '@/api/Certificates';
 import type { CertificateRequestStatus } from '@/types/Certificates';
 import { UserDisplay } from '@/components/UserDisplay.tsx';
+import { RefreshCw, Check } from 'lucide-react';
+import { getRelativeTimeString } from '@/hooks/RelativeTimeString.tsx';
 
 export const Route = createFileRoute('/settings/certs/admin/requests')({
   component: RouteComponent,
@@ -44,12 +46,42 @@ function RouteComponent() {
     isLoading,
     isError,
     error,
+    refetch,
   } = useCertificateRequests();
   const reviewMutation = useReviewCertificateRequest();
   const [expandedRequest, setExpandedRequest] = useState<number | null>(null);
   const [reviewNotes, setReviewNotes] = useState<Record<number, string>>({});
+  const [lastManualRefresh, setLastManualRefresh] = useState<number>(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
-  // Authorization check - only MTLS admins can access this page
+  const handleManualRefresh = async () => {
+    const now = Date.now();
+    const timeSinceLastRefresh = now - lastManualRefresh;
+
+    setIsRefreshing(true);
+    setShowSuccess(false);
+
+    // ratelimit of 10s, show fake refresh
+    if (timeSinceLastRefresh < 10000) {
+      setTimeout(() => {
+        setIsRefreshing(false);
+      }, 1500);
+      return;
+    }
+
+    setLastManualRefresh(now);
+    await refetch();
+
+    setTimeout(() => {
+      setIsRefreshing(false);
+      setShowSuccess(true);
+      setTimeout(() => {
+        setShowSuccess(false);
+      }, 2000);
+    }, 1500);
+  };
+
   if (authLoading) {
     return (
       <div className="container mx-auto p-6 max-w-6xl">
@@ -65,15 +97,21 @@ function RouteComponent() {
   const getStatusBadge = (status: CertificateRequestStatus) => {
     const variants: Record<
       CertificateRequestStatus,
-      'default' | 'outline' | 'secondary' | 'destructive'
+      | 'default'
+      | 'outline'
+      | 'secondary'
+      | 'destructive'
+      | 'warning'
+      | 'success'
+      | 'info'
     > = {
-      awaiting_review: 'outline',
-      approved: 'default',
-      rejected: 'destructive',
-      pending: 'outline',
-      issued: 'default',
-      failed: 'destructive',
-      completed: 'secondary',
+      awaiting_review: 'warning', // Yellow
+      approved: 'info', // Blue
+      rejected: 'destructive', // Red
+      pending: 'secondary', // Gray
+      issued: 'success', // Green
+      failed: 'destructive', // Red
+      completed: 'secondary', // Gray
     };
 
     const labels: Record<CertificateRequestStatus, string> = {
@@ -171,13 +209,34 @@ function RouteComponent() {
 
   return (
     <div className="container mx-auto p-6 max-w-6xl">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">
-          Admin - Certificate Requests
-        </h1>
-        <p className="text-muted-foreground">
-          Review and manage all certificate requests from users
-        </p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">
+            Admin - Certificate Requests
+          </h1>
+          <p className="text-muted-foreground">
+            Review and manage all certificate requests from users
+            {lastManualRefresh > 0 && (
+              <span className="ml-2">
+                • Last synced{' '}
+                {getRelativeTimeString(new Date(lastManualRefresh))}
+              </span>
+            )}
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={handleManualRefresh}
+          disabled={isRefreshing}
+          className={showSuccess ? 'text-green-600' : ''}
+        >
+          {showSuccess ? (
+            <Check />
+          ) : (
+            <RefreshCw className={isRefreshing ? 'animate-spin' : ''} />
+          )}
+        </Button>
       </div>
 
       {awaitingReview.length > 0 && (

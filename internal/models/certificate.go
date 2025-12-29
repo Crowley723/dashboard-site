@@ -102,11 +102,36 @@ type PaginationParams struct {
 	Offset int
 }
 
-// PaginatedResult holds paginated results
-type PaginatedResult struct {
+// PaginatedCertResult holds paginated results
+type PaginatedCertResult struct {
 	Requests []*CertificateRequest
 	Total    int
 	Limit    int
 	Offset   int
 	HasMore  bool
+}
+
+// CertificateSpec contains the details for creating a Certificate resource
+type CertificateSpec struct {
+	Name                string
+	Namespace           string
+	CommonName          string
+	DNSNames            []string
+	OrganizationalUnits []string
+	ValidityDays        int
+	OwnerSub            string
+	OwnerIss            string
+	RequestID           int
+}
+
+// IssuedCertificateDetails contains the additional details related to certificates that have been issued
+type IssuedCertificateDetails struct {
+	SerialNumber string
+	Subject      string
+	Issuer       string
+	NotBefore    time.Time
+	NotAfter     time.Time
+	DNSNames     []string
+	CommonName   string
+	Organization []string
 }

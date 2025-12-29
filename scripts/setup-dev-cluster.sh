@@ -1,7 +1,6 @@
 #!/bin/bash
 set -e
 
-# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -35,8 +34,12 @@ kubectl wait --for=condition=Available --timeout=300s \
 kubectl wait --for=condition=Available --timeout=300s \
   deployment/cert-manager-cainjector -n cert-manager
 
+echo -e "${BLUE}Waiting for cert-manager webhook to be fully ready...${NC}"
+sleep 10
+
 echo -e "${BLUE}Creating self-signed ClusterIssuer...${NC}"
-kubectl apply -f - <<EOF
+for i in {1..5}; do
+  if kubectl apply -f - <<EOF
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
@@ -44,16 +47,23 @@ metadata:
 spec:
   selfSigned: {}
 EOF
+  then
+    echo -e "${GREEN}ClusterIssuer created successfully${NC}"
+    break
+  else
+    if [ $i -lt 5 ]; then
+      echo -e "${YELLOW}Failed to create ClusterIssuer, retrying in 5 seconds... (attempt $i/5)${NC}"
+      sleep 5
+    else
+      echo -e "${RED}Failed to create ClusterIssuer after 5 attempts${NC}"
+      exit 1
+    fi
+  fi
+done
 
-echo -e "${BLUE}Creating namespaces...${NC}"
+echo -e "${BLUE}Creating namespace...${NC}"
 kubectl create namespace conduit || true
 
-echo -e "${GREEN}Dev cluster ready!${NC}"
-echo ""
+echo -e "${GREEN}Dev cluster ready.${NC}"
 echo "Cluster info:"
 kubectl cluster-info --context k3d-${CLUSTER_NAME}
-echo ""
-echo "Next steps:"
-echo "  - Run your app: make dev-local"
-echo "  - Check status: make dev-cluster-status"
-echo "  - Delete cluster: make dev-cluster-delete"

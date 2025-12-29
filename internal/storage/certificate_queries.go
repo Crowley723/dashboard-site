@@ -76,7 +76,7 @@ func (q *CertificateQueries) GetRequestByID(ctx context.Context, id int) (*model
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("certificate request not found")
+			return nil, CertificateRequestNotFoundError
 		}
 		return nil, fmt.Errorf("failed to get certificate request by id: %w", err)
 	}
@@ -342,7 +342,7 @@ func (q *CertificateQueries) GetRequestsByUser(ctx context.Context, sub, iss str
 	return requests, nil
 }
 
-func (q *CertificateQueries) GetRequestsPaginated(ctx context.Context, params models.PaginationParams) (*models.PaginatedResult, error) {
+func (q *CertificateQueries) GetRequestsPaginated(ctx context.Context, params models.PaginationParams) (*models.PaginatedCertResult, error) {
 	// Set default limit if not provided
 	if params.Limit <= 0 {
 		params.Limit = 20
@@ -411,7 +411,7 @@ func (q *CertificateQueries) GetRequestsPaginated(ctx context.Context, params mo
 		return nil, fmt.Errorf("failed to iterate certificate requests: %w", err)
 	}
 
-	result := &models.PaginatedResult{
+	result := &models.PaginatedCertResult{
 		Requests: requests,
 		Total:    total,
 		Limit:    params.Limit,

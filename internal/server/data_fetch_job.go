@@ -46,7 +46,7 @@ func (j *DataFetchJob) Run(ctx context.Context) error {
 	ticker := time.NewTicker(j.interval)
 	defer ticker.Stop()
 
-	j.logger.Info("Starting background data fetching", "interval", j.interval)
+	j.logger.Debug("Starting background data fetching", "interval", j.interval)
 
 	if err := j.dataService.ExecuteQueries(ctx, j.appCtx.Cache); err != nil {
 		j.logger.Error("initial data fetch failed", "error", err)
@@ -55,11 +55,11 @@ func (j *DataFetchJob) Run(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			j.logger.Info("Background data fetching canceled")
+			j.logger.Debug("Background data fetching canceled")
 			return ctx.Err()
 		case <-ticker.C:
 			if err := j.dataService.ExecuteQueries(ctx, j.appCtx.Cache); err != nil {
-				j.logger.Error(fmt.Sprintf("Background data fetch failedtrying again in %s", j.interval.String()), "error", err)
+				j.logger.Error(fmt.Sprintf("Background data fetch failed, trying again in %s", j.interval.String()), "error", err)
 			}
 		}
 	}

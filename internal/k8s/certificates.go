@@ -61,9 +61,28 @@ func (c *Client) CreateCertificateFromRequest(ctx context.Context, request *mode
 	}
 
 	subject := &certmanagerv1.X509Subject{}
+
 	if len(request.OrganizationalUnits) > 0 {
 		subject.OrganizationalUnits = request.OrganizationalUnits
 	}
+
+	if c.CertificateSubject != nil && c.CertificateSubject.Organization != "" {
+		subject.Organizations = []string{c.CertificateSubject.Organization}
+	}
+
+	if c.CertificateSubject != nil && c.CertificateSubject.Country != "" {
+		subject.Countries = []string{c.CertificateSubject.Country}
+	}
+
+	if c.CertificateSubject != nil && c.CertificateSubject.Province != "" {
+		subject.Provinces = []string{c.CertificateSubject.Province}
+	}
+
+	if c.CertificateSubject != nil && c.CertificateSubject.Locality != "" {
+		subject.Localities = []string{c.CertificateSubject.Locality}
+	}
+
+	subject.SerialNumber = fmt.Sprintf("%s@%s", request.OwnerSub, removeURLSchemeAndSlashes(request.OwnerIss))
 
 	cert := &certmanagerv1.Certificate{
 		ObjectMeta: metav1.ObjectMeta{
@@ -93,7 +112,7 @@ func (c *Client) CreateCertificateFromRequest(ctx context.Context, request *mode
 		},
 	}
 
-	c.Logger.Info("creating certificate",
+	c.Logger.Debug("creating certificate",
 		"name", certName,
 		"namespace", c.Namespace,
 		"commonName", request.CommonName,
@@ -104,7 +123,7 @@ func (c *Client) CreateCertificateFromRequest(ctx context.Context, request *mode
 		return nil, fmt.Errorf("failed to create certificate: %w", err)
 	}
 
-	c.Logger.Info("certificate created successfully",
+	c.Logger.Debug("Certificate Created Successfully",
 		"name", created.Name,
 		"namespace", created.Namespace)
 
@@ -121,6 +140,44 @@ func (c *Client) GetCertificate(ctx context.Context, namespace, name string) (*c
 		return nil, fmt.Errorf("failed to get certificate: %w", err)
 	}
 	return cert, nil
+}
+
+func (c *Client) GetCertificateForDownload(ctx context.Context, namespace, name string) (certPEM, keyPEM, caPEM []byte, err error) {
+	cert, err := c.GetCertificate(ctx, namespace, name)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	isReady := false
+	for _, condition := range cert.Status.Conditions {
+		if condition.Type == certmanagerv1.CertificateConditionReady {
+			isReady = condition.Status == cmmeta.ConditionTrue
+			break
+		}
+	}
+
+	if !isReady {
+		return nil, nil, nil, fmt.Errorf("certificate is not ready yet")
+	}
+
+	secret, err := c.GetCertificateSecret(ctx, namespace, cert.Spec.SecretName)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to get certificate secret: %w", err)
+	}
+
+	certPEM = secret.Data["tls.crt"]
+	keyPEM = secret.Data["tls.key"]
+	caPEM = secret.Data["ca.crt"]
+
+	if len(certPEM) == 0 {
+		return nil, nil, nil, fmt.Errorf("certificate secret missing tls.crt")
+	}
+	if len(keyPEM) == 0 {
+		return nil, nil, nil, fmt.Errorf("certificate secret missing tls.key")
+	}
+
+	return certPEM, keyPEM, caPEM, nil
+
 }
 
 // GetCertificatePEM retrieves the PEM-encoded certificate data from the secret

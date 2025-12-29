@@ -52,6 +52,30 @@ CREATE TABLE certificate_requests(
     FOREIGN KEY (owner_iss, owner_sub) REFERENCES users(iss, sub) ON DELETE RESTRICT
 );
 
+CREATE TABLE certificate_downloads(
+    id SERIAL PRIMARY KEY NOT NULL,
+    certificate_request_id INTEGER NOT NULL,
+    downloader_sub TEXT NOT NULL,
+    downloader_iss TEXT NOT NULL,
+
+    ip_address INET NOT NULL,
+
+    user_agent TEXT,
+    browser_name TEXT,
+    browser_version TEXT,
+    os_name TEXT,
+    os_version TEXT,
+    device_type TEXT,
+
+    downloaded_at TIMESTAMP DEFAULT NOW(),
+    FOREIGN KEY (downloader_iss, downloader_sub) REFERENCES users(iss, sub) ON DELETE RESTRICT,
+    FOREIGN KEY (certificate_request_id) REFERENCES certificate_requests(id) ON DELETE RESTRICT
+);
+CREATE INDEX idx_cert_downloads_owner ON certificate_downloads(downloader_iss, downloader_sub);
+CREATE INDEX idx_cert_downloads_ip ON certificate_downloads(ip_address);
+CREATE INDEX idx_cert_downloads_cert_id ON certificate_downloads(certificate_request_id);
+
+
 CREATE TABLE certificate_events(
     id SERIAL PRIMARY KEY NOT NULL,
     certificate_request_id INTEGER NOT NULL,

@@ -112,7 +112,7 @@ func New(cfg *config.Config) (*Server, error) {
 			return nil, err
 		}
 
-		logger.Info("Running database migrations")
+		logger.Debug("Running database migrations")
 		if err := dbProvider.RunMigrations(ctx); err != nil {
 			logger.Error("failed to run database migrations", "error", err)
 			cancel()
@@ -123,7 +123,7 @@ func New(cfg *config.Config) (*Server, error) {
 			cancel()
 			return nil, fmt.Errorf("failed to ensure system user: %w", err)
 		}
-		logger.Info("Database migrations completed successfully")
+		logger.Debug("Database Migrations Completed")
 
 		database = dbProvider
 	}
@@ -199,9 +199,9 @@ func (s *Server) Start() error {
 
 	go func() {
 		if s.cfg.Distributed != nil && s.cfg.Distributed.Enabled {
-			s.logger.Info("Server starting", "port", s.cfg.Server.Port, "instance", s.election.InstanceID)
+			s.logger.Info("Server Started", "port", s.cfg.Server.Port, "instance", s.election.InstanceID)
 		} else {
-			s.logger.Info("Server starting", "port", s.cfg.Server.Port)
+			s.logger.Info("Server Started", "port", s.cfg.Server.Port)
 		}
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			s.logger.Error("Server failed to start", "error", err)
@@ -232,7 +232,7 @@ func (s *Server) Start() error {
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer shutdownCancel()
 
-	s.logger.Info("Shutting down server")
+	s.logger.Info("Shutting Down Server")
 
 	s.jobManager.Shutdown(shutdownCtx)
 
@@ -247,7 +247,7 @@ func (s *Server) Start() error {
 		}
 	}
 
-	s.logger.Info("Server exited")
+	s.logger.Info("Server Existed")
 	return nil
 }
 

@@ -50,7 +50,7 @@ func (jm *JobManager) Start(ctx context.Context) {
 }
 
 func (jm *JobManager) Shutdown(ctx context.Context) {
-	jm.logger.Info("Shutting down job manager...")
+	jm.logger.Debug("Shutting down job manager...")
 	jm.stopAllJobs()
 
 	done := make(chan struct{})
@@ -61,7 +61,7 @@ func (jm *JobManager) Shutdown(ctx context.Context) {
 
 	select {
 	case <-done:
-		jm.logger.Info("All jobs stopped cleanly")
+		jm.logger.Debug("All jobs stopped cleanly")
 	case <-ctx.Done():
 		jm.logger.Warn("Job's failed to shutdown, exiting...")
 		return
@@ -84,10 +84,10 @@ func (jm *JobManager) monitorLeadership(ctx context.Context) {
 			isLeader := jm.election.IsLeader()
 
 			if isLeader && !wasLeader {
-				jm.logger.Info("Became Leader, Starting Jobs")
+				jm.logger.Debug("Became Leader, Starting Jobs")
 				jm.startLeaderJobs(ctx)
 			} else if !isLeader && wasLeader {
-				jm.logger.Info("Lost Leader, Stopping Leader Jobs")
+				jm.logger.Debug("Lost Leader, Stopping Leader Jobs")
 				jm.stopLeaderJobs()
 			}
 
@@ -115,7 +115,7 @@ func (jm *JobManager) startLeaderJobs(ctx context.Context) {
 		jm.wg.Add(1)
 		go func(j Job) {
 			defer jm.wg.Done()
-			jm.logger.Info("Starting Job", "name", j.Name())
+			jm.logger.Debug("Starting Job", "name", j.Name())
 			if err := j.Run(jobCtx); err != nil && !errors.Is(err, context.Canceled) {
 				jm.logger.Error("Job failed", "job", j.Name(), "error", err)
 			}
@@ -133,7 +133,7 @@ func (jm *JobManager) stopLeaderJobs() {
 		}
 
 		if cancel, exists := jm.cancelFuncs[job.Name()]; exists {
-			jm.logger.Info("Stopping Job", "job", job.Name())
+			jm.logger.Debug("Stopping Job", "job", job.Name())
 			cancel()
 			delete(jm.cancelFuncs, job.Name())
 		}
@@ -173,7 +173,7 @@ func (jm *JobManager) stopAllJobs() {
 
 	for _, job := range jm.jobs {
 		if cancel, exists := jm.cancelFuncs[job.Name()]; exists {
-			jm.logger.Info("Stopping Job", "job", job.Name())
+			jm.logger.Debug("Stopping Job", "job", job.Name())
 			cancel()
 			delete(jm.cancelFuncs, job.Name())
 		}

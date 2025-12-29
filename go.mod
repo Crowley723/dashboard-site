@@ -22,9 +22,11 @@ require (
 	k8s.io/api v0.35.0
 	k8s.io/apimachinery v0.35.0
 	k8s.io/client-go v0.35.0
+	software.sslmate.com/src/go-pkcs12 v0.6.0
 )
 
 require (
+	github.com/avct/uasurfer v0.0.0-20251203101750-d127e02ee278 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect

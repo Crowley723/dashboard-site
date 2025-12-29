@@ -227,3 +227,7 @@ func (p *DatabaseProvider) Users() *UserQueries {
 func (p *DatabaseProvider) Certificates() *CertificateQueries {
 	return NewCertificateQueries(p.pool)
 }
+
+func (p *DatabaseProvider) Audit() *AuditQueries {
+	return NewAuditQueries(p.pool)
+}

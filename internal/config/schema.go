@@ -185,12 +185,14 @@ type MTLSManagement struct {
 	Enabled                         bool                     `yaml:"enabled"`
 	AdminGroup                      string                   `yaml:"admin_group"`
 	UserGroup                       string                   `yaml:"user_group"`
+	DownloadTokenHMACKey            string                   `yaml:"download_token_hmac_key"`
 	AutoApproveAdminRequests        bool                     `yaml:"auto_approve_admin_requests"`
 	AllowAdminsToApproveOwnRequests bool                     `yaml:"allow_admins_to_approve_own_requests"`
 	MinCertificateValidityDays      int                      `yaml:"min_certificate_validity_days"`
 	MaxCertificateValidityDays      int                      `yaml:"max_certificate_validity_days"`
 	Kubernetes                      *KubernetesConfig        `yaml:"kubernetes,omitempty"`
 	CertificateIssuer               *CertificateIssuer       `yaml:"certificate_issuer,omitempty"`
+	CertificateSubject              *CertificateSubject      `yaml:"certificate_subject,omitempty"`
 	BackgroundJobConfig             *MTLSBackgroundJobConfig `yaml:"background_job_config,omitempty"`
 }
 
@@ -208,6 +210,20 @@ var DefaultKubernetesConfig = &KubernetesConfig{
 type CertificateIssuer struct {
 	Name string `yaml:"name"`
 	Kind string `yaml:"kind"`
+}
+
+type CertificateSubject struct {
+	Organization string `yaml:"organization"`
+	Country      string `yaml:"country"`
+	Locality     string `yaml:"locality"`
+	Province     string `yaml:"province"`
+}
+
+var DefaultCertificateSubject = &CertificateSubject{
+	Organization: "Homelab Conduit",
+	Country:      "",
+	Locality:     "",
+	Province:     "",
 }
 
 type MTLSBackgroundJobConfig struct {
@@ -228,5 +244,6 @@ var DefaultMTLSIssuerConfig = MTLSManagement{
 	MaxCertificateValidityDays:      365,
 	Kubernetes:                      DefaultKubernetesConfig,
 	CertificateIssuer:               nil,
+	CertificateSubject:              DefaultCertificateSubject,
 	BackgroundJobConfig:             DefaultMTLSBackgroundJobConfig,
 }

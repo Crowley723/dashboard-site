@@ -24,7 +24,7 @@ k3d cluster create ${CLUSTER_NAME} \
   --agents 0
 
 echo -e "${BLUE}Installing cert-manager...${NC}"
-kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.0/cert-manager.yaml
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.19.2/cert-manager.yaml
 
 echo -e "${BLUE}Waiting for cert-manager to be ready...${NC}"
 kubectl wait --for=condition=Available --timeout=300s \

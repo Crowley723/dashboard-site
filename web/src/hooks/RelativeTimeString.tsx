@@ -33,7 +33,7 @@ export function getRelativeTimeString(date: Date): string {
     return new Intl.RelativeTimeFormat('en-us').format(1, 'seconds');
   } else if (secondsSinceUse < ONEMINUTE) {
     return new Intl.RelativeTimeFormat('en-us').format(
-      0 - Math.floor(secondsSinceUse / ONEMINUTE),
+      0 - Math.floor(secondsSinceUse),
       'seconds'
     );
   } else if (secondsSinceUse < ONEHOUR) {

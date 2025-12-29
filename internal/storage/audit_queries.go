@@ -15,28 +15,23 @@ func (p *DatabaseProvider) InsertAuditLogCertificateDownload(ctx context.Context
 	query := `
 		INSERT INTO certificate_downloads (certificate_request_id, downloader_sub, downloader_iss, ip_address, user_agent, browser_name, browser_version, os_name, os_version, device_type, downloaded_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP)
+		RETURNING id
 	`
 
-	result, err := p.pool.Exec(ctx, query,
+	var insertedId int
+	err := p.pool.QueryRow(ctx, query,
 		certId, sub, iss, ipAddress, rawUserAgent,
 		userAgent.Browser.Name.String(),
 		utils.UserAgentVersionToString(userAgent.Browser.Version),
 		userAgent.OS.Name.String(),
 		utils.UserAgentVersionToString(userAgent.OS.Version),
 		userAgent.DeviceType.String(),
-	)
+	).Scan(&insertedId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert download log: %w", err)
 	}
-	if result.RowsAffected() < 1 {
-		return nil, fmt.Errorf("failed to insert download log: no rows inserted")
-	}
 
-	if result.RowsAffected() > 1 {
-		return nil, fmt.Errorf("failed to insert download log: multiple rows inserted")
-	}
-
-	return p.GetCertificateDownloadAuditLogByID(ctx, certId)
+	return p.GetCertificateDownloadAuditLogByID(ctx, insertedId)
 }
 
 // GetCertificateDownloadAuditLogByID returns a single download log entry by its ID
@@ -76,7 +71,7 @@ func (p *DatabaseProvider) GetCertificateDownloadAuditLogByID(ctx context.Contex
 
 func (p *DatabaseProvider) GetRecentCertificateDownloadLogs(ctx context.Context, limit int) ([]models.CertificateDownload, error) {
 	query := `
-        SELECT id, certificate_request_id, sub, iss, ip_address, user_agent,
+        SELECT id, certificate_request_id, downloader_sub, downloader_iss, ip_address, user_agent,
                browser_name, browser_version, os_name, os_version, device_type, downloaded_at
         FROM certificate_downloads
         ORDER BY downloaded_at DESC

@@ -12,7 +12,7 @@ import (
 // CreateUser adds a user to the database.
 func (p *DatabaseProvider) CreateUser(ctx context.Context, sub, iss, username, displayName, email string) (*models.User, error) {
 	query := `
-		INSERT INTO users (sub, iss, username, displayName, email, last_logged_in, created_at)
+		INSERT INTO users (sub, iss, username, display_name, email, last_logged_in, created_at)
 		VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 	`
 
@@ -74,7 +74,7 @@ func (p *DatabaseProvider) UpsertUser(ctx context.Context, sub, iss, username, d
 // GetUserByID returns a user, including groups, given their iss and sub claims.
 func (p *DatabaseProvider) GetUserByID(ctx context.Context, iss, sub string) (*models.User, error) {
 	query := `
-		SELECT iss, sub, username, email,display_name, is_system, last_logged_in, created_at
+		SELECT iss, sub, username, display_name, email, is_system, last_logged_in, created_at
 		FROM users
 		WHERE iss = $1 AND sub = $2
 	`

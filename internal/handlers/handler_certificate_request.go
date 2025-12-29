@@ -117,7 +117,7 @@ func POSTCertificateRequest(ctx *middlewares.AppContext) {
 	ctx.WriteJSON(http.StatusCreated, updatedRequest)
 }
 
-// GETCertificateRequests is used to expose all certificate requests to admin users.
+// GETCertificateRequests is used to expose all certificate requests to admin users. Admin check done with middleware
 func GETCertificateRequests(ctx *middlewares.AppContext) {
 	user, ok := ctx.SessionManager.GetAuthenticatedUser(ctx)
 	if !ok || user == nil {
@@ -187,7 +187,7 @@ func GETCertificateRequest(ctx *middlewares.AppContext) {
 		}))
 }
 
-// POSTCertificateReview is used by admins to post a reject/approval for a specific certificate request with comments.
+// POSTCertificateReview is used by admins to post a reject/approval for a specific certificate request with comments. Admin check done with middleware
 func POSTCertificateReview(ctx *middlewares.AppContext) {
 	requestIdParam := chi.URLParam(ctx.Request, "id")
 	if requestIdParam == "" {
@@ -233,13 +233,13 @@ func POSTCertificateReview(ctx *middlewares.AppContext) {
 		return
 	}
 
-	if ctx.Config.Features.MTLSManagement.AllowAdminsToApproveOwnRequests && user.MatchesUser(request.OwnerIss, request.OwnerSub) {
-		ctx.SetJSONError(http.StatusForbidden, "You are not allowed to approve your own requests")
+	if request == nil {
+		ctx.SetJSONStatus(http.StatusOK, "No certificate requests found")
 		return
 	}
 
-	if request == nil {
-		ctx.SetJSONStatus(http.StatusOK, "No certificate requests found")
+	if !ctx.Config.Features.MTLSManagement.AllowAdminsToApproveOwnRequests && user.MatchesUser(request.OwnerIss, request.OwnerSub) {
+		ctx.SetJSONError(http.StatusForbidden, "You are not allowed to approve your own requests")
 		return
 	}
 

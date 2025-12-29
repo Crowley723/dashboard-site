@@ -3,6 +3,7 @@ package handlers
 import (
 	"homelab-dashboard/internal/middlewares"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -18,6 +19,18 @@ func GETLoginHandler(ctx *middlewares.AppContext) {
 		redirectTo = ctx.Request.Header.Get("Referer")
 		if redirectTo == "" {
 			redirectTo = "/"
+		}
+	}
+
+	if redirectTo != "/" {
+		parsedUrl, err := url.Parse(redirectTo)
+		if err != nil || parsedUrl.IsAbs() {
+			ctx.Logger.Warn("Invalid redirect URL, using root", "redirect", redirectTo)
+			redirectTo = "/"
+		}
+
+		if !strings.HasPrefix(redirectTo, "/") {
+			redirectTo = "/" + redirectTo
 		}
 	}
 

@@ -41,6 +41,10 @@ func NewClient(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*C
 	issuerCfg := cfg.Features.MTLSManagement.CertificateIssuer
 	subjectCfg := cfg.Features.MTLSManagement.CertificateSubject
 
+	if issuerCfg == nil {
+		return nil, fmt.Errorf("certificate issuer configuration is missing")
+	}
+
 	var restConfig *rest.Config
 	var err error
 

@@ -5,12 +5,13 @@ go 1.25.0
 require (
 	github.com/alexedwards/scs/goredisstore v0.0.0-20251002162104-209de6e426de
 	github.com/alexedwards/scs/v2 v2.9.0
+	github.com/avct/uasurfer v0.0.0-20251203101750-d127e02ee278
 	github.com/cert-manager/cert-manager v1.19.2
 	github.com/coreos/go-oidc/v3 v3.17.0
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/go-chi/cors v1.2.2
 	github.com/google/uuid v1.6.0
-	github.com/jackc/pgx/v5 v5.7.6
+	github.com/jackc/pgx/v5 v5.8.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/common v0.67.4
 	github.com/redis/go-redis/extra/redisprometheus/v9 v9.17.2
@@ -26,7 +27,6 @@ require (
 )
 
 require (
-	github.com/avct/uasurfer v0.0.0-20251203101750-d127e02ee278 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect

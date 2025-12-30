@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"homelab-dashboard/internal/auth"
 	"homelab-dashboard/internal/middlewares"
-	"homelab-dashboard/internal/models"
 	"net/http"
 	"net/url"
 )
@@ -33,8 +32,7 @@ func GETCallbackHandler(ctx *middlewares.AppContext) {
 		return
 	}
 
-	user := &models.User{}
-	user, err := ctx.OIDCProvider.HandleCallback(ctx)
+	idToken, user, err := ctx.OIDCProvider.HandleCallback(ctx)
 	if err != nil {
 		var oidcErr *auth.OIDCError
 		if errors.As(err, &oidcErr) && oidcErr.RedirectURL != "" {
@@ -49,10 +47,49 @@ func GETCallbackHandler(ctx *middlewares.AppContext) {
 		return
 	}
 
-	ctx.Logger.Info("User successfully authenticated",
-		"user_id", user.Sub,
+	ctx.Logger.Debug("User successfully authenticated",
+		"sub", user.Sub,
+		"iss", user.Iss,
 		"username", user.Username,
 		"email", RedactEmail(user.Email),
+	)
+
+	resultUser, err := ctx.Storage.UpsertUser(ctx, user.Sub, user.Iss, user.Username, user.DisplayName, user.Email, user.Groups)
+	if err != nil {
+		ctx.Logger.Error("Failed to upsert user to database",
+			"err", err,
+			"iss", user.Iss,
+			"sub", user.Sub,
+			"username", user.Username,
+		)
+
+		errorURL := fmt.Sprintf("/error?error=%s&error_description=%s",
+			url.QueryEscape("server_error"),
+			url.QueryEscape("Authentication succeeded but failed to create user account. Please try again or contact support."))
+		ctx.Redirect(errorURL, http.StatusFound)
+		return
+	}
+
+	err = ctx.SessionManager.CreateSessionWithTokenExpiry(ctx, idToken, resultUser)
+	if err != nil {
+		ctx.Logger.Error("Failed to create session",
+			"error", err,
+			"iss", user.Iss,
+			"sub", user.Sub,
+			"username", user.Username,
+		)
+
+		errorURL := fmt.Sprintf("/error?error=%s&error_description=%s",
+			url.QueryEscape("server_error"),
+			url.QueryEscape("Authentication succeeded but failed to create user session. Please try again or contact support."))
+		ctx.Redirect(errorURL, http.StatusFound)
+		return
+	}
+
+	ctx.Logger.Debug("User successfully authenticated",
+		"user_id", user.Sub,
+		"username", user.Username,
+		"email", user.Email,
 	)
 
 	redirectTo := ctx.SessionManager.GetRedirectAfterLogin(ctx)

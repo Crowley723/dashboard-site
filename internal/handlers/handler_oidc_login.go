@@ -3,21 +3,43 @@ package handlers
 import (
 	"homelab-dashboard/internal/middlewares"
 	"net/http"
+	"net/url"
+	"strings"
 )
 
 func GETLoginHandler(ctx *middlewares.AppContext) {
 	if ctx.SessionManager.IsAuthenticated(ctx) {
-		ctx.Logger.Info("User already authenticated")
+		ctx.Logger.Debug("User already authenticated")
 		ctx.SetJSONStatus(http.StatusOK, "ok")
 		return
 	}
 
-	currentURL := ctx.Request.Header.Get("Referer")
-	if currentURL == "" {
-		currentURL = "/"
+	redirectTo := ctx.Request.URL.Query().Get("rd")
+	if redirectTo == "" {
+		redirectTo = ctx.Request.Header.Get("Referer")
+		if redirectTo == "" {
+			redirectTo = "/"
+		}
 	}
 
-	ctx.SessionManager.SetRedirectAfterLogin(ctx, currentURL)
+	if redirectTo != "/" {
+		parsedUrl, err := url.Parse(redirectTo)
+		if err != nil || parsedUrl.IsAbs() || parsedUrl.Host != "" {
+			ctx.Logger.Warn("Invalid redirect URL, using root", "redirect", redirectTo)
+			redirectTo = "/"
+		}
+
+		if !strings.HasPrefix(redirectTo, "/") {
+			redirectTo = "/" + redirectTo
+		}
+	}
+
+	if strings.Contains(redirectTo, "/error") {
+		ctx.Logger.Debug("Referer is error page, redirecting to root instead", "original_referer", redirectTo)
+		redirectTo = "/"
+	}
+
+	ctx.SessionManager.SetRedirectAfterLogin(ctx, redirectTo)
 
 	authURL, err := ctx.OIDCProvider.StartLogin(ctx)
 	if err != nil {
@@ -26,7 +48,7 @@ func GETLoginHandler(ctx *middlewares.AppContext) {
 		return
 	}
 
-	ctx.Logger.Info("Redirecting to OIDC Provider", "url", authURL)
+	ctx.Logger.Debug("Redirecting to OIDC Provider", "url", authURL)
 
 	ctx.WriteJSON(http.StatusOK, map[string]string{
 		"status":       "redirect_required",

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"strconv"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -41,17 +42,23 @@ func LoadConfig() (*Config, error) {
 }
 
 var (
-	EnvOIDCClientID          = "DASHBOARD_OIDC_CLIENT_ID"
-	EnvOIDCClientSecret      = "DASHBOARD_OIDC_CLIENT_SECRET"
-	EnvOIDCIssuerURL         = "DASHBOARD_OIDC_ISSUER_URL"
-	EnvOIDCRedirectURL       = "DASHBOARD_OIDC_REDIRECT_URL"
-	EnvDataPrometheusURL     = "DASHBOARD_DATA_PROMETHEUS_URL"
-	EnvDataBasicAuthUsername = "DASHBOARD_DATA_BASIC_AUTH_USERNAME"
-	EnvDataBasicAuthPassword = "DASHBOARD_DATA_BASIC_AUTH_PASSWORD"
-	EnvRedisPassword         = "DASHBOARD_REDIS_PASSWORD"
-	EnvRedisUsername         = "DASHBOARD_REDIS_USERNAME"
-	EnvRedisSentinelUsername = "DASHBOARD_REDIS_SENTINEL_USERNAME"
-	EnvRedisSentinelPassword = "DASHBOARD_REDIS_SENTINEL_PASSWORD"
+	EnvOIDCClientID             = "DASHBOARD_OIDC_CLIENT_ID"
+	EnvOIDCClientSecret         = "DASHBOARD_OIDC_CLIENT_SECRET"
+	EnvOIDCIssuerURL            = "DASHBOARD_OIDC_ISSUER_URL"
+	EnvOIDCRedirectURL          = "DASHBOARD_OIDC_REDIRECT_URL"
+	EnvDataPrometheusURL        = "DASHBOARD_DATA_PROMETHEUS_URL"
+	EnvDataBasicAuthUsername    = "DASHBOARD_DATA_BASIC_AUTH_USERNAME"
+	EnvDataBasicAuthPassword    = "DASHBOARD_DATA_BASIC_AUTH_PASSWORD"
+	EnvRedisPassword            = "DASHBOARD_REDIS_PASSWORD"
+	EnvRedisUsername            = "DASHBOARD_REDIS_USERNAME"
+	EnvRedisSentinelUsername    = "DASHBOARD_REDIS_SENTINEL_USERNAME"
+	EnvRedisSentinelPassword    = "DASHBOARD_REDIS_SENTINEL_PASSWORD"
+	EnvMTLSDownloadTokenHMACKey = "DASHBOARD_MTLS_DOWNLOAD_TOKEN_HMAC_KEY"
+	EnvStorageHost              = "DASHBOARD_STORAGE_HOST"
+	EnvStoragePort              = "DASHBOARD_STORAGE_PORT"
+	EnvStorageUsername          = "DASHBOARD_STORAGE_USERNAME"
+	EnvStoragePassword          = "DASHBOARD_STORAGE_PASSWORD"
+	EnvStorageDatabase          = "DASHBOARD_STORAGE_DATABASE"
 )
 
 func applyEnvironmentOverrides(config *Config) {
@@ -122,6 +129,50 @@ func applyEnvironmentOverrides(config *Config) {
 		}
 		config.Redis.Sentinel.SentinelPassword = sentinelPassword
 	}
+
+	if hmacKey := os.Getenv(EnvMTLSDownloadTokenHMACKey); hmacKey != "" {
+		if config.Features == nil {
+			config.Features = &FeaturesConfig{}
+		}
+		config.Features.MTLSManagement.DownloadTokenHMACKey = hmacKey
+	}
+
+	if host := os.Getenv(EnvStorageHost); host != "" {
+		if config.Storage == nil {
+			config.Storage = &StorageConfig{}
+		}
+		config.Storage.Host = host
+	}
+
+	if portStr := os.Getenv(EnvStoragePort); portStr != "" {
+		if config.Storage == nil {
+			config.Storage = &StorageConfig{}
+		}
+		if port, err := strconv.Atoi(portStr); err == nil {
+			config.Storage.Port = port
+		}
+	}
+
+	if username := os.Getenv(EnvStorageUsername); username != "" {
+		if config.Storage == nil {
+			config.Storage = &StorageConfig{}
+		}
+		config.Storage.Username = username
+	}
+
+	if password := os.Getenv(EnvStoragePassword); password != "" {
+		if config.Storage == nil {
+			config.Storage = &StorageConfig{}
+		}
+		config.Storage.Password = password
+	}
+
+	if database := os.Getenv(EnvStorageDatabase); database != "" {
+		if config.Storage == nil {
+			config.Storage = &StorageConfig{}
+		}
+		config.Storage.Database = database
+	}
 }
 
 func validateConfig(config *Config) error {
@@ -161,12 +212,24 @@ func validateConfig(config *Config) error {
 		return err
 	}
 
-	err = config.validateRedisConfig()
+	if config.Cache.Type == "redis" || config.Sessions.Store == "redis" {
+		err = config.validateRedisConfig()
+		if err != nil {
+			return err
+		}
+	}
+
+	err = config.validateDistributedConfig()
 	if err != nil {
 		return err
 	}
 
-	err = config.validateDistributedConfig()
+	err = config.validateStorageConfig()
+	if err != nil {
+		return err
+	}
+
+	err = config.ValidateFeaturesConfig()
 	if err != nil {
 		return err
 	}
@@ -201,6 +264,10 @@ func (c *Config) validateOIDCConfig() error {
 func (c *Config) validateServerConfig() error {
 	if c.Server.Port == 0 {
 		c.Server.Port = DefaultServerConfig.Port
+	}
+
+	if c.Server.ExternalURL == "" {
+		return fmt.Errorf("server.external_url is required")
 	}
 
 	if c.Server.Debug != nil && c.Server.Debug.Enabled {
@@ -272,7 +339,7 @@ func (c *Config) validateSessionConfig() error {
 	}
 
 	if c.Sessions.Store == "" {
-		c.Sessions.Store = "memory"
+		c.Sessions.Store = DefaultSessionConfig.Store
 	} else {
 		switch c.Sessions.Store {
 		case "memory":
@@ -377,6 +444,10 @@ func (c *Config) validateDataQueriesConfig() (err error) {
 }
 
 func (c *Config) validateCacheConfig() error {
+	if c.Cache.Type == "" {
+		c.Cache.Type = "memory"
+	}
+
 	switch c.Cache.Type {
 	case "memory":
 		break
@@ -402,6 +473,13 @@ func (c *Config) validateRedisConfig() error {
 
 	if _, _, err := net.SplitHostPort(c.Redis.Address); err != nil {
 		return fmt.Errorf("invalid redis address format (expected host:port): %w", err)
+	}
+
+	// Apply default indices if not set
+	if c.Redis.SessionIndex == 0 && c.Redis.CacheIndex == 0 && c.Redis.LeaderIndex == 0 {
+		c.Redis.SessionIndex = DefaultRedisConfig.SessionIndex
+		c.Redis.CacheIndex = DefaultRedisConfig.CacheIndex
+		c.Redis.LeaderIndex = DefaultRedisConfig.LeaderIndex
 	}
 
 	if c.Redis.SessionIndex < 0 {
@@ -453,7 +531,12 @@ func (c *Config) validateRedisConfig() error {
 }
 
 func (c *Config) validateDistributedConfig() error {
-	if c.Distributed == nil || !c.Distributed.Enabled {
+	if c.Distributed == nil {
+		return nil
+	}
+
+	// Apply default enabled state if not explicitly set
+	if !c.Distributed.Enabled {
 		return nil
 	}
 
@@ -461,6 +544,134 @@ func (c *Config) validateDistributedConfig() error {
 		c.Distributed.TTL = DefaultDistributedConfig.TTL
 	} else if c.Distributed.TTL > time.Minute {
 		return fmt.Errorf("distributed ttl cannot be more than 1 minute")
+	}
+
+	return nil
+}
+
+func (c *Config) validateStorageConfig() error {
+	if c.Storage == nil || !c.Storage.Enabled {
+		return nil
+	}
+
+	if c.Storage.Host == "" {
+		return fmt.Errorf("storage.host is required when storage is enabled")
+	}
+
+	if c.Storage.Port <= 0 || c.Storage.Port > 65535 {
+		return fmt.Errorf("storage.port must be between 1 and 65535, got %d", c.Storage.Port)
+	}
+
+	if c.Storage.Database == "" {
+		return fmt.Errorf("storage.database is required when storage is enabled")
+	}
+
+	return nil
+}
+
+func (c *Config) ValidateFeaturesConfig() error {
+	// Initialize Features with defaults if not set
+	if c.Features == nil {
+		defaultConfig := DefaultFeaturesConfig
+		c.Features = &defaultConfig
+	}
+
+	if c.Features.MTLSManagement.Enabled {
+		if err := c.ValidateMTLSManagementConfig(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *Config) ValidateMTLSManagementConfig() error {
+	if c.Features == nil || !c.Features.MTLSManagement.Enabled {
+		return nil
+	}
+
+	// mTLS management requires storage to be enabled
+	if c.Storage == nil || !c.Storage.Enabled {
+		return fmt.Errorf("storage must be enabled when mtls_management is enabled")
+	}
+
+	// Validate admin group is set
+	if c.Features.MTLSManagement.AdminGroup == "" {
+		return fmt.Errorf("features.mtls_management.admin_group is required when mtls_management is enabled")
+	}
+
+	if c.Features.MTLSManagement.UserGroup == "" {
+		return fmt.Errorf("features.mtls_management.user_group is required when mtls_management is enabled")
+	}
+
+	if c.Features.MTLSManagement.DownloadTokenHMACKey == "" {
+		return fmt.Errorf("features.mtls_management.download_token_hmac_key is required when mtls_management is enabled")
+	}
+
+	if len(c.Features.MTLSManagement.DownloadTokenHMACKey) <= 32 {
+		return fmt.Errorf("features.mtls_management.download_token_hmac_key must be at least 32 characters")
+	}
+
+	// Apply default validity days if not set
+	if c.Features.MTLSManagement.MinCertificateValidityDays == 0 {
+		c.Features.MTLSManagement.MinCertificateValidityDays = DefaultMTLSIssuerConfig.MinCertificateValidityDays
+	}
+
+	if c.Features.MTLSManagement.MaxCertificateValidityDays == 0 {
+		c.Features.MTLSManagement.MaxCertificateValidityDays = DefaultMTLSIssuerConfig.MaxCertificateValidityDays
+	}
+
+	if c.Features.MTLSManagement.MaxCertificateValidityDays < c.Features.MTLSManagement.MinCertificateValidityDays {
+		return fmt.Errorf("features.mtls_management.max_certificate_validity_days cannot be less than min_certificate_validity_days")
+	}
+
+	// Apply default Kubernetes configuration if not set
+	if c.Features.MTLSManagement.Kubernetes == nil {
+		c.Features.MTLSManagement.Kubernetes = DefaultKubernetesConfig
+	}
+
+	if c.Features.MTLSManagement.Kubernetes.Namespace == "" {
+		c.Features.MTLSManagement.Kubernetes.Namespace = DefaultKubernetesConfig.Namespace
+	}
+
+	if c.Features.MTLSManagement.CertificateSubject == nil {
+		c.Features.MTLSManagement.CertificateSubject = DefaultCertificateSubject
+	}
+
+	if c.Features.MTLSManagement.CertificateSubject.Organization == "" {
+		c.Features.MTLSManagement.CertificateSubject.Organization = DefaultCertificateSubject.Organization
+	}
+
+	// Apply default background job config if not set
+	if c.Features.MTLSManagement.BackgroundJobConfig == nil {
+		c.Features.MTLSManagement.BackgroundJobConfig = DefaultMTLSBackgroundJobConfig
+	}
+
+	if c.Features.MTLSManagement.BackgroundJobConfig.ApprovedCertificatePollingInterval == 0 {
+		c.Features.MTLSManagement.BackgroundJobConfig.ApprovedCertificatePollingInterval = DefaultMTLSBackgroundJobConfig.ApprovedCertificatePollingInterval
+	}
+
+	if c.Features.MTLSManagement.BackgroundJobConfig.IssuedCertificatePollingInterval == 0 {
+		c.Features.MTLSManagement.BackgroundJobConfig.IssuedCertificatePollingInterval = DefaultMTLSBackgroundJobConfig.IssuedCertificatePollingInterval
+	}
+
+	// Validate certificate issuer configuration
+	if c.Features.MTLSManagement.CertificateIssuer == nil {
+		return fmt.Errorf("features.mtls_management.certificate_issuer is required when mtls_management is enabled")
+	}
+
+	if c.Features.MTLSManagement.CertificateIssuer.Name == "" {
+		return fmt.Errorf("features.mtls_management.certificate_issuer.name is required when mtls_management is enabled")
+	}
+
+	if c.Features.MTLSManagement.CertificateIssuer.Kind == "" {
+		return fmt.Errorf("features.mtls_management.certificate_issuer.kind is required when mtls_management is enabled")
+	}
+
+	// Validate issuer kind is either Issuer or ClusterIssuer
+	kind := c.Features.MTLSManagement.CertificateIssuer.Kind
+	if kind != "Issuer" && kind != "ClusterIssuer" {
+		return fmt.Errorf("features.mtls_management.certificate_issuer.kind must be either 'Issuer' or 'ClusterIssuer', got '%s'", kind)
 	}
 
 	return nil

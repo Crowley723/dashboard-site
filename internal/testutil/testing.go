@@ -21,18 +21,27 @@ import (
 
 // TestContext holds everything needed for testing
 type TestContext struct {
-	AppContext       *middlewares.AppContext
-	Request          *http.Request
-	Response         *httptest.ResponseRecorder
-	MockController   *gomock.Controller
-	MockCache        *mocks.MockCacheProvider
-	MockSession      *mocks.MockSessionProvider
-	MockOidcProvider *mocks.MockOIDCProvider
-	LogHandler       *TestLogHandler
+	AppContext          *middlewares.AppContext
+	Request             *http.Request
+	Response            *httptest.ResponseRecorder
+	MockController      *gomock.Controller
+	MockCache           *mocks.MockCacheProvider
+	MockSession         *mocks.MockSessionProvider
+	MockOidcProvider    *mocks.MockOIDCProvider
+	MockStorageProvider *mocks.MockStorageProvider
+	LogHandler          *TestLogHandler
 }
 
 func NewTestContext(t *testing.T) *TestContext {
-	cfg := &config.Config{}
+	cfg := &config.Config{
+		Features: &config.FeaturesConfig{
+			MTLSManagement: config.MTLSManagement{
+				Enabled:    false,
+				AdminGroup: "",
+				UserGroup:  "",
+			},
+		},
+	}
 
 	logHandler := NewTestLogHandler()
 	logger := slog.New(logHandler)
@@ -42,6 +51,7 @@ func NewTestContext(t *testing.T) *TestContext {
 	mockCache := mocks.NewMockCacheProvider(ctrl)
 	mockSession := mocks.NewMockSessionProvider(ctrl)
 	mockOIDCProvider := mocks.NewMockOIDCProvider(ctrl)
+	mockStorageProvider := mocks.NewMockStorageProvider(ctrl)
 
 	rr := httptest.NewRecorder()
 
@@ -52,24 +62,34 @@ func NewTestContext(t *testing.T) *TestContext {
 		SessionManager: mockSession,
 		OIDCProvider:   mockOIDCProvider,
 		Cache:          mockCache,
+		Storage:        mockStorageProvider,
 		Request:        nil,
 		Response:       rr,
 	}
 
 	return &TestContext{
-		AppContext:       appCtx,
-		Request:          nil,
-		Response:         rr,
-		MockController:   ctrl,
-		MockCache:        mockCache,
-		MockSession:      mockSession,
-		MockOidcProvider: mockOIDCProvider,
+		AppContext:          appCtx,
+		Request:             nil,
+		Response:            rr,
+		MockController:      ctrl,
+		MockCache:           mockCache,
+		MockSession:         mockSession,
+		MockOidcProvider:    mockOIDCProvider,
+		MockStorageProvider: mockStorageProvider,
 	}
 }
 
 // NewTestContextWithURL creates a complete test setup with sensible defaults
 func NewTestContextWithURL(t *testing.T, method, url string) *TestContext {
-	cfg := &config.Config{}
+	cfg := &config.Config{
+		Features: &config.FeaturesConfig{
+			MTLSManagement: config.MTLSManagement{
+				Enabled:    false,
+				AdminGroup: "",
+				UserGroup:  "",
+			},
+		},
+	}
 
 	logHandler := NewTestLogHandler()
 	logger := slog.New(logHandler)
@@ -79,6 +99,7 @@ func NewTestContextWithURL(t *testing.T, method, url string) *TestContext {
 	mockCache := mocks.NewMockCacheProvider(ctrl)
 	mockSession := mocks.NewMockSessionProvider(ctrl)
 	mockOIDCProvider := mocks.NewMockOIDCProvider(ctrl)
+	mockStorageProvider := mocks.NewMockStorageProvider(ctrl)
 
 	req := httptest.NewRequest(method, url, nil)
 	rr := httptest.NewRecorder()
@@ -90,19 +111,21 @@ func NewTestContextWithURL(t *testing.T, method, url string) *TestContext {
 		SessionManager: mockSession,
 		OIDCProvider:   mockOIDCProvider,
 		Cache:          mockCache,
+		Storage:        mockStorageProvider,
 		Request:        req,
 		Response:       rr,
 	}
 
 	return &TestContext{
-		AppContext:       appCtx,
-		Request:          req,
-		Response:         rr,
-		MockController:   ctrl,
-		MockCache:        mockCache,
-		MockSession:      mockSession,
-		MockOidcProvider: mockOIDCProvider,
-		LogHandler:       logHandler,
+		AppContext:          appCtx,
+		Request:             req,
+		Response:            rr,
+		MockController:      ctrl,
+		MockCache:           mockCache,
+		MockSession:         mockSession,
+		MockOidcProvider:    mockOIDCProvider,
+		MockStorageProvider: mockStorageProvider,
+		LogHandler:          logHandler,
 	}
 }
 
@@ -121,6 +144,7 @@ func NewTestContextWithRealCache(method, url string) *TestContext {
 		Logger:         logger,
 		SessionManager: nil,
 		OIDCProvider:   nil,
+		Storage:        nil,
 		Cache:          cache,
 		Request:        req,
 		Response:       rr,

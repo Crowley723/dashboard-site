@@ -15,3 +15,6 @@ dependencies:
     version: "20.4.0"
     repository: "https://charts.bitnami.com/bitnami"
     condition: redis.enabled
+  - name: cluster
+    version: "~0.3.1"
+    repository: "https://cloudnative-pg.github.io/charts"

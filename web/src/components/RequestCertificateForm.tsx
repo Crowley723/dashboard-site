@@ -115,7 +115,9 @@ export function RequestCertificateForm({
                 min={1}
                 max={365}
                 value={validityDays}
-                onChange={(e) => setValidityDays(parseInt(e.target.value) || 0)}
+                onChange={(e) =>
+                  setValidityDays(parseInt(e.target.value, 10) || 0)
+                }
                 disabled={isLoading}
                 aria-invalid={!!errors.validity_days}
               />

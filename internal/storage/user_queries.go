@@ -39,6 +39,7 @@ func (p *DatabaseProvider) UpsertUser(ctx context.Context, sub, iss, username, d
         ON CONFLICT (iss, sub) 
         DO UPDATE SET 
             username = EXCLUDED.username,
+            display_name = EXCLUDED.display_name,
             email = EXCLUDED.email,
             last_logged_in = CURRENT_TIMESTAMP
     `

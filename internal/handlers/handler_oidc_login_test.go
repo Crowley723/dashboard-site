@@ -9,9 +9,9 @@ import (
 )
 
 const (
-	expectedRedirectURL   = "https://auth.example.com/api/authorize?state=12345"
+	expectedRedirectURL   = "/api/authorize?state=12345"
 	defaultRedirectPath   = "/"
-	nonDefaultRedirectURL = "https://example.com/abc123"
+	nonDefaultRedirectURL = "/abc123"
 )
 
 func TestGetLoginHandler_ShouldReturnRedirectURL(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 )
 
 type ConfigResponse struct {
-	MTLS MTLSConfigResponse `json:"mtls,omnitempty"`
+	MTLS MTLSConfigResponse `json:"mtls,omitempty"`
 }
 
 type MTLSConfigResponse struct {

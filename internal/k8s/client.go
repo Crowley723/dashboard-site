@@ -33,8 +33,13 @@ func NewClient(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*C
 		return nil, fmt.Errorf("mtls_management is not enabled")
 	}
 
+	if cfg.Features == nil {
+		return nil, fmt.Errorf("features configuration is nil")
+
+	}
+
 	if cfg.Features.MTLSManagement.Kubernetes == nil {
-		return nil, fmt.Errorf("kubernetes configuration is missing")
+		return nil, fmt.Errorf("kubernetes configuration is nil")
 	}
 
 	k8sCfg := cfg.Features.MTLSManagement.Kubernetes
@@ -43,6 +48,10 @@ func NewClient(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*C
 
 	if issuerCfg == nil {
 		return nil, fmt.Errorf("certificate issuer configuration is missing")
+	}
+
+	if k8sCfg == nil || k8sCfg.Namespace == "" {
+		return nil, fmt.Errorf("kubernetes namespace configuration is missing")
 	}
 
 	var restConfig *rest.Config

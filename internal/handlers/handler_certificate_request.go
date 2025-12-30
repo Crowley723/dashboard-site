@@ -113,7 +113,14 @@ func POSTCertificateRequest(ctx *middlewares.AppContext) {
 		ctx.Logger.Debug("request was auto-approved", "iss", user.Iss, "sub", user.Sub, "request_status", requestStatus)
 	}
 
-	updatedRequest, _ := ctx.Storage.GetCertificateRequestByID(ctx, certRequest.ID)
+	updatedRequest, err := ctx.Storage.GetCertificateRequestByID(ctx, certRequest.ID)
+	if err != nil {
+		ctx.Logger.Error("failed to get certificate requests",
+			"error", err)
+		ctx.SetJSONError(http.StatusInternalServerError, "Failed to get certificate requests")
+		return
+	}
+
 	ctx.WriteJSON(http.StatusCreated, updatedRequest)
 }
 
@@ -263,7 +270,14 @@ func POSTCertificateReview(ctx *middlewares.AppContext) {
 		"new_status", review.NewStatus,
 	)
 
-	updatedRequest, _ := ctx.Storage.GetCertificateRequestByID(ctx, requestId)
+	updatedRequest, err := ctx.Storage.GetCertificateRequestByID(ctx, requestId)
+	if err != nil {
+		ctx.Logger.Error("failed to get certificate requests",
+			"error", err)
+		ctx.SetJSONError(http.StatusInternalServerError, "Failed to get certificate requests")
+		return
+	}
+
 	ctx.WriteJSON(http.StatusOK, updatedRequest)
 }
 

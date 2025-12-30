@@ -33,6 +33,12 @@ func (p *DatabaseProvider) CreateUser(ctx context.Context, sub, iss, username, d
 
 // UpsertUser adds a user to the database, or updates the existing user, including their groups.
 func (p *DatabaseProvider) UpsertUser(ctx context.Context, sub, iss, username, displayName, email string, groups []string) (*models.User, error) {
+	tx, err := p.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
 	userQuery := `
         INSERT INTO users (sub, iss, username, display_name, email, last_logged_in, created_at)
         VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
@@ -44,7 +50,7 @@ func (p *DatabaseProvider) UpsertUser(ctx context.Context, sub, iss, username, d
             last_logged_in = CURRENT_TIMESTAMP
     `
 
-	_, err := p.pool.Exec(ctx, userQuery, sub, iss, username, displayName, email)
+	_, err = tx.Exec(ctx, userQuery, sub, iss, username, displayName, email)
 	if err != nil {
 		return nil, fmt.Errorf("failed to upsert user: %w", err)
 	}
@@ -53,7 +59,7 @@ func (p *DatabaseProvider) UpsertUser(ctx context.Context, sub, iss, username, d
         DELETE FROM user_groups 
         WHERE owner_iss = $1 AND owner_sub = $2
     `
-	_, err = p.pool.Exec(ctx, deleteGroupsQuery, iss, sub)
+	_, err = tx.Exec(ctx, deleteGroupsQuery, iss, sub)
 	if err != nil {
 		return nil, fmt.Errorf("failed to delete old groups: %w", err)
 	}
@@ -63,10 +69,14 @@ func (p *DatabaseProvider) UpsertUser(ctx context.Context, sub, iss, username, d
             INSERT INTO user_groups (owner_iss, owner_sub, group_name)
             VALUES ($1, $2, unnest($3::text[]))
         `
-		_, err = p.pool.Exec(ctx, insertGroupsQuery, iss, sub, groups)
+		_, err = tx.Exec(ctx, insertGroupsQuery, iss, sub, groups)
 		if err != nil {
 			return nil, fmt.Errorf("failed to insert groups: %w", err)
 		}
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return p.GetUserByID(ctx, iss, sub)

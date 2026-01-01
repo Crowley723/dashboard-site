@@ -11,10 +11,12 @@ on:
           - patch
           - minor
           - major
-      prerelease:
-        description: 'Pre-release identifier (e.g., alpha, beta, rc - leave empty for stable release)'
+          - rc
+          - stable
+      rc_number:
+        description: 'RC number (only used with rc bump type, e.g., 1 for rc1, 2 for rc2)'
         required: false
-        default: ''
+        default: '1'
 
 jobs:
   bump:
@@ -37,28 +39,46 @@ jobs:
         run: |
           CURRENT_VERSION=$(cat VERSION | tr -d '\n')
 
-          IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
+          if [[ "$CURRENT_VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)(-rc([0-9]+))?$ ]]; then
+            major="${BASH_REMATCH[1]}"
+            minor="${BASH_REMATCH[2]}"
+            patch="${BASH_REMATCH[3]}"
+            current_rc="${BASH_REMATCH[5]}"
+          else
+            echo "Error: Invalid version format: $CURRENT_VERSION"
+            exit 1
+          fi
 
           case "${{ inputs.bump_type }}" in
             major)
               major=$((major + 1))
               minor=0
               patch=0
+              NEW_VERSION="$major.$minor.$patch"
               ;;
             minor)
               minor=$((minor + 1))
               patch=0
+              NEW_VERSION="$major.$minor.$patch"
               ;;
             patch)
               patch=$((patch + 1))
+              NEW_VERSION="$major.$minor.$patch"
+              ;;
+            rc)
+              if [ -z "$current_rc" ]; then
+                patch=$((patch + 1))
+              fi
+              NEW_VERSION="$major.$minor.$patch-rc${{ inputs.rc_number }}"
+              ;;
+            stable)
+              if [ -z "$current_rc" ]; then
+                echo "Error: Current version is already stable"
+                exit 1
+              fi
+              NEW_VERSION="$major.$minor.$patch"
               ;;
           esac
-
-          NEW_VERSION="$major.$minor.$patch"
-
-          if [ -n "${{ inputs.prerelease }}" ]; then
-            NEW_VERSION="$NEW_VERSION-${{ inputs.prerelease }}.1"
-          fi
 
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "current=$CURRENT_VERSION" >> $GITHUB_OUTPUT
@@ -78,7 +98,7 @@ jobs:
             Automated version bump from ${{ steps.new_version.outputs.current }} to ${{ steps.new_version.outputs.version }}
 
             Bump type: ${{ inputs.bump_type }}
-            ${{ inputs.prerelease != '' && format('Pre-release: {0}', inputs.prerelease) || '' }}
+            ${{ inputs.bump_type == 'rc' && format('RC number: {0}', inputs.rc_number) || '' }}
 
             Files updated:
             - VERSION

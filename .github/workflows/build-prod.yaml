@@ -46,6 +46,7 @@ jobs:
         uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3
 
       - name: Build and push Docker image
+        id: build
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
         with:
           push: true
@@ -57,20 +58,64 @@ jobs:
       - name: Get image digest
         id: digest
         run: |
-          DIGEST=$(docker buildx imagetools inspect ghcr.io/${{ github.repository }}:${{ inputs.tag }} --format '{{.Manifest.Digest}}')
+          DIGEST="${{ steps.build.outputs.digest }}"
           echo "digest=$DIGEST" >> $GITHUB_OUTPUT
 
-      - name: Trigger canary deployment
+      - name: Clone manifest repo
+        env:
+          GIT_TOKEN: ${{ secrets.REMOTE_GIT_TOKEN }}
+          GIT_USER: ${{ secrets.REMOTE_GIT_USER }}
+          GIT_REPO_URL: ${{ secrets.REMOTE_GIT_URL }}
         run: |
+          git clone https://${GIT_USER}:${GIT_TOKEN}@${GIT_REPO_URL} manifest-repo
+
+      - name: Update canary manifest
+        working-directory: manifest-repo
+        env:
+          MANIFEST_PATH: ${{ secrets.MANIFEST_PATH }}
+        run: |
+          IMAGE_REF="${{ inputs.tag }}@${{ steps.digest.outputs.digest }}"
+          sed -i "s|tag: \".*\"|tag: \"$IMAGE_REF\"|" ${MANIFEST_PATH}
+
+      - name: Create PR
+        working-directory: manifest-repo
+        env:
+          GIT_TOKEN: ${{ secrets.REMOTE_GIT_TOKEN }}
+          GIT_USER: ${{ secrets.REMOTE_GIT_USER }}
+          GIT_EMAIL: ${{ secrets.REMOTE_GIT_EMAIL }}
+          GIT_API_URL: ${{ secrets.REMOTE_GIT_API_URL }}
+          GIT_API_REPO: ${{ secrets.REMOTE_GIT_API_REPO }}
+        run: |
+          git config user.name "${GIT_USER}"
+          git config user.email "${GIT_EMAIL}"
+          
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          BRANCH_NAME="canary-deploy-${{ inputs.tag }}-${SHORT_SHA}"
+          git checkout -b "$BRANCH_NAME"
+          
+          git add .
+          git commit -m "Deploy canary: ${{ inputs.tag }}
+
+          Image: ghcr.io/${{ github.repository }}:${{ inputs.tag }}
+          Digest: ${{ steps.digest.outputs.digest }}
+          Source commit: ${{ github.sha }}
+          Triggered by: ${{ github.actor }}"
+          
+          git push origin "$BRANCH_NAME"
+          
+          PR_BODY="Image: ghcr.io/${{ github.repository }}:${{ inputs.tag }}@${{ steps.digest.outputs.digest }}
+
+          Source commit: ${{ github.sha }}
+          Triggered by: ${{ github.actor }}"
+          
           curl -X POST \
-            ${{ secrets.REMOTE_GIT_URL }} \
-            -H "Authorization: token ${{ secrets.REMOTE_GIT_TOKEN }}" \
+            "${GIT_API_URL}/repos/${GIT_API_REPO}/pulls" \
+            -H "Authorization: token ${GIT_TOKEN}" \
             -H "Content-Type: application/json" \
-            -d '{
-              "event_type": "deploy_canary",
-              "client_payload": {
-                "image_tag": "${{ inputs.tag }}",
-                "image_digest": "${{ steps.digest.outputs.digest }}",
-                "commit_sha": "${{ github.sha }}"
-              }
-            }'
+            -d "$(jq -n \
+              --arg title "Deploy canary: ${{ inputs.tag }}" \
+              --arg body "$PR_BODY" \
+              --arg head "$BRANCH_NAME" \
+              --arg base "main" \
+              '{title: $title, body: $body, head: $head, base: $base}'
+            )"

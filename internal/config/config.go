@@ -1,7 +1,6 @@
 package config
 
 import (
-	"flag"
 	"fmt"
 	"log/slog"
 	"net"
@@ -12,17 +11,13 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func LoadConfig() (*Config, error) {
-	configPath := flag.String("config", "", "path to config file")
-	flag.StringVar(configPath, "c", "", "path to config file (shorthand)")
-	flag.Parse()
-
-	if *configPath == "" {
+func LoadConfig(configPath string) (*Config, error) {
+	if configPath == "" {
 		return nil, fmt.Errorf("config file path is required (use -config or -c)")
 	}
 
 	// Read and parse YAML
-	data, err := os.ReadFile(*configPath)
+	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}

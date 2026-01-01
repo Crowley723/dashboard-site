@@ -11,11 +11,20 @@ FROM golang:1.25-alpine@sha256:ac09a5f469f307e5da71e766b0bd59c9c49ea460a528cc3e6
 RUN apk add --no-cache git
 WORKDIR /app
 
+ARG VERSION=dev
+ARG GIT_COMMIT=unknown
+ARG BUILD_TIME=unknown
+
 COPY go.mod go.sum ./
 COPY internal/ ./internal/
 COPY *.go ./
+COPY VERSION ./
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o dashboard-site ./main.go
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -ldflags="-X 'homelab-dashboard/internal/version.Version=${VERSION}' \
+              -X 'homelab-dashboard/internal/version.GitCommit=${GIT_COMMIT}' \
+              -X 'homelab-dashboard/internal/version.BuildTime=${BUILD_TIME}'" \
+    -o dashboard-site ./main.go
 
 FROM alpine:latest@sha256:865b95f46d98cf867a156fe4a135ad3fe50d2056aa3f25ed31662dff6da4eb62 AS runtime
 RUN apk add --no-cache ca-certificates tzdata && \

@@ -3,8 +3,12 @@ name: Build Production Image
 on:
   workflow_dispatch:
     inputs:
-      tag:
-        description: 'Production tag (e.g., v1.0.0 or prod)'
+      use_version_file:
+        description: 'Use VERSION file (true) or custom tag (false)'
+        required: false
+        default: 'true'
+      custom_tag:
+        description: 'Custom tag (only used if use_version_file is false)'
         required: false
         default: 'prod'
 
@@ -25,13 +29,29 @@ jobs:
       - name: 'Checkout'
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
+      - name: Determine Version Tag
+        id: version
+        run: |
+          if [ "${{ inputs.use_version_file }}" == "true" ]; then
+            VERSION=$(cat VERSION | tr -d '\n')
+            if [[ ! $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$ ]]; then
+              echo "Error: Invalid semver format in VERSION file: $VERSION"
+              exit 1
+            fi
+            echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ inputs.custom_tag }}" >> $GITHUB_OUTPUT
+            echo "version=${{ inputs.custom_tag }}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Extract Metadata
         id: meta
         uses: docker/metadata-action@c1e51972afc2121e065aed6d45c65596fe445f3f # v5.8.0
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=raw,value=${{ inputs.tag }}
+            type=raw,value=${{ steps.version.outputs.tag }}
             type=sha,format=long
             type=raw,value=latest
 
@@ -54,6 +74,10 @@ jobs:
           annotations: ${{ steps.meta.outputs.annotations }}
           provenance: true
           sbom: true
+          build-args: |
+            VERSION=${{ steps.version.outputs.version }}
+            GIT_COMMIT=${{ github.sha }}
+            BUILD_TIME=${{ github.event.repository.updated_at }}
 
       - name: Get image digest
         id: digest
@@ -90,31 +114,31 @@ jobs:
           git config user.email "${GIT_EMAIL}"
           
           SHORT_SHA="${GITHUB_SHA:0:7}"
-          BRANCH_NAME="canary-deploy-${{ inputs.tag }}-${SHORT_SHA}"
+          BRANCH_NAME="canary-deploy-${{ steps.version.outputs.tag }}-${SHORT_SHA}"
           git checkout -b "$BRANCH_NAME" 2>&1
-          
+
           git add .
-          git commit -m "Deploy canary: ${{ inputs.tag }}
+          git commit -m "Deploy canary: ${{ steps.version.outputs.tag }}
 
           Image: ${IMAGE_REPO}@${{ steps.digest.outputs.digest }}
-          Source tag: ${{ inputs.tag }}
+          Source tag: ${{ steps.version.outputs.tag }}
           Source commit: ${{ github.sha }}
           Triggered by: ${{ github.actor }}" 2>&1
-          
+
           git push origin "$BRANCH_NAME" 2>&1 | sed "s|https://.*@|https://***REDACTED***@|g"
-          
+
           PR_BODY="Image: ${IMAGE_REPO}@${{ steps.digest.outputs.digest }}
 
-          Source tag: ${{ inputs.tag }}
+          Source tag: ${{ steps.version.outputs.tag }}
           Source commit: ${{ github.sha }}
           Triggered by: ${{ github.actor }}"
-          
+
           curl -s -X POST \
             "${GIT_API_URL}/repos/${GIT_API_REPO}/pulls" \
             -H "Authorization: token ${GIT_TOKEN}" \
             -H "Content-Type: application/json" \
             -d "$(jq -n \
-              --arg title "Deploy canary: ${{ inputs.tag }}" \
+              --arg title "Deploy canary: ${{ steps.version.outputs.tag }}" \
               --arg body "$PR_BODY" \
               --arg head "$BRANCH_NAME" \
               --arg base "main" \

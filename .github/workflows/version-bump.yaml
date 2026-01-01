@@ -1,0 +1,94 @@
+name: Bump Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      prerelease:
+        description: 'Pre-release identifier (e.g., alpha, beta, rc - leave empty for stable release)'
+        required: false
+        default: ''
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: 'Harden Runner'
+        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
+        with:
+          egress-policy: 'audit'
+
+      - name: 'Checkout'
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Calculate New Version
+        id: new_version
+        run: |
+          CURRENT_VERSION=$(cat VERSION | tr -d '\n')
+
+          IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
+
+          case "${{ inputs.bump_type }}" in
+            major)
+              major=$((major + 1))
+              minor=0
+              patch=0
+              ;;
+            minor)
+              minor=$((minor + 1))
+              patch=0
+              ;;
+            patch)
+              patch=$((patch + 1))
+              ;;
+          esac
+
+          NEW_VERSION="$major.$minor.$patch"
+
+          if [ -n "${{ inputs.prerelease }}" ]; then
+            NEW_VERSION="$NEW_VERSION-${{ inputs.prerelease }}.1"
+          fi
+
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "current=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update Version Files
+        run: |
+          chmod +x scripts/sync-version.sh
+          ./scripts/sync-version.sh ${{ steps.new_version.outputs.version }}
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@e1d827c5745ecbf79d77e61317ffb96ffea8de7a # v7.0.7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: bump version to ${{ steps.new_version.outputs.version }}"
+          title: "chore: bump version to ${{ steps.new_version.outputs.version }}"
+          body: |
+            Automated version bump from ${{ steps.new_version.outputs.current }} to ${{ steps.new_version.outputs.version }}
+
+            Bump type: ${{ inputs.bump_type }}
+            ${{ inputs.prerelease != '' && format('Pre-release: {0}', inputs.prerelease) || '' }}
+
+            Files updated:
+            - VERSION
+            - helm/Chart.yaml
+            - web/package.json
+
+            After merging this PR, create a git tag:
+            ```bash
+            git tag -a v${{ steps.new_version.outputs.version }} -m "Release v${{ steps.new_version.outputs.version }}"
+            git push --tags
+            ```
+          branch: version-bump-${{ steps.new_version.outputs.version }}
+          delete-branch: true

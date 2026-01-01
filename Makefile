@@ -75,7 +75,19 @@ dev-cluster-status:
 	   echo "Cluster not running. Run 'make dev-cluster' to create it."
 
 build:
-	docker build -t dashboard-site:latest -f docker/Dockerfile .
+	docker build -t dashboard-site:latest -f Dockerfile .
+
+version:
+	@./scripts/sync-version.sh
+
+version-bump-patch:
+	@./scripts/sync-version.sh $$(./scripts/bump-version.sh patch)
+
+version-bump-minor:
+	@./scripts/sync-version.sh $$(./scripts/bump-version.sh minor)
+
+version-bump-major:
+	@./scripts/sync-version.sh $$(./scripts/bump-version.sh major)
 
 dev-docker:
 	@echo "Starting Docker development environment..."

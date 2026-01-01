@@ -218,6 +218,7 @@ func GETCertificateDownload(ctx *middlewares.AppContext) {
 
 	host, _, err := net.SplitHostPort(ctx.Request.RemoteAddr)
 	if err != nil {
+		ctx.Logger.Error("failed to parse remote address", "error", err)
 		ctx.SetJSONError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 		return
 	}

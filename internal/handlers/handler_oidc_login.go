@@ -25,7 +25,7 @@ func GETLoginHandler(ctx *middlewares.AppContext) {
 	if redirectTo != "/" {
 		parsedUrl, err := url.Parse(redirectTo)
 		if err != nil || parsedUrl.IsAbs() || parsedUrl.Host != "" {
-			ctx.Logger.Warn("Invalid redirect URL, using root", "redirect", redirectTo)
+			//ctx.Logger.Warn("Invalid redirect URL, using root", "redirect", redirectTo)
 			redirectTo = "/"
 		}
 

@@ -222,6 +222,7 @@ func GETCertificateDownload(ctx *middlewares.AppContext) {
 		ctx.SetJSONError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 		return
 	}
+	
 	_, err = ctx.Storage.InsertAuditLogCertificateDownload(ctx, certificateId, user.Sub, user.Iss, host, ctx.Request.UserAgent(), *uasurfer.Parse(ctx.Request.UserAgent()))
 	if err != nil {
 		ctx.Logger.Error("failed to insert download audit log", "error", err)

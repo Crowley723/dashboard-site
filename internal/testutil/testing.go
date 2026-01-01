@@ -15,9 +15,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/prometheus/common/model"
 	"go.uber.org/mock/gomock"
 )
+
+// chiContextKey is the context key used by chi router
+type chiContextKeyType string
+
+const chiContextKey chiContextKeyType = "chi.RouteContext"
 
 // TestContext holds everything needed for testing
 type TestContext struct {
@@ -381,6 +387,22 @@ func (tc *TestContext) WithQueryParam(key, value string) *TestContext {
 	q := tc.Request.URL.Query()
 	q.Add(key, value)
 	tc.Request.URL.RawQuery = q.Encode()
+	return tc
+}
+
+// WithURLParam sets a URL parameter in the chi route context (for path parameters like /resource/{id})
+func (tc *TestContext) WithURLParam(key, value string) *TestContext {
+	rctx := tc.Request.Context().Value(chiContextKey)
+	if rctx == nil {
+		// Create a new chi context if one doesn't exist
+		ctx := chi.NewRouteContext()
+		ctx.URLParams.Add(key, value)
+		tc.Request = tc.Request.WithContext(context.WithValue(tc.Request.Context(), chiContextKey, ctx))
+		tc.AppContext.Request = tc.Request
+		tc.AppContext.Context = tc.Request.Context()
+	} else if chiCtx, ok := rctx.(*chi.Context); ok {
+		chiCtx.URLParams.Add(key, value)
+	}
 	return tc
 }
 

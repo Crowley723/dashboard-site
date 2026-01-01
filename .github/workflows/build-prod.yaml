@@ -53,3 +53,24 @@ jobs:
           annotations: ${{ steps.meta.outputs.annotations }}
           provenance: true
           sbom: true
+
+      - name: Get image digest
+        id: digest
+        run: |
+          DIGEST=$(docker buildx imagetools inspect ghcr.io/${{ github.repository }}:${{ inputs.tag }} --format '{{.Manifest.Digest}}')
+          echo "digest=$DIGEST" >> $GITHUB_OUTPUT
+
+      - name: Trigger canary deployment
+        run: |
+          curl -X POST \
+            ${{ secrets.REMOTE_GIT_URL }} \
+            -H "Authorization: token ${{ secrets.REMOTE_GIT_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "event_type": "deploy_canary",
+              "client_payload": {
+                "image_tag": "${{ inputs.tag }}",
+                "image_digest": "${{ steps.digest.outputs.digest }}",
+                "commit_sha": "${{ github.sha }}"
+              }
+            }'

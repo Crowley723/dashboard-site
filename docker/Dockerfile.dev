@@ -1,4 +1,4 @@
-FROM node:24-alpine@sha256:2867d550cf9d8bb50059a0fff528741f11a84d985c732e60e19e8e75c7239c43
+FROM node:25-alpine@sha256:f4769ca6eeb6ebbd15eb9c8233afed856e437b75f486f7fccaa81d7c8ad56007
 
 # Install pnpm and Go
 RUN npm install -g pnpm
@@ -15,7 +15,7 @@ RUN wget https://go.dev/dl/go1.25.1.linux-amd64.tar.gz && \
 ENV GOPATH=/go
 ENV PATH=$GOPATH/bin:/usr/local/go/bin:$PATH
 
-# Create app directory
+# CreateUser app directory
 WORKDIR /app
 
 # Install reflex for Go hot reloading
@@ -35,7 +35,7 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Create startup script in /usr/local/bin to avoid volume mount conflicts
+# CreateUser startup script in /usr/local/bin to avoid volume mount conflicts
 RUN cat > /usr/local/bin/start-dev.sh << 'EOF'
 #!/bin/sh
 set -e
@@ -63,7 +63,7 @@ EOF
 
 RUN chmod +x /usr/local/bin/start-dev.sh
 
-# Create debug startup script
+# CreateUser debug startup script
 RUN cat > /usr/local/bin/start-debug.sh << 'EOF'
 #!/bin/sh
 set -e

@@ -90,7 +90,7 @@ func (r *RealOIDCProvider) StartLogin(ctx *middlewares.AppContext) (string, erro
 	return authURL, nil
 }
 
-func (r *RealOIDCProvider) HandleCallback(ctx *middlewares.AppContext) (*models.User, error) {
+func (r *RealOIDCProvider) HandleCallback(ctx *middlewares.AppContext) (*oidc.IDToken, *models.User, error) {
 	if errorParam := ctx.Request.URL.Query().Get("error"); errorParam != "" {
 		errorDescription := ctx.Request.URL.Query().Get("error_description")
 		errorURI := ctx.Request.URL.Query().Get("error_uri")
@@ -107,12 +107,12 @@ func (r *RealOIDCProvider) HandleCallback(ctx *middlewares.AppContext) (*models.
 			errorURL += "&state=" + url.QueryEscape(state)
 		}
 
-		return nil, &OIDCError{RedirectURL: errorURL, Message: errorParam}
+		return nil, nil, &OIDCError{RedirectURL: errorURL, Message: errorParam}
 	}
 
 	storedState := ctx.SessionManager.GetOauthState(ctx)
 	if storedState == "" {
-		return nil, &OIDCError{
+		return nil, nil, &OIDCError{
 			RedirectURL: "/error?error=invalid_request&error_description=" + url.QueryEscape("No oauth state found in session"),
 			Message:     "no oauth state found in session",
 		}
@@ -120,7 +120,7 @@ func (r *RealOIDCProvider) HandleCallback(ctx *middlewares.AppContext) (*models.
 
 	receivedState := ctx.Request.URL.Query().Get("state")
 	if receivedState != storedState {
-		return nil, &OIDCError{
+		return nil, nil, &OIDCError{
 			RedirectURL: "/error?error=invalid_request&error_description=" + url.QueryEscape("Invalid state parameter"),
 			Message:     "invalid state parameter",
 		}
@@ -130,7 +130,7 @@ func (r *RealOIDCProvider) HandleCallback(ctx *middlewares.AppContext) (*models.
 
 	code := ctx.Request.URL.Query().Get("code")
 	if code == "" {
-		return nil, &OIDCError{
+		return nil, nil, &OIDCError{
 			RedirectURL: "/error?error=invalid_request&error_description=" + url.QueryEscape("No authorization code received"),
 			Message:     "no authorization code received",
 		}
@@ -141,7 +141,7 @@ func (r *RealOIDCProvider) HandleCallback(ctx *middlewares.AppContext) (*models.
 
 	token, err := ctx.OIDCProvider.GetOAuth2Config().Exchange(ctx.Request.Context(), code, oauth2.VerifierOption(verifierCode))
 	if err != nil {
-		return nil, &OIDCError{
+		return nil, nil, &OIDCError{
 			RedirectURL: "/error?error=invalid_grant&error_description=" + url.QueryEscape("Failed to exchange code for token"),
 			Message:     fmt.Sprintf("failed to exchange code for token: %v", err),
 		}
@@ -149,7 +149,7 @@ func (r *RealOIDCProvider) HandleCallback(ctx *middlewares.AppContext) (*models.
 
 	rawIDToken, ok := token.Extra("id_token").(string)
 	if !ok {
-		return nil, &OIDCError{
+		return nil, nil, &OIDCError{
 			RedirectURL: "/error?error=invalid_token&error_description=" + url.QueryEscape("No id_token found in oauth2 token"),
 			Message:     "no id_token found in oauth2 token",
 		}
@@ -159,7 +159,7 @@ func (r *RealOIDCProvider) HandleCallback(ctx *middlewares.AppContext) (*models.
 
 	idToken, err := verifier.Verify(ctx.Request.Context(), rawIDToken)
 	if err != nil {
-		return nil, &OIDCError{
+		return nil, nil, &OIDCError{
 			RedirectURL: "/error?error=invalid_token&error_description=" + url.QueryEscape("Failed to verify ID Token"),
 			Message:     fmt.Sprintf("failed to verify ID Token: %v", err),
 		}
@@ -167,14 +167,14 @@ func (r *RealOIDCProvider) HandleCallback(ctx *middlewares.AppContext) (*models.
 
 	user, nonce, err := extractUserClaimsFromToken(idToken)
 	if err != nil {
-		return nil, &OIDCError{
+		return nil, nil, &OIDCError{
 			RedirectURL: "/error?error=server_error&error_description=" + url.QueryEscape("Failed to extract user from ID Token"),
 			Message:     fmt.Sprintf("failed to extract user from ID Token: %v", err),
 		}
 	}
 
 	if nonce != ctx.SessionManager.GetOauthNonce(ctx) {
-		return nil, &OIDCError{
+		return nil, nil, &OIDCError{
 			RedirectURL: "/error?error=server_error&error_description=" + url.QueryEscape("Invalid Nonce"),
 			Message:     fmt.Sprintf("nonce in ID Token is invalid"),
 		}
@@ -188,15 +188,8 @@ func (r *RealOIDCProvider) HandleCallback(ctx *middlewares.AppContext) (*models.
 		enhancedUser = user
 	}
 
-	err = ctx.SessionManager.CreateSessionWithTokenExpiry(ctx, idToken, enhancedUser)
-	if err != nil {
-		return nil, &OIDCError{
-			RedirectURL: "/error?error=server_error&error_description=" + url.QueryEscape("Failed to create user session"),
-			Message:     fmt.Sprintf("failed to create user session: %v", err),
-		}
-	}
+	return idToken, enhancedUser, nil
 
-	return enhancedUser, nil
 }
 
 // fetchUserInfo retrieves additional user information from the UserInfo endpoint

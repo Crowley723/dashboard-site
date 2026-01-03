@@ -12,10 +12,14 @@ export function LoginForm({
   className,
   onLogin,
   isLoading,
+  message,
+  error,
   ...props
 }: React.ComponentProps<'div'> & {
   onLogin?: () => void;
   isLoading?: boolean;
+  message?: string;
+  error?: boolean;
 }) {
   return (
     <div className={cn('flex flex-col gap-6', className)} {...props}>
@@ -24,6 +28,17 @@ export function LoginForm({
           <CardTitle>Login to your account</CardTitle>
         </CardHeader>
         <CardContent>
+          {message && (
+            <p
+              className={
+                error
+                  ? 'text-red-600 mb-4 text-center'
+                  : 'text-gray-600 mb-4 text-center'
+              }
+            >
+              {message}
+            </p>
+          )}
           <div className="flex flex-col gap-3">
             <Button
               type="button"

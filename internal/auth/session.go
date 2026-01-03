@@ -224,7 +224,7 @@ func (s *SessionManager) IsUserAuthenticated(ctx *middlewares.AppContext) bool {
 	return true
 }
 
-func (s *SessionManager) GetCurrentUser(ctx *middlewares.AppContext) (user *models.User, ok bool) {
+func (s *SessionManager) GetAuthenticatedUser(ctx *middlewares.AppContext) (user *models.User, ok bool) {
 	if !s.IsUserAuthenticated(ctx) {
 		return nil, false
 	}

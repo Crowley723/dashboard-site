@@ -18,6 +18,11 @@ type MockRedisCacheClient struct {
 	mock.Mock
 }
 
+func (m *MockRedisCacheClient) GetDel(ctx context.Context, key string) *redis.StringCmd {
+	args := m.Called(ctx, key)
+	return args.Get(0).(*redis.StringCmd)
+}
+
 func (m *MockRedisCacheClient) Get(ctx context.Context, key string) *redis.StringCmd {
 	args := m.Called(ctx, key)
 	return args.Get(0).(*redis.StringCmd)

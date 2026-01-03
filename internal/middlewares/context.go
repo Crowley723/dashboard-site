@@ -2,21 +2,24 @@ package middlewares
 
 import (
 	"context"
+	"encoding/json"
 	"homelab-dashboard/internal/config"
 	"homelab-dashboard/internal/data"
+	"homelab-dashboard/internal/k8s"
+	"homelab-dashboard/internal/storage"
 	"log/slog"
 	"net/http"
-
-	"encoding/json"
 )
 
 type AppContext struct {
 	context.Context
-	Config         *config.Config
-	Logger         *slog.Logger
-	SessionManager SessionProvider
-	OIDCProvider   OIDCProvider
-	Cache          data.CacheProvider
+	Config           *config.Config
+	Logger           *slog.Logger
+	SessionManager   SessionProvider
+	OIDCProvider     OIDCProvider
+	Cache            data.CacheProvider
+	Storage          storage.StorageProvider
+	KubernetesClient *k8s.Client
 
 	Request  *http.Request
 	Response http.ResponseWriter
@@ -30,14 +33,16 @@ func AppContextMiddleware(baseCtx *AppContext) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			requestCtx := &AppContext{
-				Context:        r.Context(),
-				Config:         baseCtx.Config,
-				Logger:         baseCtx.Logger,
-				SessionManager: baseCtx.SessionManager,
-				OIDCProvider:   baseCtx.OIDCProvider,
-				Cache:          baseCtx.Cache,
-				Request:        r,
-				Response:       w,
+				Context:          r.Context(),
+				Config:           baseCtx.Config,
+				Logger:           baseCtx.Logger,
+				SessionManager:   baseCtx.SessionManager,
+				OIDCProvider:     baseCtx.OIDCProvider,
+				Cache:            baseCtx.Cache,
+				Storage:          baseCtx.Storage,
+				KubernetesClient: baseCtx.KubernetesClient,
+				Request:          r,
+				Response:         w,
 			}
 
 			ctx := context.WithValue(r.Context(), appContextKey, requestCtx)
@@ -79,14 +84,16 @@ func (ctx *AppContext) Redirect(url string, status int) {
 	http.Redirect(ctx.Response, ctx.Request, url, status)
 }
 
-func NewAppContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, cache data.CacheProvider, sessionManager SessionProvider, oidcProvider OIDCProvider) *AppContext {
+func NewAppContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, cache data.CacheProvider, sessionManager SessionProvider, oidcProvider OIDCProvider, storage storage.StorageProvider, kubernetesClient *k8s.Client) *AppContext {
 	return &AppContext{
-		Context:        ctx,
-		Config:         cfg,
-		Logger:         logger,
-		SessionManager: sessionManager,
-		OIDCProvider:   oidcProvider,
-		Cache:          cache,
+		Context:          ctx,
+		Config:           cfg,
+		Logger:           logger,
+		SessionManager:   sessionManager,
+		OIDCProvider:     oidcProvider,
+		Cache:            cache,
+		Storage:          storage,
+		KubernetesClient: kubernetesClient,
 	}
 }
 

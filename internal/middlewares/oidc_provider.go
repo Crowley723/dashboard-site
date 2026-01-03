@@ -12,7 +12,7 @@ import (
 type OIDCProvider interface {
 	GenerateRandString(bytes int) string
 	StartLogin(ctx *AppContext) (string, error)
-	HandleCallback(ctx *AppContext) (*models.User, error)
+	HandleCallback(ctx *AppContext) (*oidc.IDToken, *models.User, error)
 	GetProvider() *oidc.Provider
 	GetOAuth2Config() *oauth2.Config
 }

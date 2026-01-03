@@ -27,6 +27,7 @@ export function ClusterAvgCPUHourCard() {
       error={error || undefined}
       unit="%"
       color="var(--chart-5)"
+      minYAxisRange={10}
     />
   );
 }

@@ -9,7 +9,7 @@ permissions:
 jobs:
   cover:
     name: 'Coverage'
-    runs-on: 'my-runners'
+    runs-on: 'ubuntu-latest'
     steps:
       - name: 'Harden Runner'
         uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
@@ -33,7 +33,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
   build:
     name: 'Build'
-    runs-on: 'my-runners'
+    runs-on: 'ubuntu-latest'
     strategy:
       matrix:
         go:

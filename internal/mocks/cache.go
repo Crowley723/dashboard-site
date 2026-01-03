@@ -13,6 +13,7 @@ import (
 	context "context"
 	data "homelab-dashboard/internal/data"
 	reflect "reflect"
+	time "time"
 
 	gomock "go.uber.org/mock/gomock"
 )
@@ -68,6 +69,36 @@ func (mr *MockCacheProviderMockRecorder) Get(ctx, queryName any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockCacheProvider)(nil).Get), ctx, queryName)
 }
 
+// GetDelKey mocks base method.
+func (m *MockCacheProvider) GetDelKey(ctx context.Context, key string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDelKey", ctx, key)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetDelKey indicates an expected call of GetDelKey.
+func (mr *MockCacheProviderMockRecorder) GetDelKey(ctx, key any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDelKey", reflect.TypeOf((*MockCacheProvider)(nil).GetDelKey), ctx, key)
+}
+
+// GetKey mocks base method.
+func (m *MockCacheProvider) GetKey(ctx context.Context, key string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetKey", ctx, key)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetKey indicates an expected call of GetKey.
+func (mr *MockCacheProviderMockRecorder) GetKey(ctx, key any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetKey", reflect.TypeOf((*MockCacheProvider)(nil).GetKey), ctx, key)
+}
+
 // ListAll mocks base method.
 func (m *MockCacheProvider) ListAll(ctx context.Context) []string {
 	m.ctrl.T.Helper()
@@ -92,6 +123,20 @@ func (m *MockCacheProvider) Set(ctx context.Context, queryName string, arg2 data
 func (mr *MockCacheProviderMockRecorder) Set(ctx, queryName, arg2 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Set", reflect.TypeOf((*MockCacheProvider)(nil).Set), ctx, queryName, arg2)
+}
+
+// SetKey mocks base method.
+func (m *MockCacheProvider) SetKey(ctx context.Context, key string, value any, ttl time.Duration) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetKey", ctx, key, value, ttl)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetKey indicates an expected call of SetKey.
+func (mr *MockCacheProviderMockRecorder) SetKey(ctx, key, value, ttl any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetKey", reflect.TypeOf((*MockCacheProvider)(nil).SetKey), ctx, key, value, ttl)
 }
 
 // Size mocks base method.

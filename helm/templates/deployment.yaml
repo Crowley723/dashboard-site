@@ -23,9 +23,7 @@ spec:
       annotations: {{ $annotations | nindent 8 }}
       {{- end }}
     spec:
-      {{- if .Values.deployment.serviceAccount }}
-      serviceAccountName: {{ .Values.deployment.serviceAccount }}
-      {{- end }}
+      serviceAccountName: {{ .Values.deployment.serviceAccount | default (include "dashboard.name" .) }}
       {{- if .Values.deployment.securityContext }}
       securityContext:
         {{- toYaml .Values.deployment.securityContext | nindent 8 }}

@@ -15,6 +15,7 @@ data:
     {{- with .Values.config.server }}
     server:
       port: {{ .port | default 8080 }}
+      external_url: {{ .external_url | quote }}
       {{- if .debug }}
       debug:
         enabled: {{ .debug.enabled | default false }}
@@ -46,7 +47,6 @@ data:
           {{- end }}
         {{- end }}
       {{- end}}
-
     {{- end }}
 
     {{- with .Values.config.oidc }}
@@ -174,4 +174,64 @@ data:
 
     cache:
       type: {{ .Values.config.cache.type | default "memory" | quote }}
+
+    {{- with .Values.config.storage }}
+    storage:
+      enabled: {{ .enabled | default false }}
+      {{- if .enabled }}
+      host: {{ .host | quote }}
+      port: {{ .port }}
+      username: {{ .username | quote }}
+      password: {{ .password | quote }}
+      database: {{ .database | quote }}
+      {{- end }}
+    {{- end }}
+
+    {{- with .Values.config.features }}
+    features:
+      {{- with .mtls_management }}
+      mtls_management:
+        enabled: {{ .enabled | default false }}
+        {{- if .enabled }}
+        admin_group: {{ .admin_group | quote }}
+        user_group: {{ .user_group | quote }}
+        download_token_hmac_key: {{ .download_token_hmac_key | quote }}
+        auto_approve_admin_requests: {{ .auto_approve_admin_requests | default false }}
+        allow_admins_to_approve_own_requests: {{ .allow_admins_to_approve_own_requests | default true }}
+        min_certificate_validity_days: {{ .min_certificate_validity_days | default 30 }}
+        max_certificate_validity_days: {{ .max_certificate_validity_days | default 365 }}
+        {{- with .kubernetes }}
+        kubernetes:
+          namespace: {{ .namespace | default "conduit" | quote }}
+          in_cluster: {{ .in_cluster | default true }}
+          {{- if .kubeconfig }}
+          kubeconfig: {{ .kubeconfig | quote }}
+          {{- end }}
+        {{- end }}
+        {{- with .certificate_issuer }}
+        certificate_issuer:
+          name: {{ .name | quote }}
+          kind: {{ .kind | quote }}
+        {{- end }}
+        {{- with .certificate_subject }}
+        certificate_subject:
+          organization: {{ .organization | default "Homelab Conduit" | quote }}
+          {{- if .country }}
+          country: {{ .country | quote }}
+          {{- end }}
+          {{- if .locality }}
+          locality: {{ .locality | quote }}
+          {{- end }}
+          {{- if .province }}
+          province: {{ .province | quote }}
+          {{- end }}
+        {{- end }}
+        {{- with .background_job_config }}
+        background_job_config:
+          approved_certificate_polling_interval: {{ .approved_certificate_polling_interval | default "30s" | quote }}
+          issued_certificate_polling_interval: {{ .issued_certificate_polling_interval | default "30s" | quote }}
+        {{- end }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
 {{- end }}

@@ -1,3 +1,65 @@
+cluster:
+  type: postgresql
+  mode: standalone
+
+  cluster:
+    imageName: registry.crowleybrynn.com/ghcr-proxy/cloudnative-pg/postgresql:17
+    instances: 2
+    postgresql:
+      parameters:
+        shared_buffers: "256MB"
+        pg_stat_statements.max: "10000"
+        pg_stat_statements.track: "all"
+        auto_explain.log_min_duration: "10s"
+      pg_hba:
+        - "host all all 10.245.0.0/16 md5"
+      shared_preload_libraries:
+        - "pg_stat_statements"
+    storage:
+      size: "5Gi"
+      storageClass: "longhorn-2-replica"
+    affinity:
+      enablePodAntiAffinity: true
+      podAntiAffinityType: "preferred"
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: "node-role.kubernetes.io/control-plane"
+                  operator: DoesNotExist
+    primaryUpdateStrategy: "unsupervised"
+    additionalLabels:
+      app: "conduit"
+    initdb:
+      database: "conduit"
+      owner: "conduit"
+  backups:
+    enabled: true
+    provider: "s3"
+    retentionPolicy: "30d"
+    target: "prefer-standby"
+    s3:
+      bucket: "cnpg-backups"
+      path: "/conduit"
+    endpointURL: "https://minio.crowleybrynn.com"
+    secret:
+      create: false
+      name: "minio-cnpg-conduit-backups"
+    data:
+      compression: "gzip"
+      encryption: ""
+      jobs: 2
+    wal:
+      compression: "gzip"
+      encryption: ""
+      max_parallel: 2
+    scheduledBackups:
+      - name: "daily-backup"
+        backupOwnerReference: "none"
+        method: "barmanObjectStore"
+        schedule: "0 0 2 * * *"
+        target: "prefer-standby"
+
 redis:
   image:
     registry: registry.crowleybrynn.com
@@ -109,14 +171,14 @@ redis:
     enabled: false
 
 deployment:
-  replicas: 3
+  replicas: 2
   strategy:
     type: RollingUpdate
     rollingUpdate:
       maxSurge: 1
 
   labels:
-    app.kubernetes.io/name: dashboard
+    app.kubernetes.io/name: conduit
     app.kubernetes.io/component: application
   annotations: {}
   podAnnotations:
@@ -151,14 +213,18 @@ deployment:
       requiredDuringSchedulingIgnoredDuringExecution:
         - labelSelector:
             matchLabels:
-              app.kubernetes.io/name: dashboard
+              app.kubernetes.io/name: conduit
+          topologyKey: kubernetes.io/hostname
+        - labelSelector:
+            matchLabels:
+              cnpg.io/cluster: conduit-cluster
           topologyKey: kubernetes.io/hostname
 
 
   container:
     name: "dashboard"
-#    command: [ "sleep" ]
-#    args: [ "infinity" ]
+    #    command: [ "sleep" ]
+    #    args: [ "infinity" ]
 
     envFrom:
       - secretRef:
@@ -174,6 +240,31 @@ deployment:
           secretKeyRef:
             name: redis-credentials
             key: password
+      - name: DASHBOARD_STORAGE_HOST
+        valueFrom:
+          secretKeyRef:
+            name: conduit-cluster-app
+            key: host
+      - name: DASHBOARD_STORAGE_PORT
+        valueFrom:
+          secretKeyRef:
+            name: conduit-cluster-app
+            key: port
+      - name: DASHBOARD_STORAGE_USERNAME
+        valueFrom:
+          secretKeyRef:
+            name: conduit-cluster-app
+            key: username
+      - name: DASHBOARD_STORAGE_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: conduit-cluster-app
+            key: password
+      - name: DASHBOARD_STORAGE_DATABASE
+        valueFrom:
+          secretKeyRef:
+            name: conduit-cluster-app
+            key: dbname
 
     resources:
       limits:
@@ -201,6 +292,7 @@ ingressRoute:
   routes:
     - match: "Host(`crowleybrynn.com`) || Host(`www.crowleybrynn.com`)"
       servicePort: 80
+      priority: 10
   tls:
     secretName: tls-wildcard-crowleybrynn-com
 
@@ -221,19 +313,37 @@ config:
 
   distributed:
     enabled: true
-    ttl: '30s'
+    ttl: "30s"
 
   redis:
-    address: 'dashboard-redis.dashboard-site.svc.cluster.local:6379'
+    address: "dashboard-redis.dashboard-site.svc.cluster.local:6379"
     session_index: 0
     cache_index: 1
     leader_index: 2
     sentinel:
       master_name: mymaster
       addresses:
-        - 'dashboard-redis-node-0.dashboard-redis-headless.dashboard-site.svc.cluster.local:26379'
-        - 'dashboard-redis-node-1.dashboard-redis-headless.dashboard-site.svc.cluster.local:26379'
-        - 'dashboard-redis-node-2.dashboard-redis-headless.dashboard-site.svc.cluster.local:26379'
+        - "dashboard-redis-node-0.dashboard-redis-headless.dashboard-site.svc.cluster.local:26379"
+        - "dashboard-redis-node-1.dashboard-redis-headless.dashboard-site.svc.cluster.local:26379"
+        - "dashboard-redis-node-2.dashboard-redis-headless.dashboard-site.svc.cluster.local:26379"
+
+  features:
+    mtls_management:
+      enabled: true
+      admin_group: 'conduit:mtls:admin'
+      user_group: 'conduit:mtls:user'
+      auto_approve_admin_requests: true
+      allow_admins_to_approve_own_requests: true
+      kubernetes:
+        namespace: 'conduit'
+      certificate_issuer:
+        name: "selfsigned-issuer"
+        kind: "ClusterIssuer"
+      certificate_subject:
+        organization: "CrowleyBrynn Homelab"
+        country: "United States"
+        province: "California"
+        locality: "San Francisco"
 
   log:
     level: "info"
@@ -247,100 +357,100 @@ config:
     maxAge: 300
 
   session:
-    store: 'redis'
-    duration_source: 'oidc_tokens'
+    store: "redis"
+    duration_source: "oidc_tokens"
     secure: false
 
   cache:
-    type: 'redis'
+    type: "redis"
 
   oidc:
     scopes:
-      - 'openid'
-      - 'profile'
-      - 'email'
-      - 'groups'
+      - "openid"
+      - "profile"
+      - "email"
+      - "groups"
 
   data:
     queries:
-      - name: 'up'
+      - name: "up"
         query: 'up{source="kubernetes", app!="", component!=""}'
-        ttl: '10m'
-      - name: 'node_status'
+        ttl: "10m"
+      - name: "node_status"
         query: 'kube_node_status_condition{condition="Ready",status="true"}'
-        ttl: '10m'
+        ttl: "10m"
       - name: "pods_running_per_namespace"
         query: 'count by (namespace)(kube_pod_status_phase{phase="Running"})'
-        ttl: '10m'
+        ttl: "10m"
 
-      - name: 'traefik_requests_7d_avg'
-        query: 'sum(rate(traefik_service_requests_total[7d]))'
-        type: 'range'
-        range: '7d'
-        step: '1h'
-        ttl: '1h'
-      - name: 'traefik_requests_5m_avg'
-        query: 'sum(rate(traefik_service_requests_total[5m]))'
-        type: 'range'
-        range: '1h'
-        step: '1m'
-        ttl: '1m'
+      - name: "traefik_requests_7d_avg"
+        query: "sum(rate(traefik_service_requests_total[7d]))"
+        type: "range"
+        range: "7d"
+        step: "1h"
+        ttl: "1h"
+      - name: "traefik_requests_5m_avg"
+        query: "sum(rate(traefik_service_requests_total[5m]))"
+        type: "range"
+        range: "1h"
+        step: "1m"
+        ttl: "1m"
 
-      - name: 'traefik_requests_total_1h'
-        query: 'sum(rate(traefik_service_requests_total[5m])) * 60'
-        type: 'range'
-        range: '1h'
-        step: '1m'
-        ttl: '1m'
-      - name: 'traefik_requests_total_7d'
-        query: 'sum(rate(traefik_service_requests_total[1d])) * 3600'
-        type: 'range'
-        range: '7d'
-        step: '1h'
-        ttl: '1h'
+      - name: "traefik_requests_total_1h"
+        query: "sum(rate(traefik_service_requests_total[5m])) * 60"
+        type: "range"
+        range: "1h"
+        step: "1m"
+        ttl: "1m"
+      - name: "traefik_requests_total_7d"
+        query: "sum(rate(traefik_service_requests_total[1d])) * 3600"
+        type: "range"
+        range: "7d"
+        step: "1h"
+        ttl: "1h"
 
-      - name: 'total_cluster_cpu_perc_1h'
+      - name: "total_cluster_cpu_perc_1h"
         query: '100 * (1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m])))'
-        type: 'range'
-        range: '1h'
-        step: '1m'
-        ttl: '1m'
-      - name: 'total_cluster_cpu_perc_7d'
+        type: "range"
+        range: "1h"
+        step: "1m"
+        ttl: "1m"
+      - name: "total_cluster_cpu_perc_7d"
         query: '100 * (1 - avg(rate(node_cpu_seconds_total{mode="idle"}[1d])))'
-        type: 'range'
-        range: '7d'
-        step: '1h'
-        ttl: '1h'
+        type: "range"
+        range: "7d"
+        step: "1h"
+        ttl: "1h"
 
-      - name: 'code_400_average_1day'
+      - name: "code_400_average_1day"
         disabled: true
         query: 'sum(rate(traefik_service_requests_total{code=~"4.."}[1h])) / sum(rate(traefik_service_requests_total[1h])) * 100'
-        type: 'range'
-        range: '1d'
-        step: '1h'
-        ttl: '1h'
-      - name: 'code_500_average_1day'
+        type: "range"
+        range: "1d"
+        step: "1h"
+        ttl: "1h"
+      - name: "code_500_average_1day"
         disabled: true
         query: 'sum(rate(traefik_service_requests_total{code=~"5.."}[1h])) / sum(rate(traefik_service_requests_total[1h])) * 100'
-        type: 'range'
-        range: '1d'
-        step: '1h'
-        ttl: '1h'
-      - name: 'total_cluster_memory_perc_1h'
+        type: "range"
+        range: "1d"
+        step: "1h"
+        ttl: "1h"
+      - name: "total_cluster_memory_perc_1h"
         disabled: true
-        query: '100 * (1 - sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes))'
-        type: 'range'
-        range: '1h'
-        step: '1m'
-        ttl: '1m'
-      - name: 'total_cluster_memory_perc_7d'
+        query: "100 * (1 - sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes))"
+        type: "range"
+        range: "1h"
+        step: "1m"
+        ttl: "1m"
+      - name: "total_cluster_memory_perc_7d"
         disabled: true
-        query: '100 * (1 - sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes))'
-        type: 'range'
-        range: '7d'
-        step: '1h'
-        ttl: '1h'
-      - name: 'pod_restarts_last_1h'
+        query: "100 * (1 - sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes))"
+        type: "range"
+        range: "7d"
+        step: "1h"
+        ttl: "1h"
+      - name: "pod_restarts_last_1h"
         disabled: true
-        query: 'increase(kube_pod_container_status_restarts_total[1h])'
-        ttl: '1m'
+        query: "increase(kube_pod_container_status_restarts_total[1h])"
+        ttl: "1m"

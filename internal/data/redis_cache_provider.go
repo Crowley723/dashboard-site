@@ -20,6 +20,7 @@ type RedisCacheClient interface {
 	Get(ctx context.Context, key string) *redis.StringCmd
 	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd
 	Del(ctx context.Context, keys ...string) *redis.IntCmd
+	GetDel(ctx context.Context, key string) *redis.StringCmd
 	Keys(ctx context.Context, pattern string) *redis.StringSliceCmd
 	Ping(ctx context.Context) *redis.StatusCmd
 	PoolStats() *redis.PoolStats
@@ -172,4 +173,16 @@ func (r *RedisCache) Size(ctx context.Context) int {
 	}
 
 	return len(keys)
+}
+
+func (r *RedisCache) GetKey(ctx context.Context, key string) (string, error) {
+	return r.client.Get(ctx, key).Result()
+}
+
+func (r *RedisCache) SetKey(ctx context.Context, key string, value interface{}, ttl time.Duration) error {
+	return r.client.Set(ctx, key, value, ttl).Err()
+}
+
+func (r *RedisCache) GetDelKey(ctx context.Context, key string) (string, error) {
+	return r.client.GetDel(ctx, key).Result()
 }

@@ -2,23 +2,32 @@ package data
 
 import (
 	"context"
+	"errors"
 	"homelab-dashboard/internal/config"
 	"homelab-dashboard/internal/metrics"
 	"log/slog"
 	"sync"
+	"time"
 )
 
 func NewMemCache(cfg *config.Config, logger *slog.Logger) (*MemCache, error) {
 	return &MemCache{
-		cache:  make(map[string]CachedData),
-		logger: logger,
+		cache:   make(map[string]CachedData),
+		kvStore: make(map[string]*kvEntry),
+		logger:  logger,
 	}, nil
 }
 
+type kvEntry struct {
+	value     string
+	expiresAt time.Time
+}
+
 type MemCache struct {
-	cache  map[string]CachedData
-	mutex  sync.RWMutex
-	logger *slog.Logger
+	cache   map[string]CachedData
+	kvStore map[string]*kvEntry
+	mutex   sync.RWMutex
+	logger  *slog.Logger
 }
 
 // Get returns the data for a currently cached query
@@ -68,4 +77,74 @@ func (d *MemCache) Size(ctx context.Context) int {
 	d.mutex.RLock()
 	defer d.mutex.RUnlock()
 	return len(d.cache)
+}
+
+// GetKey gets a generic KV entry
+func (d *MemCache) GetKey(ctx context.Context, key string) (string, error) {
+	d.mutex.RLock()
+	defer d.mutex.RUnlock()
+
+	entry, exists := d.kvStore[key]
+	if !exists {
+		return "", errors.New("key not found")
+	}
+
+	if !entry.expiresAt.IsZero() && time.Now().After(entry.expiresAt) {
+		return "", errors.New("key expired")
+	}
+
+	return entry.value, nil
+}
+
+// SetKey sets a generic KV entry with TTL
+func (d *MemCache) SetKey(ctx context.Context, key string, value interface{}, ttl time.Duration) error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	var strValue string
+	switch v := value.(type) {
+	case string:
+		strValue = v
+	case []byte:
+		strValue = string(v)
+	default:
+		return errors.New("value must be string or []byte")
+	}
+
+	entry := &kvEntry{
+		value: strValue,
+	}
+
+	if ttl > 0 {
+		entry.expiresAt = time.Now().Add(ttl)
+
+		time.AfterFunc(ttl, func() {
+			d.mutex.Lock()
+			defer d.mutex.Unlock()
+			delete(d.kvStore, key)
+		})
+	}
+
+	d.kvStore[key] = entry
+	return nil
+}
+
+// GetDelKey gets and deletes a key atomically
+func (d *MemCache) GetDelKey(ctx context.Context, key string) (string, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	entry, exists := d.kvStore[key]
+	if !exists {
+		return "", errors.New("key not found")
+	}
+
+	if !entry.expiresAt.IsZero() && time.Now().After(entry.expiresAt) {
+		delete(d.kvStore, key)
+		return "", errors.New("key expired")
+	}
+
+	value := entry.value
+	delete(d.kvStore, key)
+	return value, nil
 }

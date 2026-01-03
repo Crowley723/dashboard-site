@@ -12,9 +12,10 @@ export const useAuth = () => {
 
   const user = authResponse?.user || null;
   const isAuthenticated = authResponse?.authenticated || false;
+  const config = authResponse?.config;
 
-  const loginMutation = useMutation<LoginResponse, Error>({
-    mutationFn: authApi.login,
+  const loginMutation = useMutation<LoginResponse, Error, string | undefined>({
+    mutationFn: (redirectTo?: string) => authApi.login(redirectTo),
     onSuccess: (data) => {
       if (data.status === 'already_authenticated') {
         queryClient
@@ -35,10 +36,31 @@ export const useAuth = () => {
     },
   });
 
+  // Helper to check if user is in a specific group
+  const isInGroup = (groupName: string): boolean => {
+    return user?.groups?.includes(groupName) ?? false;
+  };
+
+  // Check if user is in the MTLS admin group
+  const isMTLSAdmin = (): boolean => {
+    if (!config?.mtls?.admin_group) return false;
+    return isInGroup(config.mtls.admin_group);
+  };
+
+  // Check if user is in the MTLS user group
+  const isMTLSUser = (): boolean => {
+    if (!config?.mtls?.user_group) return false;
+    return isInGroup(config.mtls.user_group);
+  };
+
   return {
     user,
     isLoading,
     isAuthenticated,
+    config,
+    isInGroup,
+    isMTLSAdmin,
+    isMTLSUser,
     login: loginMutation.mutate,
     logout: logoutMutation.mutate,
     isLoggingIn: loginMutation.isPending,

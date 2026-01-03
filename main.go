@@ -1,13 +1,32 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"homelab-dashboard/internal/config"
 	"homelab-dashboard/internal/server"
+	"homelab-dashboard/internal/version"
 	"log"
+	"os"
 )
 
 func main() {
-	cfg, err := config.LoadConfig()
+	configPath := flag.String("config", "", "path to config file")
+	flag.StringVar(configPath, "c", "", "path to config file (shorthand)")
+
+	versionFlag := flag.Bool("version", false, "print version information")
+	flag.BoolVar(versionFlag, "v", false, "print version information (shorthand)")
+
+	flag.Parse()
+
+	if *versionFlag {
+		fmt.Printf("Version: %s\n", version.GetVersion())
+		fmt.Printf("Git Commit: %s\n", version.GetGitCommit())
+		fmt.Printf("Build Time: %s\n", version.GetBuildTime())
+		os.Exit(0)
+	}
+
+	cfg, err := config.LoadConfig(*configPath)
 	if err != nil {
 		log.Fatalf("failed to load config: %v", err)
 	}

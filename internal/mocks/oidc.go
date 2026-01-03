@@ -86,12 +86,13 @@ func (mr *MockOIDCProviderMockRecorder) GetProvider() *gomock.Call {
 }
 
 // HandleCallback mocks base method.
-func (m *MockOIDCProvider) HandleCallback(ctx *middlewares.AppContext) (*models.User, error) {
+func (m *MockOIDCProvider) HandleCallback(ctx *middlewares.AppContext) (*oidc.IDToken, *models.User, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HandleCallback", ctx)
-	ret0, _ := ret[0].(*models.User)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret0, _ := ret[0].(*oidc.IDToken)
+	ret1, _ := ret[1].(*models.User)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // HandleCallback indicates an expected call of HandleCallback.

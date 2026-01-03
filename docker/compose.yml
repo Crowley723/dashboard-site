@@ -17,6 +17,7 @@ services:
       - /app/web/node_modules
     depends_on:
       - redis
+      - postgres
     working_dir: /app
     command: ["/bin/sh", "/usr/local/bin/start-dev.sh"]
   redis:
@@ -25,3 +26,18 @@ services:
     ports:
       - "127.0.0.1:6379:6379"
     container_name: dashboard-redis-0
+  postgres:
+    image: postgres
+    restart: unless-stopped
+    shm_size: 128mb
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: conduit
+
+  adminer:
+    image: adminer
+    restart: unless-stopped
+    ports:
+      - 8090:8080

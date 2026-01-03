@@ -2,7 +2,7 @@ apiVersion: v2
 name: dashboard-site-chart
 description: A Helm chart to deploy my dashboard
 type: application
-version: 0.1.4-rc2
+version: 0.1.4-rc3
 home: https://github.com/Crowley723/dashboard-app
 sources:
   - https://github.com/Crowley723/dashboard-app

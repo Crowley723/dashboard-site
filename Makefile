@@ -1,5 +1,5 @@
 export PATH := /home/brynn/.local/share/pnpm:$(PATH)
-.PHONY: dev-frontend dev-backend dev install dev-backend-debug dev-debug
+.PHONY: dev-frontend dev-backend dev install dev-backend-debug dev-debug dev-local dev-local-debug dev-local-stop dev-cluster dev-cluster-delete dev-cluster-reset dev-cluster-status
 
 install:
 	go mod download
@@ -28,10 +28,67 @@ dev-debug:
 	($(MAKE) dev-frontend) & \
 	wait
 
-build:
-	docker build -t dashboard-site:latest -f docker/Dockerfile .
+dev-local:
+	@echo "Starting local development against k3d cluster..."
+	@if ! k3d cluster list | grep -q "^conduit-dev$$"; then \
+	   echo "Cluster not found. Creating it..."; \
+	   $(MAKE) dev-cluster; \
+	fi
+	@trap 'kill 0' INT TERM EXIT; \
+	($(MAKE) dev-backend) & \
+	($(MAKE) dev-frontend) & \
+	wait
 
-# Docker development commands
+dev-local-debug:
+	@echo "Starting local development with debugger against k3d cluster..."
+	@if ! k3d cluster list | grep -q "^conduit-dev$$"; then \
+	   echo "Cluster not found. Creating it..."; \
+	   $(MAKE) dev-cluster; \
+	fi
+	@trap 'kill 0' INT TERM EXIT; \
+	($(MAKE) dev-backend-debug) & \
+	($(MAKE) dev-frontend) & \
+	wait
+
+dev-local-stop:
+	@echo "Stopping local development servers..."
+	@pkill -f "go run ./main.go" || true
+	@pkill -f "pnpm run dev" || true
+	@pkill -f "reflex" || true
+	@echo "Stopped"
+
+dev-cluster:
+	@echo "Setting up local development cluster..."
+	@./scripts/setup-dev-cluster.sh
+
+dev-cluster-delete:
+	@echo "Deleting local development cluster..."
+	@k3d cluster delete conduit-dev
+
+dev-cluster-reset: dev-cluster-delete dev-cluster
+	@echo "Development cluster reset complete"
+
+dev-cluster-status:
+	@echo "Checking cluster status..."
+	@k3d cluster list | grep conduit-dev && \
+	   kubectl cluster-info --context k3d-conduit-dev || \
+	   echo "Cluster not running. Run 'make dev-cluster' to create it."
+
+build:
+	docker build -t dashboard-site:latest -f Dockerfile .
+
+version:
+	@./scripts/sync-version.sh
+
+version-bump-patch:
+	@./scripts/sync-version.sh $$(./scripts/bump-version.sh patch)
+
+version-bump-minor:
+	@./scripts/sync-version.sh $$(./scripts/bump-version.sh minor)
+
+version-bump-major:
+	@./scripts/sync-version.sh $$(./scripts/bump-version.sh major)
+
 dev-docker:
 	@echo "Starting Docker development environment..."
 	cd docker && docker compose up --build

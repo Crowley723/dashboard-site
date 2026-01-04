@@ -72,6 +72,21 @@ func (mr *MockStorageProviderMockRecorder) CreateCertificateRequest(ctx, sub, is
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateCertificateRequest", reflect.TypeOf((*MockStorageProvider)(nil).CreateCertificateRequest), ctx, sub, iss, commonName, status, message, dnsNames, organizationalUnits, validityDays)
 }
 
+// CreateServiceAccount mocks base method.
+func (m *MockStorageProvider) CreateServiceAccount(ctx context.Context, user *models.ServiceAccount) (*models.ServiceAccount, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateServiceAccount", ctx, user)
+	ret0, _ := ret[0].(*models.ServiceAccount)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateServiceAccount indicates an expected call of CreateServiceAccount.
+func (mr *MockStorageProviderMockRecorder) CreateServiceAccount(ctx, user any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateServiceAccount", reflect.TypeOf((*MockStorageProvider)(nil).CreateServiceAccount), ctx, user)
+}
+
 // CreateUser mocks base method.
 func (m *MockStorageProvider) CreateUser(ctx context.Context, sub, iss, username, displayName, email string) (*models.User, error) {
 	m.ctrl.T.Helper()
@@ -85,6 +100,20 @@ func (m *MockStorageProvider) CreateUser(ctx context.Context, sub, iss, username
 func (mr *MockStorageProviderMockRecorder) CreateUser(ctx, sub, iss, username, displayName, email any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateUser", reflect.TypeOf((*MockStorageProvider)(nil).CreateUser), ctx, sub, iss, username, displayName, email)
+}
+
+// DisableServiceAccount mocks base method.
+func (m *MockStorageProvider) DisableServiceAccount(ctx context.Context, iss, sub string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DisableServiceAccount", ctx, iss, sub)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DisableServiceAccount indicates an expected call of DisableServiceAccount.
+func (mr *MockStorageProviderMockRecorder) DisableServiceAccount(ctx, iss, sub any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DisableServiceAccount", reflect.TypeOf((*MockStorageProvider)(nil).DisableServiceAccount), ctx, iss, sub)
 }
 
 // EnsureSystemUser mocks base method.
@@ -233,6 +262,51 @@ func (m *MockStorageProvider) GetRecentCertificateDownloadLogs(ctx context.Conte
 func (mr *MockStorageProviderMockRecorder) GetRecentCertificateDownloadLogs(ctx, limit any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRecentCertificateDownloadLogs", reflect.TypeOf((*MockStorageProvider)(nil).GetRecentCertificateDownloadLogs), ctx, limit)
+}
+
+// GetServiceAccountByID mocks base method.
+func (m *MockStorageProvider) GetServiceAccountByID(ctx context.Context, iss, sub string) (*models.ServiceAccount, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetServiceAccountByID", ctx, iss, sub)
+	ret0, _ := ret[0].(*models.ServiceAccount)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetServiceAccountByID indicates an expected call of GetServiceAccountByID.
+func (mr *MockStorageProviderMockRecorder) GetServiceAccountByID(ctx, iss, sub any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceAccountByID", reflect.TypeOf((*MockStorageProvider)(nil).GetServiceAccountByID), ctx, iss, sub)
+}
+
+// GetServiceAccountByTokenHash mocks base method.
+func (m *MockStorageProvider) GetServiceAccountByLookupId(ctx context.Context, tokenHash string) (*models.ServiceAccount, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetServiceAccountByLookupId", ctx, tokenHash)
+	ret0, _ := ret[0].(*models.ServiceAccount)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetServiceAccountByTokenHash indicates an expected call of GetServiceAccountByTokenHash.
+func (mr *MockStorageProviderMockRecorder) GetServiceAccountByTokenHash(ctx, tokenHash any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceAccountByLookupId", reflect.TypeOf((*MockStorageProvider)(nil).GetServiceAccountByLookupId), ctx, tokenHash)
+}
+
+// GetServiceAccountsByCreator mocks base method.
+func (m *MockStorageProvider) GetServiceAccountsByCreator(ctx context.Context, iss, sub string) ([]*models.ServiceAccount, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetServiceAccountsByCreator", ctx, iss, sub)
+	ret0, _ := ret[0].([]*models.ServiceAccount)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetServiceAccountsByCreator indicates an expected call of GetServiceAccountsByCreator.
+func (mr *MockStorageProviderMockRecorder) GetServiceAccountsByCreator(ctx, iss, sub any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceAccountsByCreator", reflect.TypeOf((*MockStorageProvider)(nil).GetServiceAccountsByCreator), ctx, iss, sub)
 }
 
 // GetSystemUser mocks base method.

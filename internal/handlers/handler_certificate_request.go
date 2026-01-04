@@ -177,7 +177,7 @@ func GETCertificateRequest(ctx *middlewares.AppContext) {
 	}
 
 	if requests != nil &&
-		!user.MatchesUser(requests.OwnerIss, requests.OwnerSub) &&
+		!user.MatchesOwner(requests.OwnerIss, requests.OwnerSub) &&
 		!slices.Contains(user.Groups, ctx.Config.Features.MTLSManagement.AdminGroup) {
 		ctx.SetJSONError(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 		return
@@ -245,7 +245,7 @@ func POSTCertificateReview(ctx *middlewares.AppContext) {
 		return
 	}
 
-	if !ctx.Config.Features.MTLSManagement.AllowAdminsToApproveOwnRequests && user.MatchesUser(request.OwnerIss, request.OwnerSub) {
+	if !ctx.Config.Features.MTLSManagement.AllowAdminsToApproveOwnRequests && user.MatchesOwner(request.OwnerIss, request.OwnerSub) {
 		ctx.SetJSONError(http.StatusForbidden, "You are not allowed to approve your own requests")
 		return
 	}

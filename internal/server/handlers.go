@@ -50,6 +50,7 @@ func setupRouter(ctx *middlewares.AppContext) *chi.Mux {
 	})
 
 	r.Route("/api", func(r chi.Router) {
+		r.Use(middlewares.OptionalAuth)
 		r.Route("/auth", func(r chi.Router) {
 			r.Get("/status", ctx.HandlerFunc(handlers.GETAuthStatusHandler))
 			r.Get("/login", ctx.HandlerFunc(handlers.GETLoginHandler))
@@ -57,9 +58,17 @@ func setupRouter(ctx *middlewares.AppContext) *chi.Mux {
 			r.Post("/logout", ctx.HandlerFunc(handlers.POSTLogoutHandler))
 		})
 
+		if ctx.Config.Storage.Enabled {
+			r.Route("/service-accounts", func(r chi.Router) {
+				r.Use(middlewares.RequireServiceAccountAuth)
+				r.Get("/", ctx.HandlerFunc(handlers.GETServiceAccount))
+				r.Post("/", ctx.HandlerFunc(handlers.POSTServiceAccount))
+			})
+		}
+
 		r.Route("/certificates", func(r chi.Router) {
 			r.Group(func(r chi.Router) {
-				r.Use(middlewares.RequireAuth)
+				r.Use(middlewares.RequireCookieAuth)
 				r.Post("/request", ctx.HandlerFunc(handlers.POSTCertificateRequest))
 				r.Get("/my-requests", ctx.HandlerFunc(handlers.GETUserCertificateRequests))
 				r.Get("/request/{id}", ctx.HandlerFunc(handlers.GETCertificateRequest))
@@ -68,7 +77,8 @@ func setupRouter(ctx *middlewares.AppContext) *chi.Mux {
 			})
 
 			r.Group(func(r chi.Router) {
-				r.Use(middlewares.RequireAdminAndAuth)
+				r.Use(middlewares.RequireCookieAuth)
+				r.Use(middlewares.RequireAdmin)
 				r.Get("/requests", ctx.HandlerFunc(handlers.GETCertificateRequests))
 				r.Post("/requests/{id}/review", ctx.HandlerFunc(handlers.POSTCertificateReview))
 			})

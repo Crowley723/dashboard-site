@@ -21,6 +21,8 @@ type AppContext struct {
 	Storage          storage.StorageProvider
 	KubernetesClient *k8s.Client
 
+	principal Principal
+
 	Request  *http.Request
 	Response http.ResponseWriter
 }
@@ -41,6 +43,7 @@ func AppContextMiddleware(baseCtx *AppContext) func(http.Handler) http.Handler {
 				Cache:            baseCtx.Cache,
 				Storage:          baseCtx.Storage,
 				KubernetesClient: baseCtx.KubernetesClient,
+				principal:        baseCtx.principal,
 				Request:          r,
 				Response:         w,
 			}
@@ -94,7 +97,16 @@ func NewAppContext(ctx context.Context, cfg *config.Config, logger *slog.Logger,
 		Cache:            cache,
 		Storage:          storage,
 		KubernetesClient: kubernetesClient,
+		principal:        nil,
 	}
+}
+
+func (ctx *AppContext) SetPrincipal(principal Principal) {
+	ctx.principal = principal
+}
+
+func (ctx *AppContext) GetPrincipal() Principal {
+	return ctx.principal
 }
 
 func GetAppContext(r *http.Request) *AppContext {

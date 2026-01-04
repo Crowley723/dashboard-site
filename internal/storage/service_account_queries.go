@@ -9,31 +9,47 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func (p *DatabaseProvider) CreateServiceAccount(ctx context.Context, user *models.ServiceAccount) (*models.ServiceAccount, error) {
-	query := `
-		INSERT INTO service_accounts (sub, iss, name, lookup_id, token_hash, id_disabled, created_by_sub, created_by_iss, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
-	`
+func (p *DatabaseProvider) CreateServiceAccount(ctx context.Context, serviceAccount *models.ServiceAccount) (*models.ServiceAccount, error) {
+	tx, err := p.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
 
-	result, err := p.pool.Exec(ctx, query, user.Sub, user.Iss, user.Name, user.LookupId, user.SecretHash, user.IsDisabled, user.CreatedBySub, user.CreatedByIss)
+	query := `
+        INSERT INTO service_accounts (sub, iss, name, lookup_id, token_hash, token_expires_at, is_disabled, created_by_sub, created_by_iss, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
+    `
+	result, err := tx.Exec(ctx, query, serviceAccount.Sub, serviceAccount.Iss, serviceAccount.Name, serviceAccount.LookupId, serviceAccount.SecretHash, serviceAccount.TokenExpiresAt, serviceAccount.IsDisabled, serviceAccount.CreatedBySub, serviceAccount.CreatedByIss)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create service account: %w", err)
 	}
 
-	if result.RowsAffected() < 1 {
-		return nil, fmt.Errorf("failed to create service account: now rows inserted")
+	if result.RowsAffected() != 1 {
+		return nil, fmt.Errorf("failed to create service account: expected 1 row, got %d", result.RowsAffected())
 	}
 
-	if result.RowsAffected() > 1 {
-		return nil, fmt.Errorf("failed to create service account: multiple rows inserted")
+	scopesQuery := `
+        INSERT INTO service_account_scopes (owner_sub, owner_iss, scope_name)
+        VALUES ($1, $2, $3)
+    `
+	for _, scope := range serviceAccount.Scopes {
+		_, err := tx.Exec(ctx, scopesQuery, serviceAccount.Sub, serviceAccount.Iss, scope)
+		if err != nil {
+			return nil, fmt.Errorf("failed to insert scope %s: %w", scope, err)
+		}
 	}
 
-	return p.GetServiceAccountByID(ctx, user.Iss, user.Sub)
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return p.GetServiceAccountByID(ctx, serviceAccount.Iss, serviceAccount.Sub)
 }
 
 func (p *DatabaseProvider) GetServiceAccountByID(ctx context.Context, iss, sub string) (*models.ServiceAccount, error) {
 	query := `
-		SELECT iss, sub, name, lookup_id, token_hash, is_disabled, created_by_sub, created_by_iss, created_at
+		SELECT iss, sub, name, lookup_id, token_hash, token_expires_at, is_disabled, created_by_sub, created_by_iss, created_at
 		FROM service_accounts
 		WHERE iss = $1 AND sub = $2
 	`
@@ -51,6 +67,7 @@ func (p *DatabaseProvider) GetServiceAccountByID(ctx context.Context, iss, sub s
 		&serviceAccount.Name,
 		&serviceAccount.LookupId,
 		&serviceAccount.SecretHash,
+		&serviceAccount.TokenExpiresAt,
 		&serviceAccount.IsDisabled,
 		&serviceAccount.CreatedBySub,
 		&serviceAccount.CreatedByIss,
@@ -93,7 +110,7 @@ func (p *DatabaseProvider) GetServiceAccountByID(ctx context.Context, iss, sub s
 
 func (p *DatabaseProvider) GetServiceAccountByLookupId(ctx context.Context, lookupId string) (*models.ServiceAccount, error) {
 	query := `
-		SELECT iss, sub, name, lookup_id, token_hash, is_disabled, created_by_sub, created_by_iss, created_at
+		SELECT iss, sub, name, lookup_id, token_hash, token_expires_at, is_disabled, created_by_sub, created_by_iss, created_at
 		FROM service_accounts
 		where lookup_id = $1
 	`
@@ -110,6 +127,7 @@ func (p *DatabaseProvider) GetServiceAccountByLookupId(ctx context.Context, look
 		&serviceAccount.Name,
 		&serviceAccount.LookupId,
 		&serviceAccount.SecretHash,
+		&serviceAccount.TokenExpiresAt,
 		&serviceAccount.IsDisabled,
 		&serviceAccount.CreatedBySub,
 		&serviceAccount.CreatedByIss,
@@ -152,7 +170,7 @@ func (p *DatabaseProvider) GetServiceAccountByLookupId(ctx context.Context, look
 
 func (p *DatabaseProvider) GetServiceAccountsByCreator(ctx context.Context, iss, sub string) ([]*models.ServiceAccount, error) {
 	query := `
-       SELECT iss, sub, name, lookup_id, token_hash, is_disabled, created_by_sub, created_by_iss, created_at
+       SELECT iss, sub, name, lookup_id, token_hash, token_expires_at, is_disabled, created_by_sub, created_by_iss, created_at
        FROM service_accounts
        WHERE created_by_iss = $1 AND created_by_sub = $2
        ORDER BY created_at DESC`
@@ -181,6 +199,7 @@ func (p *DatabaseProvider) GetServiceAccountsByCreator(ctx context.Context, iss,
 			&serviceAccount.Name,
 			&serviceAccount.LookupId,
 			&serviceAccount.SecretHash,
+			&serviceAccount.TokenExpiresAt,
 			&serviceAccount.IsDisabled,
 			&serviceAccount.CreatedBySub,
 			&serviceAccount.CreatedByIss,
@@ -250,6 +269,28 @@ func (p *DatabaseProvider) DisableServiceAccount(ctx context.Context, iss, sub s
 
 	if result.RowsAffected() > 1 {
 		return fmt.Errorf("failed to disable service account: multiple rows updated")
+	}
+
+	return nil
+}
+
+func (p *DatabaseProvider) EnableServiceAccount(ctx context.Context, iss, sub string) error {
+	query := `
+       UPDATE service_accounts
+       SET is_disabled = FALSE
+       WHERE iss = $1 AND sub = $2`
+
+	result, err := p.pool.Exec(ctx, query, iss, sub)
+	if err != nil {
+		return fmt.Errorf("failed to enable service account: %w", err)
+	}
+
+	if result.RowsAffected() < 1 {
+		return fmt.Errorf("failed to enable service account: no rows updated")
+	}
+
+	if result.RowsAffected() > 1 {
+		return fmt.Errorf("failed to enable service account: multiple rows updated")
 	}
 
 	return nil

@@ -1,9 +1,5 @@
 package auth
 
-import (
-	"errors"
-)
-
 var (
 	SessionKeyUserData           SessionKey = "user_data"
 	SessionKeyAuthenticated      SessionKey = "authenticated"

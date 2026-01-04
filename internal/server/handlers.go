@@ -60,29 +60,38 @@ func setupRouter(ctx *middlewares.AppContext) *chi.Mux {
 
 		if ctx.Config.Storage.Enabled {
 			r.Route("/service-accounts", func(r chi.Router) {
-				r.Use(middlewares.RequireServiceAccountAuth)
-				r.Get("/", ctx.HandlerFunc(handlers.GETServiceAccount))
-				r.Post("/", ctx.HandlerFunc(handlers.POSTServiceAccount))
+				r.Group(func(r chi.Router) {
+					r.Use(middlewares.RequireCookieAuth)
+					r.Get("/", ctx.HandlerFunc(handlers.GETServiceAccounts))
+					r.Post("/", ctx.HandlerFunc(handlers.POSTServiceAccount))
+				})
+				r.Group(func(r chi.Router) {
+					r.Use(middlewares.RequireServiceAccountAuth)
+					r.Get("/whoami", ctx.HandlerFunc(handlers.GETServiceAccountWhoami))
+					//TODO: add endpoints for service accounts to use
+				})
 			})
 		}
 
-		r.Route("/certificates", func(r chi.Router) {
-			r.Group(func(r chi.Router) {
-				r.Use(middlewares.RequireCookieAuth)
-				r.Post("/request", ctx.HandlerFunc(handlers.POSTCertificateRequest))
-				r.Get("/my-requests", ctx.HandlerFunc(handlers.GETUserCertificateRequests))
-				r.Get("/request/{id}", ctx.HandlerFunc(handlers.GETCertificateRequest))
-				r.Get("/{id}/download", ctx.HandlerFunc(handlers.GETCertificateDownload))
-				r.Post("/{id}/unlock", ctx.HandlerFunc(handlers.POSTCertificateUnlock))
-			})
+		if ctx.Config.Storage.Enabled && ctx.Config.Features.MTLSManagement.Enabled {
+			r.Route("/certificates", func(r chi.Router) {
+				r.Group(func(r chi.Router) {
+					r.Use(middlewares.RequireCookieAuth)
+					r.Post("/request", ctx.HandlerFunc(handlers.POSTCertificateRequest))
+					r.Get("/my-requests", ctx.HandlerFunc(handlers.GETUserCertificateRequests))
+					r.Get("/request/{id}", ctx.HandlerFunc(handlers.GETCertificateRequest))
+					r.Get("/{id}/download", ctx.HandlerFunc(handlers.GETCertificateDownload))
+					r.Post("/{id}/unlock", ctx.HandlerFunc(handlers.POSTCertificateUnlock))
+				})
 
-			r.Group(func(r chi.Router) {
-				r.Use(middlewares.RequireCookieAuth)
-				r.Use(middlewares.RequireAdmin)
-				r.Get("/requests", ctx.HandlerFunc(handlers.GETCertificateRequests))
-				r.Post("/requests/{id}/review", ctx.HandlerFunc(handlers.POSTCertificateReview))
+				r.Group(func(r chi.Router) {
+					r.Use(middlewares.RequireCookieAuth)
+					r.Use(middlewares.RequireAdmin)
+					r.Get("/requests", ctx.HandlerFunc(handlers.GETCertificateRequests))
+					r.Post("/requests/{id}/review", ctx.HandlerFunc(handlers.POSTCertificateReview))
+				})
 			})
-		})
+		}
 
 		r.Get("/queries", ctx.HandlerFunc(handlers.GetQueriesGET))
 		r.Get("/data", ctx.HandlerFunc(handlers.GetMetricsGET))

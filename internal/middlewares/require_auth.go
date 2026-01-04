@@ -151,7 +151,7 @@ func VerifyServiceAccount(ctx *AppContext, token string) (*models.ServiceAccount
 }
 
 func ParseServiceToken(s string) (lookupId, secret string, err error) {
-	parts := strings.Split(s, "_")
+	parts := strings.Split(s, ".")
 
 	if len(parts) != 3 {
 		return "", "", fmt.Errorf("invalid token format: expected 3 parts, got %d", len(parts))
@@ -194,7 +194,7 @@ func GenerateAPIToken() (rawToken, lookupId, hashedSecret string, err error) {
 	encodedLookup := base64.RawURLEncoding.EncodeToString(lookupBytes)
 
 	rawToken = fmt.Sprintf(
-		"%s_%s_%s",
+		"%s.%s.%s",
 		serviceAccountTokenPrefix,
 		encodedLookup,
 		encodedSecret,

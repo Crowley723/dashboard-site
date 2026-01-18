@@ -64,11 +64,14 @@ func setupRouter(ctx *middlewares.AppContext) *chi.Mux {
 					r.Use(middlewares.RequireCookieAuth)
 					r.Get("/", ctx.HandlerFunc(handlers.GETServiceAccounts))
 					r.Post("/", ctx.HandlerFunc(handlers.POSTServiceAccount))
+					r.Delete("/", ctx.HandlerFunc(handlers.DELETEServiceAccount))
+					r.Patch("/pause", ctx.HandlerFunc(handlers.PATCHServiceAccountPause))
+					r.Patch("/unpause", ctx.HandlerFunc(handlers.PATCHServiceAccountUnpause))
+					r.Get("/scopes", ctx.HandlerFunc(handlers.GETUserScopes))
 				})
 				r.Group(func(r chi.Router) {
 					r.Use(middlewares.RequireServiceAccountAuth)
 					r.Get("/whoami", ctx.HandlerFunc(handlers.GETServiceAccountWhoami))
-					//TODO: add endpoints for service accounts to use
 				})
 			})
 		}
@@ -76,7 +79,7 @@ func setupRouter(ctx *middlewares.AppContext) *chi.Mux {
 		if ctx.Config.Storage.Enabled && ctx.Config.Features.MTLSManagement.Enabled {
 			r.Route("/certificates", func(r chi.Router) {
 				r.Group(func(r chi.Router) {
-					r.Use(middlewares.RequireCookieAuth)
+					r.Use(middlewares.RequireAuth)
 					r.Post("/request", ctx.HandlerFunc(handlers.POSTCertificateRequest))
 					r.Get("/my-requests", ctx.HandlerFunc(handlers.GETUserCertificateRequests))
 					r.Get("/request/{id}", ctx.HandlerFunc(handlers.GETCertificateRequest))
@@ -85,8 +88,7 @@ func setupRouter(ctx *middlewares.AppContext) *chi.Mux {
 				})
 
 				r.Group(func(r chi.Router) {
-					r.Use(middlewares.RequireCookieAuth)
-					r.Use(middlewares.RequireAdmin)
+					r.Use(middlewares.RequireAuth)
 					r.Get("/requests", ctx.HandlerFunc(handlers.GETCertificateRequests))
 					r.Post("/requests/{id}/review", ctx.HandlerFunc(handlers.POSTCertificateReview))
 				})

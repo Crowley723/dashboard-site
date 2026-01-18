@@ -8,7 +8,6 @@ import (
 	"homelab-dashboard/internal/models"
 	"homelab-dashboard/internal/utils"
 	"net/http"
-	"slices"
 	"strings"
 	"time"
 
@@ -23,6 +22,7 @@ var (
 var (
 	ErrInvalidServiceToken  = errors.New("invalid service token")
 	ErrServiceTokenDisabled = errors.New("service account is disabled")
+	ErrServiceTokenDeleted  = errors.New("service account has been deleted")
 	ErrServiceTokenExpired  = errors.New("service token is expired")
 )
 
@@ -31,6 +31,42 @@ func OptionalAuth(next http.Handler) http.Handler {
 		appCtx := GetAppContext(r)
 		if appCtx == nil {
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
+
+		if appCtx.Config.Storage.Enabled {
+			if authToken, err := utils.ExtractAuthorizationHeader(r); err == nil {
+				if serviceAccount, err := VerifyServiceAccount(appCtx, authToken); err == nil && serviceAccount != nil {
+					appCtx.SetPrincipal(serviceAccount)
+					next.ServeHTTP(w, r)
+					return
+				}
+				appCtx.SetJSONError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
+				return
+			}
+		}
+
+		if user, ok := appCtx.SessionManager.GetUser(appCtx); ok {
+			appCtx.SetPrincipal(user)
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func RequireAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		appCtx := GetAppContext(r)
+		if appCtx == nil {
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
+
+		principal := appCtx.GetPrincipal()
+		if principal == nil {
+			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
 		}
 
@@ -94,29 +130,6 @@ func RequireServiceAccountAuth(next http.Handler) http.Handler {
 	})
 }
 
-func RequireAdmin(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		appCtx := GetAppContext(r)
-		if appCtx == nil {
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
-		}
-
-		user, ok := appCtx.GetPrincipal().(*models.User)
-		if !ok {
-			appCtx.SetJSONError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
-			return
-		}
-
-		if !slices.Contains(user.Groups, appCtx.Config.Features.MTLSManagement.AdminGroup) {
-			appCtx.SetJSONError(http.StatusForbidden, http.StatusText(http.StatusForbidden))
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
 // VerifyServiceAccount takes a service token, gets the associated service account, and validates that the service token is valid.
 func VerifyServiceAccount(ctx *AppContext, token string) (*models.ServiceAccount, error) {
 	lookupId, secret, err := ParseServiceToken(token)
@@ -137,6 +150,10 @@ func VerifyServiceAccount(ctx *AppContext, token string) (*models.ServiceAccount
 
 	if !valid {
 		return nil, ErrInvalidServiceToken
+	}
+
+	if serviceAccount.DeletedAt != nil {
+		return nil, ErrServiceTokenDeleted
 	}
 
 	if serviceAccount.IsDisabled {

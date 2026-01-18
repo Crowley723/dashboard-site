@@ -49,7 +49,7 @@ func (p *DatabaseProvider) CreateServiceAccount(ctx context.Context, serviceAcco
 
 func (p *DatabaseProvider) GetServiceAccountByID(ctx context.Context, iss, sub string) (*models.ServiceAccount, error) {
 	query := `
-		SELECT iss, sub, name, lookup_id, token_hash, token_expires_at, is_disabled, created_by_sub, created_by_iss, created_at
+		SELECT iss, sub, name, lookup_id, token_hash, token_expires_at, is_disabled, deleted_at, created_by_sub, created_by_iss, created_at
 		FROM service_accounts
 		WHERE iss = $1 AND sub = $2
 	`
@@ -69,6 +69,7 @@ func (p *DatabaseProvider) GetServiceAccountByID(ctx context.Context, iss, sub s
 		&serviceAccount.SecretHash,
 		&serviceAccount.TokenExpiresAt,
 		&serviceAccount.IsDisabled,
+		&serviceAccount.DeletedAt,
 		&serviceAccount.CreatedBySub,
 		&serviceAccount.CreatedByIss,
 		&serviceAccount.CreatedAt,
@@ -110,13 +111,13 @@ func (p *DatabaseProvider) GetServiceAccountByID(ctx context.Context, iss, sub s
 
 func (p *DatabaseProvider) GetServiceAccountByLookupId(ctx context.Context, lookupId string) (*models.ServiceAccount, error) {
 	query := `
-		SELECT iss, sub, name, lookup_id, token_hash, token_expires_at, is_disabled, created_by_sub, created_by_iss, created_at
+		SELECT iss, sub, name, lookup_id, token_hash, token_expires_at, is_disabled, deleted_at, created_by_sub, created_by_iss, created_at
 		FROM service_accounts
 		where lookup_id = $1
 	`
 
 	scopesQuery := `
-		SELECT scope_name 
+		SELECT scope_name
         FROM service_account_scopes
         WHERE owner_iss = $1 AND owner_sub = $2`
 
@@ -129,6 +130,7 @@ func (p *DatabaseProvider) GetServiceAccountByLookupId(ctx context.Context, look
 		&serviceAccount.SecretHash,
 		&serviceAccount.TokenExpiresAt,
 		&serviceAccount.IsDisabled,
+		&serviceAccount.DeletedAt,
 		&serviceAccount.CreatedBySub,
 		&serviceAccount.CreatedByIss,
 		&serviceAccount.CreatedAt,
@@ -170,13 +172,13 @@ func (p *DatabaseProvider) GetServiceAccountByLookupId(ctx context.Context, look
 
 func (p *DatabaseProvider) GetServiceAccountsByCreator(ctx context.Context, iss, sub string) ([]*models.ServiceAccount, error) {
 	query := `
-       SELECT iss, sub, name, lookup_id, token_hash, token_expires_at, is_disabled, created_by_sub, created_by_iss, created_at
+       SELECT iss, sub, name, lookup_id, token_hash, token_expires_at, is_disabled, deleted_at, created_by_sub, created_by_iss, created_at
        FROM service_accounts
        WHERE created_by_iss = $1 AND created_by_sub = $2
        ORDER BY created_at DESC`
 
 	scopesQuery := `
-       SELECT owner_iss, owner_sub, scope_name 
+       SELECT owner_iss, owner_sub, scope_name
        FROM service_account_scopes
        WHERE (owner_iss, owner_sub) IN (SELECT UNNEST($1::text[]), UNNEST($2::text[]))
        ORDER BY owner_iss, owner_sub`
@@ -201,6 +203,7 @@ func (p *DatabaseProvider) GetServiceAccountsByCreator(ctx context.Context, iss,
 			&serviceAccount.SecretHash,
 			&serviceAccount.TokenExpiresAt,
 			&serviceAccount.IsDisabled,
+			&serviceAccount.DeletedAt,
 			&serviceAccount.CreatedBySub,
 			&serviceAccount.CreatedByIss,
 			&serviceAccount.CreatedAt,
@@ -252,46 +255,77 @@ func (p *DatabaseProvider) GetServiceAccountsByCreator(ctx context.Context, iss,
 	return serviceAccounts, nil
 }
 
-func (p *DatabaseProvider) DisableServiceAccount(ctx context.Context, iss, sub string) error {
+func (p *DatabaseProvider) PauseServiceAccount(ctx context.Context, iss, sub string) error {
 	query := `
        UPDATE service_accounts
        SET is_disabled = TRUE
-       WHERE iss = $1 AND sub = $2`
+       WHERE iss = $1 AND sub = $2 AND deleted_at IS NULL`
 
 	result, err := p.pool.Exec(ctx, query, iss, sub)
 	if err != nil {
-		return fmt.Errorf("failed to disable service account: %w", err)
+		return fmt.Errorf("failed to pause service account: %w", err)
 	}
 
 	if result.RowsAffected() < 1 {
-		return fmt.Errorf("failed to disable service account: no rows updated")
+		return fmt.Errorf("failed to pause service account: no rows updated")
 	}
 
 	if result.RowsAffected() > 1 {
-		return fmt.Errorf("failed to disable service account: multiple rows updated")
+		return fmt.Errorf("failed to pause service account: multiple rows updated")
 	}
 
 	return nil
 }
 
-func (p *DatabaseProvider) EnableServiceAccount(ctx context.Context, iss, sub string) error {
+func (p *DatabaseProvider) UnpauseServiceAccount(ctx context.Context, iss, sub string) error {
 	query := `
        UPDATE service_accounts
        SET is_disabled = FALSE
-       WHERE iss = $1 AND sub = $2`
+       WHERE iss = $1 AND sub = $2 AND deleted_at IS NULL`
 
 	result, err := p.pool.Exec(ctx, query, iss, sub)
 	if err != nil {
-		return fmt.Errorf("failed to enable service account: %w", err)
+		return fmt.Errorf("failed to unpause service account: %w", err)
 	}
 
 	if result.RowsAffected() < 1 {
-		return fmt.Errorf("failed to enable service account: no rows updated")
+		return fmt.Errorf("failed to unpause service account: no rows updated")
 	}
 
 	if result.RowsAffected() > 1 {
-		return fmt.Errorf("failed to enable service account: multiple rows updated")
+		return fmt.Errorf("failed to unpause service account: multiple rows updated")
 	}
 
 	return nil
+}
+
+func (p *DatabaseProvider) DeleteServiceAccount(ctx context.Context, iss, sub string) error {
+	query := `
+       UPDATE service_accounts
+       SET deleted_at = CURRENT_TIMESTAMP, is_disabled = TRUE
+       WHERE iss = $1 AND sub = $2 AND deleted_at IS NULL`
+
+	result, err := p.pool.Exec(ctx, query, iss, sub)
+	if err != nil {
+		return fmt.Errorf("failed to delete service account: %w", err)
+	}
+
+	if result.RowsAffected() < 1 {
+		return fmt.Errorf("failed to delete service account: no rows updated or already deleted")
+	}
+
+	if result.RowsAffected() > 1 {
+		return fmt.Errorf("failed to delete service account: multiple rows updated")
+	}
+
+	return nil
+}
+
+// Legacy aliases for backwards compatibility
+func (p *DatabaseProvider) DisableServiceAccount(ctx context.Context, iss, sub string) error {
+	return p.PauseServiceAccount(ctx, iss, sub)
+}
+
+func (p *DatabaseProvider) EnableServiceAccount(ctx context.Context, iss, sub string) error {
+	return p.UnpauseServiceAccount(ctx, iss, sub)
 }

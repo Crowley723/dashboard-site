@@ -9,6 +9,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"homelab-dashboard/internal/authorization"
 	"homelab-dashboard/internal/middlewares"
 	"homelab-dashboard/internal/models"
 	"homelab-dashboard/internal/storage"
@@ -37,8 +38,8 @@ type CertificateUnlockResponse struct {
 
 type DownloadToken struct {
 	CertificateId int       `json:"certificate_id"`
-	UserIss       string    `json:"user_iss"`
-	UserSub       string    `json:"user_sub"`
+	PrincipalIss  string    `json:"principal_iss"`
+	PrincipalSub  string    `json:"principal_sub"`
 	Passphrase    string    `json:"passphrase"`
 	CreatedAt     time.Time `json:"created_at"`
 }
@@ -46,7 +47,7 @@ type DownloadToken struct {
 var downloadTokenLifetime = 5 * time.Minute
 var downloadTokenKeyFmt = "download_token:%s"
 
-// POSTCertificateUnlock is the first step in downloading a certificate. The user posts a passphrase they want the p12 file encrypted with and receive a one-time download token
+// POSTCertificateUnlock is the first step in downloading a certificate. The principal posts a passphrase they want the p12 file encrypted with and receive a one-time download token
 func POSTCertificateUnlock(ctx *middlewares.AppContext) {
 	certificateIdParam := chi.URLParam(ctx.Request, "id")
 	if certificateIdParam == "" {
@@ -60,8 +61,8 @@ func POSTCertificateUnlock(ctx *middlewares.AppContext) {
 		return
 	}
 
-	user, ok := ctx.SessionManager.GetAuthenticatedUser(ctx)
-	if !ok || user == nil {
+	principal := ctx.GetPrincipal()
+	if principal == nil {
 		ctx.SetJSONError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
 		return
 	}
@@ -77,7 +78,11 @@ func POSTCertificateUnlock(ctx *middlewares.AppContext) {
 		return
 	}
 
-	if !user.MatchesOwner(request.OwnerIss, request.OwnerSub) {
+	// Check if principal owns the cert or has download_all scope
+	canDownload := principal.MatchesOwner(request.OwnerIss, request.OwnerSub) && principal.HasScope(ctx.Config, authorization.ScopeMTLSDownloadCert)
+	canDownloadAll := principal.HasScope(ctx.Config, authorization.ScopeMTLSDownloadAllCerts)
+
+	if !canDownload && !canDownloadAll {
 		ctx.SetJSONError(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 		return
 	}
@@ -104,8 +109,8 @@ func POSTCertificateUnlock(ctx *middlewares.AppContext) {
 
 	downloadToken := DownloadToken{
 		CertificateId: request.ID,
-		UserIss:       request.OwnerIss,
-		UserSub:       request.OwnerSub,
+		PrincipalIss:  principal.GetIss(),
+		PrincipalSub:  principal.GetSub(),
 		Passphrase:    reqBody.Passphrase,
 		CreatedAt:     time.Now(),
 	}
@@ -147,8 +152,8 @@ func GETCertificateDownload(ctx *middlewares.AppContext) {
 		return
 	}
 
-	user, ok := ctx.SessionManager.GetAuthenticatedUser(ctx)
-	if !ok || user == nil {
+	principal := ctx.GetPrincipal()
+	if principal == nil {
 		ctx.SetJSONError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
 		return
 	}
@@ -170,7 +175,7 @@ func GETCertificateDownload(ctx *middlewares.AppContext) {
 		return
 	}
 
-	if !user.MatchesOwner(downloadToken.UserIss, downloadToken.UserSub) {
+	if !principal.MatchesOwner(downloadToken.PrincipalIss, downloadToken.PrincipalSub) {
 		ctx.SetJSONError(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 		return
 	}
@@ -197,7 +202,11 @@ func GETCertificateDownload(ctx *middlewares.AppContext) {
 		return
 	}
 
-	if !user.MatchesOwner(request.OwnerIss, request.OwnerSub) {
+	// Check if principal owns the cert or has download_all scope
+	canDownload := principal.MatchesOwner(request.OwnerIss, request.OwnerSub) && principal.HasScope(ctx.Config, authorization.ScopeMTLSDownloadCert)
+	canDownloadAll := principal.HasScope(ctx.Config, authorization.ScopeMTLSDownloadAllCerts)
+
+	if !canDownload && !canDownloadAll {
 		ctx.SetJSONError(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 		return
 	}
@@ -223,7 +232,7 @@ func GETCertificateDownload(ctx *middlewares.AppContext) {
 		return
 	}
 
-	_, err = ctx.Storage.InsertAuditLogCertificateDownload(ctx, certificateId, user.Sub, user.Iss, host, ctx.Request.UserAgent(), *uasurfer.Parse(ctx.Request.UserAgent()))
+	_, err = ctx.Storage.InsertAuditLogCertificateDownload(ctx, certificateId, principal.GetSub(), principal.GetIss(), host, ctx.Request.UserAgent(), *uasurfer.Parse(ctx.Request.UserAgent()))
 	if err != nil {
 		ctx.Logger.Error("failed to insert download audit log", "error", err)
 		ctx.SetJSONError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))

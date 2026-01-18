@@ -1,6 +1,7 @@
 package models
 
 import (
+	"homelab-dashboard/internal/config"
 	"slices"
 	"time"
 )
@@ -25,16 +26,28 @@ func (u *User) GetSub() string {
 	return u.Sub
 }
 
-func (u *User) GetScopes() []string {
+func (u *User) GetUsername() string {
+	return u.Username
+}
+
+func (u *User) GetDisplayName() string {
+	return u.DisplayName
+}
+
+func (u *User) GetEmail() string {
+	return u.Email
+}
+
+func (u *User) GetScopes(cfg *config.Config) []string {
 	var scopes []string
 	for _, group := range u.Groups {
-		scopes = append(scopes, mapGroupToScopes(group)...)
+		scopes = append(scopes, mapGroupToScopes(cfg, group)...)
 	}
 	return dedupe(scopes)
 }
 
-func (u *User) HasScope(scope string) bool {
-	scopes := u.GetScopes()
+func (u *User) HasScope(cfg *config.Config, scope string) bool {
+	scopes := u.GetScopes(cfg)
 
 	return slices.Contains(scopes, scope)
 }
@@ -43,27 +56,14 @@ func (u *User) MatchesOwner(iss, sub string) bool {
 	return u.Iss == iss && u.Sub == sub
 }
 
-// TODO: refactor to use config-based mappings. Will require passing appContext to this method.
-// mapGroupToScopes is a temporary method to map hardcoded groups to specific scopes
-func mapGroupToScopes(group string) []string {
-	switch group {
-	case "conduit:mtls:admin":
-		return []string{
-			"cert:request",
-			"cert:read",
-			"cert:approve",
-			"cert:renew",
-			"cert:revoke",
-		}
-	case "conduit:mtls:user":
-		return []string{
-			"cert:request",
-			"cert:read",
-			"cert:renew",
-		}
-	default:
+// mapGroupToScopes maps groups to the associated scopes based on the config.
+func mapGroupToScopes(cfg *config.Config, group string) []string {
+	scopes := cfg.Authorization.GroupScopes[group]
+	if scopes == nil {
 		return []string{}
 	}
+
+	return scopes
 }
 
 func dedupe(slice []string) []string {

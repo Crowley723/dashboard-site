@@ -10,6 +10,7 @@
 package mocks
 
 import (
+	config "homelab-dashboard/internal/config"
 	reflect "reflect"
 
 	gomock "go.uber.org/mock/gomock"
@@ -39,6 +40,34 @@ func (m *MockPrincipal) EXPECT() *MockPrincipalMockRecorder {
 	return m.recorder
 }
 
+// GetDisplayName mocks base method.
+func (m *MockPrincipal) GetDisplayName() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDisplayName")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// GetDisplayName indicates an expected call of GetDisplayName.
+func (mr *MockPrincipalMockRecorder) GetDisplayName() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDisplayName", reflect.TypeOf((*MockPrincipal)(nil).GetDisplayName))
+}
+
+// GetEmail mocks base method.
+func (m *MockPrincipal) GetEmail() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetEmail")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// GetEmail indicates an expected call of GetEmail.
+func (mr *MockPrincipalMockRecorder) GetEmail() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEmail", reflect.TypeOf((*MockPrincipal)(nil).GetEmail))
+}
+
 // GetIss mocks base method.
 func (m *MockPrincipal) GetIss() string {
 	m.ctrl.T.Helper()
@@ -54,17 +83,17 @@ func (mr *MockPrincipalMockRecorder) GetIss() *gomock.Call {
 }
 
 // GetScopes mocks base method.
-func (m *MockPrincipal) GetScopes() []string {
+func (m *MockPrincipal) GetScopes(cfg *config.Config) []string {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetScopes")
+	ret := m.ctrl.Call(m, "GetScopes", cfg)
 	ret0, _ := ret[0].([]string)
 	return ret0
 }
 
 // GetScopes indicates an expected call of GetScopes.
-func (mr *MockPrincipalMockRecorder) GetScopes() *gomock.Call {
+func (mr *MockPrincipalMockRecorder) GetScopes(cfg any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetScopes", reflect.TypeOf((*MockPrincipal)(nil).GetScopes))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetScopes", reflect.TypeOf((*MockPrincipal)(nil).GetScopes), cfg)
 }
 
 // GetSub mocks base method.
@@ -81,18 +110,32 @@ func (mr *MockPrincipalMockRecorder) GetSub() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSub", reflect.TypeOf((*MockPrincipal)(nil).GetSub))
 }
 
-// HasScope mocks base method.
-func (m *MockPrincipal) HasScope(arg0 string) bool {
+// GetUsername mocks base method.
+func (m *MockPrincipal) GetUsername() string {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "HasScope", arg0)
+	ret := m.ctrl.Call(m, "GetUsername")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// GetUsername indicates an expected call of GetUsername.
+func (mr *MockPrincipalMockRecorder) GetUsername() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsername", reflect.TypeOf((*MockPrincipal)(nil).GetUsername))
+}
+
+// HasScope mocks base method.
+func (m *MockPrincipal) HasScope(cfg *config.Config, scope string) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HasScope", cfg, scope)
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
 
 // HasScope indicates an expected call of HasScope.
-func (mr *MockPrincipalMockRecorder) HasScope(arg0 any) *gomock.Call {
+func (mr *MockPrincipalMockRecorder) HasScope(cfg, scope any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasScope", reflect.TypeOf((*MockPrincipal)(nil).HasScope), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasScope", reflect.TypeOf((*MockPrincipal)(nil).HasScope), cfg, scope)
 }
 
 // MatchesOwner mocks base method.

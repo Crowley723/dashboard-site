@@ -1,4 +1,4 @@
-package auth
+package authentication
 
 import (
 	"homelab-dashboard/internal/models"

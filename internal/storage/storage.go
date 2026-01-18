@@ -45,6 +45,9 @@ type StorageProvider interface {
 	GetServiceAccountByID(ctx context.Context, iss string, sub string) (*models.ServiceAccount, error)
 	GetServiceAccountByLookupId(ctx context.Context, tokenHash string) (*models.ServiceAccount, error)
 	GetServiceAccountsByCreator(ctx context.Context, iss string, sub string) ([]*models.ServiceAccount, error)
+	PauseServiceAccount(ctx context.Context, iss string, sub string) error
+	UnpauseServiceAccount(ctx context.Context, iss, sub string) error
+	DeleteServiceAccount(ctx context.Context, iss string, sub string) error
 	DisableServiceAccount(ctx context.Context, iss string, sub string) error
 	EnableServiceAccount(ctx context.Context, iss, sub string) error
 }

@@ -1,4 +1,4 @@
-package auth
+package authentication
 
 type SessionKey string
 

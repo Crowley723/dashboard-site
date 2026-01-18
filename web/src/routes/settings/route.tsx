@@ -1,4 +1,4 @@
-import { Settings, ScrollText as Certificate } from 'lucide-react';
+import { Settings, ScrollText as Certificate, Key } from 'lucide-react';
 import { AppSidebar } from '@/components/app-sidebar';
 import { createFileRoute, Outlet } from '@tanstack/react-router';
 import {
@@ -57,6 +57,14 @@ export default function SettingsLayout() {
       items: certificateItems,
     });
   }
+
+  // Service Accounts (always visible for authenticated users)
+  settingsNavItems.push({
+    title: 'Service Accounts',
+    url: '/settings/service-accounts',
+    icon: Key,
+    items: [{ title: 'API Tokens', url: '/settings/service-accounts' }],
+  });
 
   // General settings (always visible)
   settingsNavItems.push({

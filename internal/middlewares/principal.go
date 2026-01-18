@@ -1,11 +1,18 @@
 package middlewares
 
+import (
+	"homelab-dashboard/internal/config"
+)
+
 //go:generate mockgen -source=principal.go -destination=../mocks/principal.go -package=mocks
 
 type Principal interface {
 	GetIss() string
 	GetSub() string
-	GetScopes() []string
-	HasScope(string) bool
+	GetUsername() string
+	GetDisplayName() string
+	GetEmail() string
+	GetScopes(cfg *config.Config) []string
+	HasScope(cfg *config.Config, scope string) bool
 	MatchesOwner(iss, sub string) bool
 }

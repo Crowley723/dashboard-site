@@ -15,6 +15,7 @@ import { Route as SettingsRouteRouteImport } from './routes/settings/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as BlogIndexRouteImport } from './routes/blog/index'
+import { Route as SettingsServiceAccountsRouteImport } from './routes/settings/service-accounts'
 import { Route as BlogSlugRouteImport } from './routes/blog/$slug'
 import { Route as SettingsCertsIndexRouteImport } from './routes/settings/certs/index'
 import { Route as SettingsCertsSettingsRouteImport } from './routes/settings/certs/settings'
@@ -51,6 +52,11 @@ const BlogIndexRoute = BlogIndexRouteImport.update({
   path: '/blog/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsServiceAccountsRoute = SettingsServiceAccountsRouteImport.update({
+  id: '/service-accounts',
+  path: '/service-accounts',
+  getParentRoute: () => SettingsRouteRoute,
+} as any)
 const BlogSlugRoute = BlogSlugRouteImport.update({
   id: '/blog/$slug',
   path: '/blog/$slug',
@@ -84,6 +90,7 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/error': typeof ErrorRoute
   '/blog/$slug': typeof BlogSlugRoute
+  '/settings/service-accounts': typeof SettingsServiceAccountsRoute
   '/blog': typeof BlogIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/settings/certs/requests': typeof SettingsCertsRequestsRoute
@@ -96,6 +103,7 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/error': typeof ErrorRoute
   '/blog/$slug': typeof BlogSlugRoute
+  '/settings/service-accounts': typeof SettingsServiceAccountsRoute
   '/blog': typeof BlogIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/settings/certs/requests': typeof SettingsCertsRequestsRoute
@@ -110,6 +118,7 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/error': typeof ErrorRoute
   '/blog/$slug': typeof BlogSlugRoute
+  '/settings/service-accounts': typeof SettingsServiceAccountsRoute
   '/blog/': typeof BlogIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/settings/certs/requests': typeof SettingsCertsRequestsRoute
@@ -125,6 +134,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/error'
     | '/blog/$slug'
+    | '/settings/service-accounts'
     | '/blog'
     | '/settings/'
     | '/settings/certs/requests'
@@ -137,6 +147,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/error'
     | '/blog/$slug'
+    | '/settings/service-accounts'
     | '/blog'
     | '/settings'
     | '/settings/certs/requests'
@@ -150,6 +161,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/error'
     | '/blog/$slug'
+    | '/settings/service-accounts'
     | '/blog/'
     | '/settings/'
     | '/settings/certs/requests'
@@ -211,6 +223,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BlogIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/service-accounts': {
+      id: '/settings/service-accounts'
+      path: '/service-accounts'
+      fullPath: '/settings/service-accounts'
+      preLoaderRoute: typeof SettingsServiceAccountsRouteImport
+      parentRoute: typeof SettingsRouteRoute
+    }
     '/blog/$slug': {
       id: '/blog/$slug'
       path: '/blog/$slug'
@@ -250,6 +269,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface SettingsRouteRouteChildren {
+  SettingsServiceAccountsRoute: typeof SettingsServiceAccountsRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
   SettingsCertsRequestsRoute: typeof SettingsCertsRequestsRoute
   SettingsCertsSettingsRoute: typeof SettingsCertsSettingsRoute
@@ -258,6 +278,7 @@ interface SettingsRouteRouteChildren {
 }
 
 const SettingsRouteRouteChildren: SettingsRouteRouteChildren = {
+  SettingsServiceAccountsRoute: SettingsServiceAccountsRoute,
   SettingsIndexRoute: SettingsIndexRoute,
   SettingsCertsRequestsRoute: SettingsCertsRequestsRoute,
   SettingsCertsSettingsRoute: SettingsCertsSettingsRoute,

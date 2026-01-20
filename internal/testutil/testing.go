@@ -42,9 +42,7 @@ func NewTestContext(t *testing.T) *TestContext {
 	cfg := &config.Config{
 		Features: &config.FeaturesConfig{
 			MTLSManagement: config.MTLSManagement{
-				Enabled:    false,
-				AdminGroup: "",
-				UserGroup:  "",
+				Enabled: false,
 			},
 		},
 	}
@@ -90,9 +88,7 @@ func NewTestContextWithURL(t *testing.T, method, url string) *TestContext {
 	cfg := &config.Config{
 		Features: &config.FeaturesConfig{
 			MTLSManagement: config.MTLSManagement{
-				Enabled:    false,
-				AdminGroup: "",
-				UserGroup:  "",
+				Enabled: false,
 			},
 		},
 	}

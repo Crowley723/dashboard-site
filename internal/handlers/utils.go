@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"fmt"
-	"homelab-dashboard/internal/models"
+	"homelab-dashboard/internal/middlewares"
 	"strings"
 )
 
@@ -28,27 +28,20 @@ func RedactEmail(email string) string {
 }
 
 // deriveCommonName gets a CN for the user's mTLS certificate
-func deriveCommonName(user *models.User) string {
-	if user.DisplayName != "" {
-		return user.DisplayName
+func deriveCommonName(principal middlewares.Principal) string {
+	if principal.GetDisplayName() != "" {
+		return principal.GetDisplayName()
 	}
 
-	if user.Username != "" {
-		return user.Username
+	if principal.GetUsername() != "" {
+		return principal.GetUsername()
 	}
 
-	if user.Email != "" {
-		return user.Email
+	if principal.GetEmail() != "" {
+		return principal.GetEmail()
 	}
 
-	issuerDomain := strings.TrimPrefix(user.Iss, "https://")
+	issuerDomain := strings.TrimPrefix(principal.GetIss(), "https://")
 	issuerDomain = strings.TrimPrefix(issuerDomain, "http://")
-	return fmt.Sprintf("%s@%s", user.Sub, issuerDomain)
-}
-
-func deriveOrganizationalUnits(user *models.User) []string {
-	if len(user.Groups) == 0 {
-		return []string{"Users"}
-	}
-	return user.Groups
+	return fmt.Sprintf("%s@%s", principal.GetSub(), issuerDomain)
 }

@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"homelab-dashboard/internal/auth"
+	"homelab-dashboard/internal/authentication"
 	"homelab-dashboard/internal/config"
 	"homelab-dashboard/internal/data"
 	"homelab-dashboard/internal/distributed"
@@ -44,13 +44,17 @@ func New(cfg *config.Config) (*Server, error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	sessionManager, err := auth.NewSessionManager(logger, cfg)
+	sessionManager, err := authentication.NewSessionManager(logger, cfg)
 	if err != nil {
 		cancel()
 		return nil, err
 	}
 
-	oidcProvider, err := auth.NewRealOIDCProvider(ctx, cfg.OIDC)
+	oidcProvider, err := authentication.NewRealOIDCProvider(ctx, cfg.OIDC)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
 
 	dataService, cache, err := setupDataService(cfg, logger)
 	if err != nil {

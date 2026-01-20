@@ -330,8 +330,6 @@ config:
   features:
     mtls_management:
       enabled: true
-      admin_group: 'conduit:mtls:admin'
-      user_group: 'conduit:mtls:user'
       auto_approve_admin_requests: true
       allow_admins_to_approve_own_requests: true
       kubernetes:

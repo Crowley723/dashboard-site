@@ -1,21 +1,23 @@
 package config
 
 import (
+	"homelab-dashboard/internal/authorization"
 	"time"
 )
 
 type Config struct {
-	Server      ServerConfig       `yaml:"server"`
-	OIDC        OIDCConfig         `yaml:"oidc"`
-	Log         LogConfig          `yaml:"log"`
-	CORS        CORSConfig         `yaml:"cors"`
-	Sessions    SessionConfig      `yaml:"sessions"`
-	Data        DataConfig         `yaml:"data"`
-	Cache       CacheConfig        `yaml:"cache"`
-	Redis       *RedisConfig       `yaml:"redis"`
-	Distributed *DistributedConfig `yaml:"distributed"`
-	Storage     *StorageConfig     `yaml:"storage"`
-	Features    *FeaturesConfig    `yaml:"features"`
+	Server        ServerConfig        `yaml:"server"`
+	OIDC          OIDCConfig          `yaml:"oidc"`
+	Log           LogConfig           `yaml:"log"`
+	CORS          CORSConfig          `yaml:"cors"`
+	Sessions      SessionConfig       `yaml:"sessions"`
+	Data          DataConfig          `yaml:"data"`
+	Cache         CacheConfig         `yaml:"cache"`
+	Authorization AuthorizationConfig `yaml:"authorization"`
+	Redis         *RedisConfig        `yaml:"redis"`
+	Distributed   *DistributedConfig  `yaml:"distributed"`
+	Storage       *StorageConfig      `yaml:"storage"`
+	Features      *FeaturesConfig     `yaml:"features"`
 }
 
 type ServerConfig struct {
@@ -183,8 +185,6 @@ var DefaultFeaturesConfig = FeaturesConfig{
 
 type MTLSManagement struct {
 	Enabled                         bool                     `yaml:"enabled"`
-	AdminGroup                      string                   `yaml:"admin_group"`
-	UserGroup                       string                   `yaml:"user_group"`
 	DownloadTokenHMACKey            string                   `yaml:"download_token_hmac_key"`
 	AutoApproveAdminRequests        bool                     `yaml:"auto_approve_admin_requests"`
 	AllowAdminsToApproveOwnRequests bool                     `yaml:"allow_admins_to_approve_own_requests"`
@@ -246,4 +246,30 @@ var DefaultMTLSIssuerConfig = MTLSManagement{
 	CertificateIssuer:               nil,
 	CertificateSubject:              DefaultCertificateSubject,
 	BackgroundJobConfig:             DefaultMTLSBackgroundJobConfig,
+}
+
+type AuthorizationConfig struct {
+	GroupScopes map[string][]string `yaml:"group_scopes"`
+}
+
+var DefaultAuthorizationConfig = AuthorizationConfig{
+	GroupScopes: map[string][]string{
+		"conduit:mtls:admin": {
+			authorization.ScopeMTLSRequestCert,
+			authorization.ScopeMTLSReadAllCerts,
+			authorization.ScopeMTLSReadCert,
+			authorization.ScopeMTLSApproveCert,
+			authorization.ScopeMTLSRenewCert,
+			authorization.ScopeMTLSRevokeCert,
+			authorization.ScopeMTLSDownloadAllCerts,
+			authorization.ScopeMTLSDownloadCert,
+			authorization.ScopeMTLSAutoApproveCert,
+		},
+		"conduit:mtls:user": {
+			authorization.ScopeMTLSRequestCert,
+			authorization.ScopeMTLSReadCert,
+			authorization.ScopeMTLSRenewCert,
+			authorization.ScopeMTLSDownloadCert,
+		},
+	},
 }

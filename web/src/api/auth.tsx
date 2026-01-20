@@ -8,8 +8,7 @@ export interface User {
 }
 
 export interface MTLSConfig {
-  admin_group: string;
-  user_group: string;
+  enabled: boolean;
 }
 
 export interface Config {

@@ -1,4 +1,4 @@
-package auth
+package authentication
 
 var (
 	SessionKeyUserData           SessionKey = "user_data"

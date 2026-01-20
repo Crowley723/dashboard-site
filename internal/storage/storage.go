@@ -40,4 +40,14 @@ type StorageProvider interface {
 	InsertAuditLogCertificateDownload(ctx context.Context, certId int, sub, iss, ipAddress, rawUserAgent string, userAgent uasurfer.UserAgent) (*models.CertificateDownload, error)
 	GetCertificateDownloadAuditLogByID(ctx context.Context, id int) (*models.CertificateDownload, error)
 	GetRecentCertificateDownloadLogs(ctx context.Context, limit int) ([]models.CertificateDownload, error)
+
+	CreateServiceAccount(ctx context.Context, serviceAccount *models.ServiceAccount) (*models.ServiceAccount, error)
+	GetServiceAccountByID(ctx context.Context, iss string, sub string) (*models.ServiceAccount, error)
+	GetServiceAccountByLookupId(ctx context.Context, tokenHash string) (*models.ServiceAccount, error)
+	GetServiceAccountsByCreator(ctx context.Context, iss string, sub string) ([]*models.ServiceAccount, error)
+	PauseServiceAccount(ctx context.Context, iss string, sub string) error
+	UnpauseServiceAccount(ctx context.Context, iss, sub string) error
+	DeleteServiceAccount(ctx context.Context, iss string, sub string) error
+	DisableServiceAccount(ctx context.Context, iss string, sub string) error
+	EnableServiceAccount(ctx context.Context, iss, sub string) error
 }

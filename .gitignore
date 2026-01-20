@@ -65,3 +65,4 @@ temp/
 # SOPS encrypted files (allow these)
 !*secret*.enc.yaml
 !*secret*.sops.yaml
+__debug*

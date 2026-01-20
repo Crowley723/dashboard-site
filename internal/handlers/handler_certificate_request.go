@@ -3,11 +3,11 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"homelab-dashboard/internal/authorization"
 	"homelab-dashboard/internal/middlewares"
 	"homelab-dashboard/internal/models"
 	"homelab-dashboard/internal/storage"
 	"net/http"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -36,14 +36,14 @@ type CertificateRequestResponse struct {
 
 // POSTCertificateRequest is used by any authenticated user to create a certificate request
 func POSTCertificateRequest(ctx *middlewares.AppContext) {
-	user, ok := ctx.SessionManager.GetAuthenticatedUser(ctx)
-	if !ok {
+	principal := ctx.GetPrincipal()
+	if principal == nil {
 		ctx.SetJSONError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
 		return
 	}
 
-	if !slices.Contains(user.Groups, ctx.Config.Features.MTLSManagement.UserGroup) && !slices.Contains(user.Groups, ctx.Config.Features.MTLSManagement.AdminGroup) {
-		ctx.SetJSONError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
+	if !principal.HasScope(ctx.Config, authorization.ScopeMTLSRequestCert) {
+		ctx.SetJSONError(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 		return
 	}
 
@@ -67,28 +67,26 @@ func POSTCertificateRequest(ctx *middlewares.AppContext) {
 		return
 	}
 
-	commonName := deriveCommonName(user)
-
-	organizationalUnits := deriveOrganizationalUnits(user)
+	commonName := deriveCommonName(principal)
 
 	requestStatus := string(models.StatusAwaitingReview)
 
 	certRequest, err := ctx.Storage.CreateCertificateRequest(
 		ctx,
-		user.Sub,
-		user.Iss,
+		principal.GetSub(),
+		principal.GetIss(),
 		commonName,
 		string(models.StatusAwaitingReview),
 		req.Message,
 		[]string{}, //empty dns name for client certs
-		nil,        // not implemented
+		nil,
 		req.ValidityDays,
 	)
 
 	if err != nil {
 		ctx.Logger.Error("failed to create certificate request",
 			"error", err,
-			"user", user.Username,
+			"principal_name", principal.GetUsername(),
 			"common_name", commonName,
 		)
 
@@ -98,19 +96,18 @@ func POSTCertificateRequest(ctx *middlewares.AppContext) {
 
 	ctx.Logger.Debug("certificate request created",
 		"request_id", certRequest.ID,
-		"user", user.Username,
+		"principal_name", principal.GetUsername(),
 		"common_name", commonName,
-		"ous", organizationalUnits,
 	)
 
-	if ctx.Config.Features.MTLSManagement.AutoApproveAdminRequests && slices.Contains(user.Groups, ctx.Config.Features.MTLSManagement.AdminGroup) {
+	if principal.HasScope(ctx.Config, authorization.ScopeMTLSAutoApproveCert) {
 		err = ctx.Storage.UpdateCertificateRequestStatus(ctx, certRequest.ID, models.StatusApproved, ctx.Config.Server.ExternalURL, storage.SystemSub, "Auto Approved")
 		if err != nil {
 			ctx.Logger.Error("failed to auto approve certificate request", "error", err)
 			ctx.SetJSONError(http.StatusInternalServerError, "Failed to auto approve certificate request")
 			return
 		}
-		ctx.Logger.Debug("request was auto-approved", "iss", user.Iss, "sub", user.Sub, "request_status", requestStatus)
+		ctx.Logger.Debug("request was auto-approved", "iss", principal.GetIss(), "sub", principal.GetSub(), "request_status", requestStatus)
 	}
 
 	updatedRequest, err := ctx.Storage.GetCertificateRequestByID(ctx, certRequest.ID)
@@ -126,9 +123,14 @@ func POSTCertificateRequest(ctx *middlewares.AppContext) {
 
 // GETCertificateRequests is used to expose all certificate requests to admin users. Admin check done with middleware
 func GETCertificateRequests(ctx *middlewares.AppContext) {
-	user, ok := ctx.SessionManager.GetAuthenticatedUser(ctx)
-	if !ok || user == nil {
+	principal := ctx.GetPrincipal()
+	if principal == nil {
 		ctx.SetJSONError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
+		return
+	}
+
+	if !principal.HasScope(ctx.Config, authorization.ScopeMTLSReadAllCerts) {
+		ctx.SetJSONError(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 		return
 	}
 
@@ -162,8 +164,8 @@ func GETCertificateRequest(ctx *middlewares.AppContext) {
 		return
 	}
 
-	user, ok := ctx.SessionManager.GetAuthenticatedUser(ctx)
-	if !ok || user == nil {
+	principal := ctx.GetPrincipal()
+	if principal == nil {
 		ctx.SetJSONError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
 		return
 	}
@@ -177,8 +179,8 @@ func GETCertificateRequest(ctx *middlewares.AppContext) {
 	}
 
 	if requests != nil &&
-		!user.MatchesUser(requests.OwnerIss, requests.OwnerSub) &&
-		!slices.Contains(user.Groups, ctx.Config.Features.MTLSManagement.AdminGroup) {
+		!principal.MatchesOwner(requests.OwnerIss, requests.OwnerSub) &&
+		!principal.HasScope(ctx.Config, authorization.ScopeMTLSReadAllCerts) {
 		ctx.SetJSONError(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 		return
 	}
@@ -194,7 +196,7 @@ func GETCertificateRequest(ctx *middlewares.AppContext) {
 		}))
 }
 
-// POSTCertificateReview is used by admins to post a reject/approval for a specific certificate request with comments. Admin check done with middleware
+// POSTCertificateReview is used by admins to post a reject/approval for a specific certificate request with comments.
 func POSTCertificateReview(ctx *middlewares.AppContext) {
 	requestIdParam := chi.URLParam(ctx.Request, "id")
 	if requestIdParam == "" {
@@ -208,9 +210,14 @@ func POSTCertificateReview(ctx *middlewares.AppContext) {
 		return
 	}
 
-	user, ok := ctx.SessionManager.GetAuthenticatedUser(ctx)
-	if !ok || user == nil {
+	principal := ctx.GetPrincipal()
+	if principal == nil {
 		ctx.SetJSONError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
+		return
+	}
+
+	if !principal.HasScope(ctx.Config, authorization.ScopeMTLSApproveCert) {
+		ctx.SetJSONError(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 		return
 	}
 
@@ -245,7 +252,7 @@ func POSTCertificateReview(ctx *middlewares.AppContext) {
 		return
 	}
 
-	if !ctx.Config.Features.MTLSManagement.AllowAdminsToApproveOwnRequests && user.MatchesUser(request.OwnerIss, request.OwnerSub) {
+	if !principal.HasScope(ctx.Config, authorization.ScopeMTLSSelfApproveCerts) && principal.MatchesOwner(request.OwnerIss, request.OwnerSub) {
 		ctx.SetJSONError(http.StatusForbidden, "You are not allowed to approve your own requests")
 		return
 	}
@@ -257,7 +264,7 @@ func POSTCertificateReview(ctx *middlewares.AppContext) {
 		return
 	}
 
-	err = ctx.Storage.UpdateCertificateRequestStatus(ctx, request.ID, review.NewStatus, user.Iss, user.Sub, review.ReviewNotes)
+	err = ctx.Storage.UpdateCertificateRequestStatus(ctx, request.ID, review.NewStatus, principal.GetIss(), principal.GetSub(), review.ReviewNotes)
 	if err != nil {
 		ctx.Logger.Error("failed to update certificate request status", "error", err)
 		ctx.SetJSONError(http.StatusInternalServerError, "Failed to update certificate request status")
@@ -266,7 +273,7 @@ func POSTCertificateReview(ctx *middlewares.AppContext) {
 
 	ctx.Logger.Info("certificate request reviewed",
 		"request_id", requestId,
-		"reviewer", user.Username,
+		"reviewer", principal.GetUsername(),
 		"new_status", review.NewStatus,
 	)
 
@@ -283,13 +290,13 @@ func POSTCertificateReview(ctx *middlewares.AppContext) {
 
 // GETUserCertificateRequests exposes information about certificate requests to the owner
 func GETUserCertificateRequests(ctx *middlewares.AppContext) {
-	user, ok := ctx.SessionManager.GetAuthenticatedUser(ctx)
-	if !ok || user == nil {
+	principal := ctx.GetPrincipal()
+	if principal == nil {
 		ctx.SetJSONError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
 		return
 	}
 
-	requests, err := ctx.Storage.GetCertificateRequestsByUser(ctx, user.Sub, user.Iss)
+	requests, err := ctx.Storage.GetCertificateRequestsByUser(ctx, principal.GetSub(), principal.GetIss())
 	if err != nil {
 		ctx.Logger.Error("failed to get certificate requests",
 			"error", err)

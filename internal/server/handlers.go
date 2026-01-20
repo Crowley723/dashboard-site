@@ -50,6 +50,7 @@ func setupRouter(ctx *middlewares.AppContext) *chi.Mux {
 	})
 
 	r.Route("/api", func(r chi.Router) {
+		r.Use(middlewares.OptionalAuth)
 		r.Route("/auth", func(r chi.Router) {
 			r.Get("/status", ctx.HandlerFunc(handlers.GETAuthStatusHandler))
 			r.Get("/login", ctx.HandlerFunc(handlers.GETLoginHandler))
@@ -57,22 +58,42 @@ func setupRouter(ctx *middlewares.AppContext) *chi.Mux {
 			r.Post("/logout", ctx.HandlerFunc(handlers.POSTLogoutHandler))
 		})
 
-		r.Route("/certificates", func(r chi.Router) {
-			r.Group(func(r chi.Router) {
-				r.Use(middlewares.RequireAuth)
-				r.Post("/request", ctx.HandlerFunc(handlers.POSTCertificateRequest))
-				r.Get("/my-requests", ctx.HandlerFunc(handlers.GETUserCertificateRequests))
-				r.Get("/request/{id}", ctx.HandlerFunc(handlers.GETCertificateRequest))
-				r.Get("/{id}/download", ctx.HandlerFunc(handlers.GETCertificateDownload))
-				r.Post("/{id}/unlock", ctx.HandlerFunc(handlers.POSTCertificateUnlock))
+		if ctx.Config.Storage.Enabled {
+			r.Route("/service-accounts", func(r chi.Router) {
+				r.Group(func(r chi.Router) {
+					r.Use(middlewares.RequireCookieAuth)
+					r.Get("/", ctx.HandlerFunc(handlers.GETServiceAccounts))
+					r.Post("/", ctx.HandlerFunc(handlers.POSTServiceAccount))
+					r.Delete("/", ctx.HandlerFunc(handlers.DELETEServiceAccount))
+					r.Patch("/pause", ctx.HandlerFunc(handlers.PATCHServiceAccountPause))
+					r.Patch("/unpause", ctx.HandlerFunc(handlers.PATCHServiceAccountUnpause))
+					r.Get("/scopes", ctx.HandlerFunc(handlers.GETUserScopes))
+				})
+				r.Group(func(r chi.Router) {
+					r.Use(middlewares.RequireServiceAccountAuth)
+					r.Get("/whoami", ctx.HandlerFunc(handlers.GETServiceAccountWhoami))
+				})
 			})
+		}
 
-			r.Group(func(r chi.Router) {
-				r.Use(middlewares.RequireAdminAndAuth)
-				r.Get("/requests", ctx.HandlerFunc(handlers.GETCertificateRequests))
-				r.Post("/requests/{id}/review", ctx.HandlerFunc(handlers.POSTCertificateReview))
+		if ctx.Config.Storage.Enabled && ctx.Config.Features.MTLSManagement.Enabled {
+			r.Route("/certificates", func(r chi.Router) {
+				r.Group(func(r chi.Router) {
+					r.Use(middlewares.RequireAuth)
+					r.Post("/request", ctx.HandlerFunc(handlers.POSTCertificateRequest))
+					r.Get("/my-requests", ctx.HandlerFunc(handlers.GETUserCertificateRequests))
+					r.Get("/request/{id}", ctx.HandlerFunc(handlers.GETCertificateRequest))
+					r.Get("/{id}/download", ctx.HandlerFunc(handlers.GETCertificateDownload))
+					r.Post("/{id}/unlock", ctx.HandlerFunc(handlers.POSTCertificateUnlock))
+				})
+
+				r.Group(func(r chi.Router) {
+					r.Use(middlewares.RequireAuth)
+					r.Get("/requests", ctx.HandlerFunc(handlers.GETCertificateRequests))
+					r.Post("/requests/{id}/review", ctx.HandlerFunc(handlers.POSTCertificateReview))
+				})
 			})
-		})
+		}
 
 		r.Get("/queries", ctx.HandlerFunc(handlers.GetQueriesGET))
 		r.Get("/data", ctx.HandlerFunc(handlers.GetMetricsGET))

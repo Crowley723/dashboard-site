@@ -1,7 +1,7 @@
 {
   "name": "web",
   "private": true,
-  "version": "0.1.4-rc3",
+  "version": "0.1.4-rc4",
   "type": "module",
   "scripts": {
     "dev": "tsr watch & vite",

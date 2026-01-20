@@ -193,8 +193,6 @@ data:
       mtls_management:
         enabled: {{ .enabled | default false }}
         {{- if .enabled }}
-        admin_group: {{ .admin_group | quote }}
-        user_group: {{ .user_group | quote }}
         download_token_hmac_key: {{ .download_token_hmac_key | quote }}
         auto_approve_admin_requests: {{ .auto_approve_admin_requests | default false }}
         allow_admins_to_approve_own_requests: {{ .allow_admins_to_approve_own_requests | default true }}

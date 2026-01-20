@@ -91,11 +91,11 @@ export interface FileRoutesByFullPath {
   '/error': typeof ErrorRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/settings/service-accounts': typeof SettingsServiceAccountsRoute
-  '/blog': typeof BlogIndexRoute
+  '/blog/': typeof BlogIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/settings/certs/requests': typeof SettingsCertsRequestsRoute
   '/settings/certs/settings': typeof SettingsCertsSettingsRoute
-  '/settings/certs': typeof SettingsCertsIndexRoute
+  '/settings/certs/': typeof SettingsCertsIndexRoute
   '/settings/certs/admin/requests': typeof SettingsCertsAdminRequestsRoute
 }
 export interface FileRoutesByTo {
@@ -135,11 +135,11 @@ export interface FileRouteTypes {
     | '/error'
     | '/blog/$slug'
     | '/settings/service-accounts'
-    | '/blog'
+    | '/blog/'
     | '/settings/'
     | '/settings/certs/requests'
     | '/settings/certs/settings'
-    | '/settings/certs'
+    | '/settings/certs/'
     | '/settings/certs/admin/requests'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -219,7 +219,7 @@ declare module '@tanstack/react-router' {
     '/blog/': {
       id: '/blog/'
       path: '/blog'
-      fullPath: '/blog'
+      fullPath: '/blog/'
       preLoaderRoute: typeof BlogIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
@@ -240,7 +240,7 @@ declare module '@tanstack/react-router' {
     '/settings/certs/': {
       id: '/settings/certs/'
       path: '/certs'
-      fullPath: '/settings/certs'
+      fullPath: '/settings/certs/'
       preLoaderRoute: typeof SettingsCertsIndexRouteImport
       parentRoute: typeof SettingsRouteRoute
     }

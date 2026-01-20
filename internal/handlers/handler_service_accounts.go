@@ -59,7 +59,7 @@ func POSTServiceAccount(ctx *middlewares.AppContext) {
 	expiryTime, err := time.Parse(time.RFC3339, req.TokenExpiresAt)
 	if err != nil {
 		ctx.Logger.Error("failed to parse token expiry time", "error", err)
-		ctx.SetJSONError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
+		ctx.SetJSONError(http.StatusBadRequest, http.StatusText(http.StatusBadRequest))
 		return
 	}
 

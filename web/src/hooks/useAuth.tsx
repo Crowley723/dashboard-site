@@ -43,14 +43,14 @@ export const useAuth = () => {
 
   // Check if user is in the MTLS admin group
   const isMTLSAdmin = (): boolean => {
-    if (!config?.mtls?.admin_group) return false;
-    return isInGroup(config.mtls.admin_group);
+    if (!config?.mtls?.enabled) return false;
+    return isInGroup('conduit:mtls:admin');
   };
 
   // Check if user is in the MTLS user group
   const isMTLSUser = (): boolean => {
-    if (!config?.mtls?.user_group) return false;
-    return isInGroup(config.mtls.user_group);
+    if (!config?.mtls?.enabled) return false;
+    return isInGroup('conduit:mtls:user');
   };
 
   return {

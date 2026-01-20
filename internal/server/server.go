@@ -51,6 +51,10 @@ func New(cfg *config.Config) (*Server, error) {
 	}
 
 	oidcProvider, err := authentication.NewRealOIDCProvider(ctx, cfg.OIDC)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
 
 	dataService, cache, err := setupDataService(cfg, logger)
 	if err != nil {

@@ -2,9 +2,11 @@ package config
 
 import (
 	"fmt"
+	"homelab-dashboard/internal/authorization"
 	"log/slog"
 	"net"
 	"os"
+	"slices"
 	"strconv"
 	"time"
 
@@ -225,6 +227,11 @@ func validateConfig(config *Config) error {
 	}
 
 	err = config.ValidateFeaturesConfig()
+	if err != nil {
+		return err
+	}
+
+	err = config.validateAuthorizationConfig()
 	if err != nil {
 		return err
 	}
@@ -590,15 +597,6 @@ func (c *Config) ValidateMTLSManagementConfig() error {
 		return fmt.Errorf("storage must be enabled when mtls_management is enabled")
 	}
 
-	// Validate admin group is set
-	if c.Features.MTLSManagement.AdminGroup == "" {
-		return fmt.Errorf("features.mtls_management.admin_group is required when mtls_management is enabled")
-	}
-
-	if c.Features.MTLSManagement.UserGroup == "" {
-		return fmt.Errorf("features.mtls_management.user_group is required when mtls_management is enabled")
-	}
-
 	if c.Features.MTLSManagement.DownloadTokenHMACKey == "" {
 		return fmt.Errorf("features.mtls_management.download_token_hmac_key is required when mtls_management is enabled")
 	}
@@ -667,6 +665,29 @@ func (c *Config) ValidateMTLSManagementConfig() error {
 	kind := c.Features.MTLSManagement.CertificateIssuer.Kind
 	if kind != "Issuer" && kind != "ClusterIssuer" {
 		return fmt.Errorf("features.mtls_management.certificate_issuer.kind must be either 'Issuer' or 'ClusterIssuer', got '%s'", kind)
+	}
+
+	return nil
+}
+
+func (c *Config) validateAuthorizationConfig() error {
+	// Apply default authorization config if not set
+	if c.Authorization.GroupScopes == nil || len(c.Authorization.GroupScopes) == 0 {
+		c.Authorization = DefaultAuthorizationConfig
+	}
+
+	// Validate that each scope is a known/valid scope
+	validScopes := authorization.GetAllValidScopes()
+	for group, scopes := range c.Authorization.GroupScopes {
+		if len(scopes) == 0 {
+			return fmt.Errorf("authorization group '%s' has no scopes defined", group)
+		}
+
+		for _, scope := range scopes {
+			if !slices.Contains(validScopes, scope) {
+				return fmt.Errorf("authorization group '%s' contains invalid scope '%s'", group, scope)
+			}
+		}
 	}
 
 	return nil

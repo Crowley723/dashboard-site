@@ -11,8 +11,7 @@ type ConfigResponse struct {
 }
 
 type MTLSConfigResponse struct {
-	AdminGroup string `json:"admin_group"`
-	UserGroup  string `json:"user_group"`
+	Enabled bool `json:"enabled"`
 }
 
 type AuthStatusResponse struct {
@@ -35,8 +34,7 @@ func GETAuthStatusHandler(ctx *middlewares.AppContext) {
 
 	if ctx.Config.Features != nil && ctx.Config.Features.MTLSManagement.Enabled {
 		config.MTLS = MTLSConfigResponse{
-			AdminGroup: ctx.Config.Features.MTLSManagement.AdminGroup,
-			UserGroup:  ctx.Config.Features.MTLSManagement.UserGroup,
+			Enabled: true,
 		}
 	}
 

@@ -64,12 +64,6 @@ func RequireAuth(next http.Handler) http.Handler {
 			return
 		}
 
-		principal := appCtx.GetPrincipal()
-		if principal == nil {
-			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-			return
-		}
-
 		if appCtx.Config.Storage.Enabled {
 			if authToken, err := utils.ExtractAuthorizationHeader(r); err == nil {
 				if serviceAccount, err := VerifyServiceAccount(appCtx, authToken); err == nil && serviceAccount != nil {
@@ -85,6 +79,12 @@ func RequireAuth(next http.Handler) http.Handler {
 		if user, ok := appCtx.SessionManager.GetUser(appCtx); ok {
 			appCtx.SetPrincipal(user)
 			next.ServeHTTP(w, r)
+			return
+		}
+
+		principal := appCtx.GetPrincipal()
+		if principal == nil {
+			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
 		}
 
@@ -204,8 +204,8 @@ func GenerateAPIToken() (rawToken, lookupId, hashedSecret string, err error) {
 	secretBytes := make([]byte, 32)
 	lookupBytes := make([]byte, 16)
 
-	_, _ = rand.Read(secretBytes)
-	_, _ = rand.Read(lookupBytes)
+	rand.Read(secretBytes)
+	rand.Read(lookupBytes)
 
 	encodedSecret := base64.RawURLEncoding.EncodeToString(secretBytes)
 	encodedLookup := base64.RawURLEncoding.EncodeToString(lookupBytes)

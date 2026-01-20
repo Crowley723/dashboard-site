@@ -15,3 +15,19 @@ const (
 	ScopeMTLSAutoApproveCert  = "mtls:auto_approve"
 	ScopeMTLSSelfApproveCerts = "mtls:self_approve_certs"
 )
+
+// GetAllValidScopes returns all valid authorization scopes defined in the system
+func GetAllValidScopes() []string {
+	return []string{
+		ScopeMTLSRequestCert,
+		ScopeMTLSReadCert,
+		ScopeMTLSApproveCert,
+		ScopeMTLSRenewCert,
+		ScopeMTLSRevokeCert,
+		ScopeMTLSDownloadCert,
+		ScopeMTLSDownloadAllCerts,
+		ScopeMTLSReadAllCerts,
+		ScopeMTLSAutoApproveCert,
+		ScopeMTLSSelfApproveCerts,
+	}
+}

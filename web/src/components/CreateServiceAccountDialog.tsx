@@ -13,10 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Copy, Check, AlertCircle } from 'lucide-react';
-import {
-  useCreateServiceAccount,
-  useUserScopes,
-} from '@/api/ServiceAccounts';
+import { useCreateServiceAccount, useUserScopes } from '@/api/ServiceAccounts';
 
 interface CreateServiceAccountDialogProps {
   open: boolean;
@@ -38,21 +35,21 @@ export function CreateServiceAccountDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!name.trim() || selectedScopes.length === 0) {
       return;
     }
-
+    const days = Number.parseInt(expiryDays, 10);
+    if (!Number.isFinite(days) || days < 1) {
+      return;
+    }
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + parseInt(expiryDays));
-
+    expiresAt.setDate(expiresAt.getDate() + days);
     try {
       const result = await createMutation.mutateAsync({
         name: name.trim(),
         token_expires_at: expiresAt.toISOString(),
         scopes: selectedScopes,
       });
-
       setCreatedToken(result.token || null);
     } catch (error) {
       console.error('Failed to create service account:', error);
@@ -79,9 +76,7 @@ export function CreateServiceAccountDialog({
 
   const toggleScope = (scope: string) => {
     setSelectedScopes((prev) =>
-      prev.includes(scope)
-        ? prev.filter((s) => s !== scope)
-        : [...prev, scope]
+      prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope]
     );
   };
 

@@ -185,8 +185,6 @@ var DefaultFeaturesConfig = FeaturesConfig{
 
 type MTLSManagement struct {
 	Enabled                         bool                     `yaml:"enabled"`
-	AdminGroup                      string                   `yaml:"admin_group"`
-	UserGroup                       string                   `yaml:"user_group"`
 	DownloadTokenHMACKey            string                   `yaml:"download_token_hmac_key"`
 	AutoApproveAdminRequests        bool                     `yaml:"auto_approve_admin_requests"`
 	AllowAdminsToApproveOwnRequests bool                     `yaml:"allow_admins_to_approve_own_requests"`

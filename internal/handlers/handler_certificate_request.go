@@ -43,7 +43,7 @@ func POSTCertificateRequest(ctx *middlewares.AppContext) {
 	}
 
 	if !principal.HasScope(ctx.Config, authorization.ScopeMTLSRequestCert) {
-		ctx.SetJSONError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
+		ctx.SetJSONError(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 		return
 	}
 
@@ -130,7 +130,7 @@ func GETCertificateRequests(ctx *middlewares.AppContext) {
 	}
 
 	if !principal.HasScope(ctx.Config, authorization.ScopeMTLSReadAllCerts) {
-		ctx.SetJSONError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
+		ctx.SetJSONError(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 		return
 	}
 

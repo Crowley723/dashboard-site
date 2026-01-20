@@ -57,10 +57,17 @@ export function CreateServiceAccountDialog({
   };
 
   const handleCopy = async () => {
-    if (createdToken) {
+    if (!createdToken) return;
+    try {
+      if (!navigator.clipboard) {
+        console.error('Clipboard API unavailable');
+        return;
+      }
       await navigator.clipboard.writeText(createdToken);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy token:', error);
     }
   };
 

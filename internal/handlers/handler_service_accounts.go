@@ -26,7 +26,11 @@ type ServiceAccount struct {
 }
 
 func POSTServiceAccount(ctx *middlewares.AppContext) {
-	user := ctx.GetPrincipal().(*models.User)
+	user, ok := ctx.GetPrincipal().(*models.User)
+	if !ok || user == nil {
+		ctx.SetJSONError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
+		return
+	}
 
 	type request struct {
 		Name           string   `json:"name"`
@@ -156,7 +160,11 @@ func GETServiceAccounts(ctx *middlewares.AppContext) {
 }
 
 func GETServiceAccountWhoami(ctx *middlewares.AppContext) {
-	sa := ctx.GetPrincipal().(*models.ServiceAccount)
+	sa, ok := ctx.GetPrincipal().(*models.ServiceAccount)
+	if !ok || sa == nil {
+		ctx.SetJSONError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
+		return
+	}
 
 	response := ServiceAccount{
 		Sub:          sa.Sub,
@@ -185,7 +193,6 @@ func DELETEServiceAccount(ctx *middlewares.AppContext) {
 		return
 	}
 
-	// Get the service account to verify ownership
 	sa, err := ctx.Storage.GetServiceAccountByID(ctx, targetIss, targetSub)
 	if err != nil {
 		ctx.Logger.Error("failed to get service account", "error", err)
@@ -193,19 +200,16 @@ func DELETEServiceAccount(ctx *middlewares.AppContext) {
 		return
 	}
 
-	// Verify the user owns this service account
 	if sa.CreatedByIss != user.Iss || sa.CreatedBySub != user.Sub {
 		ctx.SetJSONError(http.StatusForbidden, "You can only delete service accounts you created")
 		return
 	}
 
-	// Check if already deleted
 	if sa.DeletedAt != nil {
 		ctx.SetJSONError(http.StatusGone, "Service account already deleted")
 		return
 	}
 
-	// Delete (soft delete with audit trail)
 	if err := ctx.Storage.DeleteServiceAccount(ctx, targetIss, targetSub); err != nil {
 		ctx.Logger.Error("failed to delete service account", "error", err)
 		ctx.SetJSONError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
@@ -216,7 +220,11 @@ func DELETEServiceAccount(ctx *middlewares.AppContext) {
 }
 
 func PATCHServiceAccountPause(ctx *middlewares.AppContext) {
-	user := ctx.GetPrincipal().(*models.User)
+	user, ok := ctx.GetPrincipal().(*models.User)
+	if !ok || user == nil {
+		ctx.SetJSONError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
+		return
+	}
 
 	targetIss := ctx.Request.URL.Query().Get("iss")
 	targetSub := ctx.Request.URL.Query().Get("sub")
@@ -226,7 +234,6 @@ func PATCHServiceAccountPause(ctx *middlewares.AppContext) {
 		return
 	}
 
-	// Get the service account to verify ownership
 	sa, err := ctx.Storage.GetServiceAccountByID(ctx, targetIss, targetSub)
 	if err != nil {
 		ctx.Logger.Error("failed to get service account", "error", err)
@@ -234,19 +241,16 @@ func PATCHServiceAccountPause(ctx *middlewares.AppContext) {
 		return
 	}
 
-	// Verify the user owns this service account
 	if sa.CreatedByIss != user.Iss || sa.CreatedBySub != user.Sub {
 		ctx.SetJSONError(http.StatusForbidden, "You can only pause service accounts you created")
 		return
 	}
 
-	// Check if deleted
 	if sa.DeletedAt != nil {
 		ctx.SetJSONError(http.StatusGone, "Cannot pause a deleted service account")
 		return
 	}
 
-	// Pause
 	if err := ctx.Storage.PauseServiceAccount(ctx, targetIss, targetSub); err != nil {
 		ctx.Logger.Error("failed to pause service account", "error", err)
 		ctx.SetJSONError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
@@ -257,7 +261,11 @@ func PATCHServiceAccountPause(ctx *middlewares.AppContext) {
 }
 
 func PATCHServiceAccountUnpause(ctx *middlewares.AppContext) {
-	user := ctx.GetPrincipal().(*models.User)
+	user, ok := ctx.GetPrincipal().(*models.User)
+	if !ok || user == nil {
+		ctx.SetJSONError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
+		return
+	}
 
 	targetIss := ctx.Request.URL.Query().Get("iss")
 	targetSub := ctx.Request.URL.Query().Get("sub")
@@ -267,7 +275,6 @@ func PATCHServiceAccountUnpause(ctx *middlewares.AppContext) {
 		return
 	}
 
-	// Get the service account to verify ownership
 	sa, err := ctx.Storage.GetServiceAccountByID(ctx, targetIss, targetSub)
 	if err != nil {
 		ctx.Logger.Error("failed to get service account", "error", err)
@@ -275,19 +282,16 @@ func PATCHServiceAccountUnpause(ctx *middlewares.AppContext) {
 		return
 	}
 
-	// Verify the user owns this service account
 	if sa.CreatedByIss != user.Iss || sa.CreatedBySub != user.Sub {
 		ctx.SetJSONError(http.StatusForbidden, "You can only unpause service accounts you created")
 		return
 	}
 
-	// Check if deleted
 	if sa.DeletedAt != nil {
 		ctx.SetJSONError(http.StatusGone, "Cannot unpause a deleted service account")
 		return
 	}
 
-	// Unpause
 	if err := ctx.Storage.UnpauseServiceAccount(ctx, targetIss, targetSub); err != nil {
 		ctx.Logger.Error("failed to unpause service account", "error", err)
 		ctx.SetJSONError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
@@ -298,7 +302,11 @@ func PATCHServiceAccountUnpause(ctx *middlewares.AppContext) {
 }
 
 func GETUserScopes(ctx *middlewares.AppContext) {
-	user := ctx.GetPrincipal().(*models.User)
+	user, ok := ctx.GetPrincipal().(*models.User)
+	if !ok || user == nil {
+		ctx.SetJSONError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
+		return
+	}
 
 	scopes := user.GetScopes(ctx.Config)
 	if scopes == nil {

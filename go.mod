@@ -8,7 +8,7 @@ require (
 	github.com/avct/uasurfer v0.0.0-20251203101750-d127e02ee278
 	github.com/cert-manager/cert-manager v1.19.3
 	github.com/coreos/go-oidc/v3 v3.17.0
-	github.com/go-chi/chi/v5 v5.2.4
+	github.com/go-chi/chi/v5 v5.2.5
 	github.com/go-chi/cors v1.2.2
 	github.com/go-crypt/crypt v0.4.8
 	github.com/google/uuid v1.6.0

@@ -7,6 +7,7 @@ import (
 	"homelab-dashboard/internal/config"
 	"homelab-dashboard/internal/middlewares"
 	"homelab-dashboard/internal/models"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -202,6 +203,15 @@ func POSTAddIPEntry(ctx *middlewares.AppContext) {
 		return
 	}
 
+	// CRITICAL SECURITY FIX: Validate IP address format
+	parsedIP := net.ParseIP(strings.TrimSpace(req.IPAddress))
+	if parsedIP == nil {
+		ctx.SetJSONError(http.StatusBadRequest, "Invalid IP address format")
+		return
+	}
+	// Use canonical form from parsing
+	req.IPAddress = parsedIP.String()
+
 	user, ok := principal.(*models.User)
 	if !ok {
 		ctx.SetJSONError(http.StatusForbidden, "Firewall management is only available for user accounts")
@@ -288,6 +298,25 @@ func POSTAddIPEntry(ctx *middlewares.AppContext) {
 		expiresAt = &expiry
 	}
 
+	// Extract client IP from request
+	clientIP := ""
+	host, _, err := net.SplitHostPort(ctx.Request.RemoteAddr)
+	if err == nil {
+		clientIP = host
+	}
+
+	// Extract user agent
+	userAgentStr := ctx.Request.UserAgent()
+
+	// Convert to pointers for storage function
+	var clientIPPtr, userAgentPtr *string
+	if clientIP != "" {
+		clientIPPtr = &clientIP
+	}
+	if userAgentStr != "" {
+		userAgentPtr = &userAgentStr
+	}
+
 	// Add IP to whitelist
 	entry, err := ctx.Storage.AddIPToWhitelist(
 		ctx,
@@ -298,8 +327,16 @@ func POSTAddIPEntry(ctx *middlewares.AppContext) {
 		req.IPAddress,
 		req.Description,
 		expiresAt,
+		clientIPPtr,
+		userAgentPtr,
 	)
 	if err != nil {
+		// Check if it's a duplicate IP error
+		if strings.Contains(err.Error(), "you already have this IP address whitelisted") {
+			ctx.SetJSONError(http.StatusConflict, err.Error())
+			return
+		}
+
 		ctx.Logger.Error("failed to add IP to whitelist",
 			"error", err,
 			"user", principal.GetUsername(),
@@ -373,7 +410,26 @@ func DELETERemoveIPEntry(ctx *middlewares.AppContext) {
 		return
 	}
 
-	err = ctx.Storage.RemoveIPFromWhitelist(ctx, entryID, principal.GetIss(), principal.GetSub())
+	// Extract client IP from request
+	clientIP := ""
+	host, _, err := net.SplitHostPort(ctx.Request.RemoteAddr)
+	if err == nil {
+		clientIP = host
+	}
+
+	// Extract user agent
+	userAgentStr := ctx.Request.UserAgent()
+
+	// Convert to pointers
+	var clientIPPtr, userAgentPtr *string
+	if clientIP != "" {
+		clientIPPtr = &clientIP
+	}
+	if userAgentStr != "" {
+		userAgentPtr = &userAgentStr
+	}
+
+	err = ctx.Storage.RemoveIPFromWhitelist(ctx, entryID, principal.GetIss(), principal.GetSub(), clientIPPtr, userAgentPtr)
 	if err != nil {
 		ctx.Logger.Error("failed to remove IP from whitelist",
 			"error", err,
@@ -391,5 +447,93 @@ func DELETERemoveIPEntry(ctx *middlewares.AppContext) {
 		"alias", entry.AliasName,
 	)
 
+	ctx.Response.WriteHeader(http.StatusNoContent)
+}
+
+// DELETEBlacklistIPEntry blacklists an IP address (admin-only).
+// This blacklists ALL entries with the same IP address, preventing it from being re-added.
+func DELETEBlacklistIPEntry(ctx *middlewares.AppContext) {
+	// 1. Authenticate
+	principal := ctx.GetPrincipal()
+	if principal == nil {
+		ctx.SetJSONError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
+		return
+	}
+
+	// 2. Authorize (admin-only scope)
+	if !principal.HasScope(ctx.Config, authorization.ScopeFirewallBlacklist) {
+		ctx.SetJSONError(http.StatusForbidden, http.StatusText(http.StatusForbidden))
+		return
+	}
+
+	// 3. Extract and validate path parameter
+	idParam := chi.URLParam(ctx.Request, "id")
+	if idParam == "" {
+		ctx.SetJSONError(http.StatusBadRequest, "Entry ID is required")
+		return
+	}
+
+	entryID, err := strconv.Atoi(strings.TrimSpace(idParam))
+	if err != nil {
+		ctx.SetJSONError(http.StatusBadRequest, "Invalid entry ID")
+		return
+	}
+
+	// 4. Decode optional request body (reason)
+	var req struct {
+		Reason string `json:"reason"`
+	}
+	// Ignore decode errors - reason is optional
+	_ = json.NewDecoder(ctx.Request.Body).Decode(&req)
+	req.Reason = strings.TrimSpace(req.Reason)
+
+	// 5. Get the entry to obtain the IP address
+	entry, err := ctx.Storage.GetWhitelistEntryByID(ctx, entryID)
+	if err != nil {
+		ctx.Logger.Error("failed to get whitelist entry",
+			"error", err,
+			"entry_id", entryID,
+		)
+		ctx.SetJSONError(http.StatusNotFound, "Whitelist entry not found")
+		return
+	}
+
+	// 6. Validate state - can't blacklist if already blacklisted
+	if entry.Status == models.StatusBlacklistedByAdmin {
+		ctx.SetJSONError(http.StatusBadRequest, "IP address is already blacklisted")
+		return
+	}
+
+	// 7. Blacklist ALL entries with this IP address
+	count, err := ctx.Storage.BlacklistIPAddress(
+		ctx,
+		entry.AliasUUID,
+		entry.IPAddress,
+		principal.GetIss(),
+		principal.GetSub(),
+		req.Reason,
+	)
+	if err != nil {
+		ctx.Logger.Error("failed to blacklist IP address",
+			"error", err,
+			"admin", principal.GetUsername(),
+			"ip", entry.IPAddress,
+			"alias_uuid", entry.AliasUUID,
+		)
+		ctx.SetJSONError(http.StatusInternalServerError, "Failed to blacklist IP address")
+		return
+	}
+
+	// 8. Audit logging
+	ctx.Logger.Info("IP address blacklisted",
+		"admin", principal.GetUsername(),
+		"ip", entry.IPAddress,
+		"alias_uuid", entry.AliasUUID,
+		"alias_name", entry.AliasName,
+		"entries_affected", count,
+		"reason", req.Reason,
+	)
+
+	// 9. Return success
 	ctx.Response.WriteHeader(http.StatusNoContent)
 }

@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-//go:generate mockgen -source=storage.go -destination=../mocks/storage.go -package=mocks
+//go:generate mockgen -source=storage.go -destination=../mocks/storage.go -package=mocks -mock_names=Provider=MockStorageProvider
 
 // noinspection GoNameStartsWithPackageName
 type Provider interface {
@@ -53,13 +53,14 @@ type Provider interface {
 
 	/* Firewall Alias Queries */
 
-	AddIPToWhitelist(ctx context.Context, ownerIss, ownerSub, aliasName, aliasUUID, ipAddress, description string, expiresAt *time.Time) (*models.FirewallIPWhitelistEntry, error)
+	AddIPToWhitelist(ctx context.Context, ownerIss, ownerSub, aliasName, aliasUUID, ipAddress, description string, expiresAt *time.Time, clientIP, userAgent *string) (*models.FirewallIPWhitelistEntry, error)
 	GetAllWhitelistEntries(ctx context.Context) ([]*models.FirewallIPWhitelistEntry, error)
 	GetWhitelistEntryByID(ctx context.Context, id int) (*models.FirewallIPWhitelistEntry, error)
 	GetUserWhitelistEntries(ctx context.Context, ownerIss, ownerSub string) ([]*models.FirewallIPWhitelistEntry, error)
-	RemoveIPFromWhitelist(ctx context.Context, id int, ownerIss, ownerSub string) error
+	RemoveIPFromWhitelist(ctx context.Context, id int, ownerIss, ownerSub string, clientIP, userAgent *string) error
 
 	BlacklistIP(ctx context.Context, id int, adminIss, adminSub, reason string) error
+	BlacklistIPAddress(ctx context.Context, aliasUUID, ipAddress, adminIss, adminSub, reason string) (int, error)
 	//GetBlacklistedIPs(ctx context.Context, aliasUUID string) ([]*models.FirewallIPWhitelistEntry, error)
 	IsIPBlacklisted(ctx context.Context, aliasName, ipAddress string) (bool, error)
 

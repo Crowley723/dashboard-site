@@ -250,14 +250,12 @@ var DefaultMTLSIssuerConfig = MTLSManagement{
 }
 
 type FirewallManagement struct {
-	Enabled                 bool                         `yaml:"enabled"`
-	RouterEndpoint          string                       `yaml:"router_endpoint"`
-	RouterAPIKey            string                       `yaml:"router_api_key"`
-	RouterAPISecret         string                       `yaml:"router_api_secret"`
-	SyncInterval            time.Duration                `yaml:"sync_interval"`
-	ExpirationCheckInterval time.Duration                `yaml:"expiration_check_interval"`
-	Aliases                 []FirewallAliasConfig        `yaml:"aliases"`
-	BackgroundJobConfig     *FirewallBackgroundJobConfig `yaml:"background_job_config,omitempty"`
+	Enabled             bool                         `yaml:"enabled"`
+	RouterEndpoint      string                       `yaml:"router_endpoint"`
+	RouterAPIKey        string                       `yaml:"router_api_key"`
+	RouterAPISecret     string                       `yaml:"router_api_secret"`
+	Aliases             []FirewallAliasConfig        `yaml:"aliases"`
+	BackgroundJobConfig *FirewallBackgroundJobConfig `yaml:"background_job_config,omitempty"`
 }
 
 type FirewallAliasConfig struct {
@@ -281,11 +279,9 @@ var DefaultFirewallBackgroundJobConfig = &FirewallBackgroundJobConfig{
 }
 
 var DefaultFirewallManagement = FirewallManagement{
-	Enabled:                 false,
-	SyncInterval:            5 * time.Minute,
-	ExpirationCheckInterval: 1 * time.Hour,
-	Aliases:                 []FirewallAliasConfig{},
-	BackgroundJobConfig:     DefaultFirewallBackgroundJobConfig,
+	Enabled:             false,
+	Aliases:             []FirewallAliasConfig{},
+	BackgroundJobConfig: DefaultFirewallBackgroundJobConfig,
 }
 
 type AuthorizationConfig struct {

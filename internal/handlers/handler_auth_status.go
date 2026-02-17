@@ -7,10 +7,15 @@ import (
 )
 
 type ConfigResponse struct {
-	MTLS MTLSConfigResponse `json:"mtls,omitempty"`
+	MTLS     MTLSConfigResponse     `json:"mtls,omitempty"`
+	Firewall FirewallConfigResponse `json:"firewall,omitempty"`
 }
 
 type MTLSConfigResponse struct {
+	Enabled bool `json:"enabled"`
+}
+
+type FirewallConfigResponse struct {
 	Enabled bool `json:"enabled"`
 }
 
@@ -34,6 +39,12 @@ func GETAuthStatusHandler(ctx *middlewares.AppContext) {
 
 	if ctx.Config.Features != nil && ctx.Config.Features.MTLSManagement.Enabled {
 		config.MTLS = MTLSConfigResponse{
+			Enabled: true,
+		}
+	}
+
+	if ctx.Config.Features != nil && ctx.Config.Features.FirewallManagement.Enabled {
+		config.Firewall = FirewallConfigResponse{
 			Enabled: true,
 		}
 	}

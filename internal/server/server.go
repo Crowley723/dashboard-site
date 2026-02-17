@@ -12,6 +12,7 @@ import (
 	"homelab-dashboard/internal/k8s"
 	"homelab-dashboard/internal/metrics"
 	"homelab-dashboard/internal/middlewares"
+	"homelab-dashboard/internal/services/firewall"
 	"homelab-dashboard/internal/storage"
 	"log/slog"
 	"net/http"
@@ -160,7 +161,30 @@ func New(cfg *config.Config) (*Server, error) {
 	}
 
 	if cfg.Features.FirewallManagement.Enabled {
+		// Create router client for firewall communication
+		routerClient := firewall.NewRouterClient(*cfg)
 
+		// Register firewall sync job
+		firewallSyncJob := jobs.NewFirewallSyncJob(
+			appCtx,
+			routerClient,
+			cfg.Features.FirewallManagement.BackgroundJobConfig.SyncInterval,
+			logger,
+		)
+		jobManager.Register(firewallSyncJob)
+
+		// Register expiration job
+		firewallExpirationJob := jobs.NewFirewallExpirationJob(
+			appCtx,
+			cfg.Features.FirewallManagement.BackgroundJobConfig.ExpirationInterval,
+			logger,
+		)
+		jobManager.Register(firewallExpirationJob)
+
+		logger.Info("firewall management jobs registered",
+			"sync_interval", cfg.Features.FirewallManagement.BackgroundJobConfig.SyncInterval,
+			"expiration_interval", cfg.Features.FirewallManagement.BackgroundJobConfig.ExpirationInterval,
+		)
 	}
 
 	router := setupRouter(appCtx)

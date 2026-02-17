@@ -104,6 +104,7 @@ func setupRouter(ctx *middlewares.AppContext) *chi.Mux {
 					r.Get("/entries", ctx.HandlerFunc(handlers.GETUserEntries))
 					r.Post("/entries", ctx.HandlerFunc(handlers.POSTAddIPEntry))
 					r.Delete("/entries/{id}", ctx.HandlerFunc(handlers.DELETERemoveIPEntry))
+					r.Delete("/entries/{id}/blacklist", ctx.HandlerFunc(handlers.DELETEBlacklistIPEntry))
 				})
 			})
 		}

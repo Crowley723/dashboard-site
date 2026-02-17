@@ -12,6 +12,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Copy, Check, AlertCircle } from 'lucide-react';
 import { useCreateServiceAccount, useUserScopes } from '@/api/ServiceAccounts';
 
@@ -81,7 +86,8 @@ export function CreateServiceAccountDialog({
     onOpenChange(false);
   };
 
-  const toggleScope = (scope: string) => {
+  const toggleScope = (scope: string, disabled: boolean) => {
+    if (disabled) return; // Prevent toggling disabled scopes
     setSelectedScopes((prev) =>
       prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope]
     );
@@ -190,21 +196,51 @@ export function CreateServiceAccountDialog({
                 </div>
               ) : userScopes?.scopes && userScopes.scopes.length > 0 ? (
                 <div className="space-y-2 border rounded-md p-4 max-h-[200px] overflow-y-auto">
-                  {userScopes.scopes.map((scope) => (
-                    <div key={scope} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`scope-${scope}`}
-                        checked={selectedScopes.includes(scope)}
-                        onCheckedChange={() => toggleScope(scope)}
-                      />
-                      <Label
-                        htmlFor={`scope-${scope}`}
-                        className="text-sm font-normal cursor-pointer"
+                  {userScopes.scopes.map((scopeInfo) => {
+                    const scopeItem = (
+                      <div
+                        key={scopeInfo.scope}
+                        className={`flex items-center space-x-2 ${
+                          scopeInfo.disabled
+                            ? 'opacity-50 cursor-not-allowed'
+                            : ''
+                        }`}
                       >
-                        {scope}
-                      </Label>
-                    </div>
-                  ))}
+                        <Checkbox
+                          id={`scope-${scopeInfo.scope}`}
+                          checked={selectedScopes.includes(scopeInfo.scope)}
+                          onCheckedChange={() =>
+                            toggleScope(scopeInfo.scope, scopeInfo.disabled)
+                          }
+                          disabled={scopeInfo.disabled}
+                        />
+                        <Label
+                          htmlFor={`scope-${scopeInfo.scope}`}
+                          className={`text-sm font-normal ${
+                            scopeInfo.disabled
+                              ? 'cursor-not-allowed'
+                              : 'cursor-pointer'
+                          }`}
+                        >
+                          {scopeInfo.scope}
+                        </Label>
+                      </div>
+                    );
+
+                    // Wrap with tooltip if disabled and has a reason
+                    if (scopeInfo.disabled && scopeInfo.reason) {
+                      return (
+                        <Tooltip key={scopeInfo.scope}>
+                          <TooltipTrigger asChild>{scopeItem}</TooltipTrigger>
+                          <TooltipContent>
+                            <p>{scopeInfo.reason}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      );
+                    }
+
+                    return scopeItem;
+                  })}
                 </div>
               ) : (
                 <Alert>

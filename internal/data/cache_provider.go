@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-//go:generate mockgen -source=cache_provider.go -destination=../mocks/cache.go -package=mocks
+//go:generate mockgen -source=cache_provider.go -destination=../mocks/cache.go -package=mocks -mock_names=Provider=MockCacheProvider
 
 type Provider interface {
 	Get(ctx context.Context, queryName string) (CachedData, bool)

@@ -30,8 +30,6 @@ CREATE TABLE firewall_ip_whitelist_entries (
     ),
     CONSTRAINT valid_status CHECK (status IN ('requested', 'added', 'removed', 'removed_by_admin', 'blacklisted_by_admin')),
 
-    UNIQUE(alias_name, ip_address),
-
     CONSTRAINT valid_expiration CHECK (expires_at IS NULL OR expires_at > requested_at),
     CONSTRAINT valid_added_at CHECK (added_at IS NULL OR added_at >= requested_at),
     CONSTRAINT valid_removed_at CHECK (removed_at IS NULL OR removed_at >= requested_at)
@@ -47,6 +45,9 @@ CREATE INDEX idx_whitelist_removed_ips ON firewall_ip_whitelist_entries(alias_na
 CREATE INDEX idx_whitelist_expires ON firewall_ip_whitelist_entries(expires_at) WHERE expires_at IS NOT NULL;
 CREATE INDEX idx_whitelist_ip_address ON firewall_ip_whitelist_entries(ip_address);
 CREATE INDEX idx_whitelist_banned_ips ON firewall_ip_whitelist_entries(alias_name, ip_address, status) WHERE status = 'blacklisted_by_admin';
+CREATE INDEX idx_whitelist_duplicate_ips ON firewall_ip_whitelist_entries(alias_uuid, ip_address, status) WHERE status IN ('requested', 'added');
+CREATE UNIQUE INDEX idx_unique_active_ip_per_user ON firewall_ip_whitelist_entries(alias_uuid, ip_address, owner_iss, owner_sub)
+WHERE status IN ('requested', 'added');
 
 CREATE TABLE firewall_whitelist_events (
     id SERIAL PRIMARY KEY,

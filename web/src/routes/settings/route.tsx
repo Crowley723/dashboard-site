@@ -1,4 +1,4 @@
-import { Settings, ScrollText as Certificate, Key } from 'lucide-react';
+import { Settings, ScrollText as Certificate, Key, Shield, User } from 'lucide-react';
 import { AppSidebar } from '@/components/app-sidebar';
 import { createFileRoute, Outlet } from '@tanstack/react-router';
 import {
@@ -21,7 +21,7 @@ export const Route = createFileRoute('/settings')({
 });
 
 export default function SettingsLayout() {
-  const { isMTLSUser, isMTLSAdmin } = useAuth();
+  const { isMTLSUser, isMTLSAdmin, hasFirewallAccess } = useAuth();
 
   // Build certificate menu items based on user permissions
   const certificateItems = [];
@@ -45,11 +45,42 @@ export default function SettingsLayout() {
     });
   }
 
+  // Build firewall menu items based on user permissions
+  const firewallItems = [];
+  if (hasFirewallAccess()) {
+    firewallItems.push({ title: 'Whitelist', url: '/settings/firewall' });
+  }
+
   const settingsNavItems = [];
 
-  // Only show certificates section if user has access
+  // Account Group (top)
+  settingsNavItems.push({
+    groupLabel: 'Account',
+    items: [
+      {
+        title: 'Profile',
+        url: '/settings/profile',
+        icon: User,
+      },
+    ],
+  });
+
+  // API & Access Group
+  settingsNavItems.push({
+    groupLabel: 'API & Access',
+    items: [
+      {
+        title: 'Service Accounts',
+        url: '/settings/service-accounts',
+        icon: Key,
+      },
+    ],
+  });
+
+  // Security Group
+  const securityItems = [];
   if (certificateItems.length > 0) {
-    settingsNavItems.push({
+    securityItems.push({
       title: 'Certificates',
       url: '/settings/certs',
       icon: Certificate,
@@ -57,22 +88,20 @@ export default function SettingsLayout() {
       items: certificateItems,
     });
   }
+  if (firewallItems.length > 0) {
+    securityItems.push({
+      title: 'Firewall Whitelist',
+      url: '/settings/firewall',
+      icon: Shield,
+    });
+  }
 
-  // Service Accounts (always visible for authenticated users)
-  settingsNavItems.push({
-    title: 'Service Accounts',
-    url: '/settings/service-accounts',
-    icon: Key,
-    items: [{ title: 'API Tokens', url: '/settings/service-accounts' }],
-  });
-
-  // General settings (always visible)
-  settingsNavItems.push({
-    title: 'General',
-    url: '/settings',
-    icon: Settings,
-    items: [{ title: 'Profile', url: '/settings/profile' }],
-  });
+  if (securityItems.length > 0) {
+    settingsNavItems.push({
+      groupLabel: 'Security',
+      items: securityItems,
+    });
+  }
 
   return (
     <SidebarProvider className="flex flex-col">

@@ -53,6 +53,20 @@ export const useAuth = () => {
     return isInGroup('conduit:mtls:user');
   };
 
+  // Check if user has firewall access
+  const hasFirewallAccess = (): boolean => {
+    if (!config?.firewall?.enabled) return false;
+    // Check if user is in any of the configured firewall groups
+    // For now, we'll just check if firewall is enabled and user is authenticated
+    return true;
+  };
+
+  // Check if user is firewall admin
+  const isFirewallAdmin = (): boolean => {
+    if (!config?.firewall?.enabled) return false;
+    return isInGroup('conduit:firewall:admin');
+  };
+
   return {
     user,
     isLoading,
@@ -61,6 +75,8 @@ export const useAuth = () => {
     isInGroup,
     isMTLSAdmin,
     isMTLSUser,
+    hasFirewallAccess,
+    isFirewallAdmin,
     login: loginMutation.mutate,
     logout: logoutMutation.mutate,
     isLoggingIn: loginMutation.isPending,

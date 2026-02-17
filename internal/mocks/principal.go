@@ -68,6 +68,20 @@ func (mr *MockPrincipalMockRecorder) GetEmail() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEmail", reflect.TypeOf((*MockPrincipal)(nil).GetEmail))
 }
 
+// GetGroups mocks base method.
+func (m *MockPrincipal) GetGroups() []string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetGroups")
+	ret0, _ := ret[0].([]string)
+	return ret0
+}
+
+// GetGroups indicates an expected call of GetGroups.
+func (mr *MockPrincipalMockRecorder) GetGroups() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetGroups", reflect.TypeOf((*MockPrincipal)(nil).GetGroups))
+}
+
 // GetIss mocks base method.
 func (m *MockPrincipal) GetIss() string {
 	m.ctrl.T.Helper()

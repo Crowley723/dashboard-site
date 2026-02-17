@@ -301,6 +301,12 @@ func PATCHServiceAccountUnpause(ctx *middlewares.AppContext) {
 	ctx.WriteJSON(http.StatusOK, map[string]string{"message": "Service account unpaused"})
 }
 
+type ScopeInfo struct {
+	Scope    string  `json:"scope"`
+	Disabled bool    `json:"disabled"`
+	Reason   *string `json:"reason,omitempty"`
+}
+
 func GETUserScopes(ctx *middlewares.AppContext) {
 	user, ok := ctx.GetPrincipal().(*models.User)
 	if !ok || user == nil {
@@ -313,7 +319,26 @@ func GETUserScopes(ctx *middlewares.AppContext) {
 		scopes = []string{}
 	}
 
-	ctx.WriteJSON(http.StatusOK, map[string][]string{"scopes": scopes})
+	// Convert scopes to ScopeInfo objects with disabled status
+	scopeInfos := make([]ScopeInfo, 0, len(scopes))
+	firewallDisabledReason := "Firewall management doesn't currently support service accounts"
+
+	for _, scope := range scopes {
+		scopeInfo := ScopeInfo{
+			Scope:    scope,
+			Disabled: false,
+		}
+
+		// Disable firewall scopes (all scopes starting with "firewall:")
+		if len(scope) >= 9 && scope[:9] == "firewall:" {
+			scopeInfo.Disabled = true
+			scopeInfo.Reason = &firewallDisabledReason
+		}
+
+		scopeInfos = append(scopeInfos, scopeInfo)
+	}
+
+	ctx.WriteJSON(http.StatusOK, map[string][]ScopeInfo{"scopes": scopeInfos})
 }
 
 func HasAllScopes(userScopes, requestedScopes []string) bool {

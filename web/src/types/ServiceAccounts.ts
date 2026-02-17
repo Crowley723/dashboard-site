@@ -18,6 +18,12 @@ export interface CreateServiceAccountInput {
   scopes: string[];
 }
 
+export interface ScopeInfo {
+  scope: string;
+  disabled: boolean;
+  reason?: string;
+}
+
 export interface UserScopes {
-  scopes: string[];
+  scopes: ScopeInfo[];
 }

@@ -8,6 +8,7 @@ import (
 	"homelab-dashboard/internal/config"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -52,7 +53,6 @@ func (c *RouterClient) GetAliasIPs(ctx context.Context, aliasUUID string) ([]str
 		c.config.Features.FirewallManagement.RouterAPIKey,
 		c.config.Features.FirewallManagement.RouterAPISecret,
 	)
-	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -122,13 +122,18 @@ func (c *RouterClient) UpdateAlias(ctx context.Context, aliasUUID string, ipsToA
 		return fmt.Errorf("failed to decode alias: %w", err)
 	}
 
-	// 4. Build set request with newline-separated IPs
+	// 4. Build set request with newline-separated IPs (strip CIDR notation)
 	content := ""
 	for i, ip := range newIPs {
 		if i > 0 {
 			content += "\n"
 		}
-		content += ip
+		// Strip CIDR notation if present (e.g., "192.168.1.1/32" -> "192.168.1.1")
+		cleanIP := ip
+		if idx := strings.Index(ip, "/"); idx != -1 {
+			cleanIP = ip[:idx]
+		}
+		content += cleanIP
 	}
 
 	setReq := AliasSetRequest{

@@ -132,7 +132,7 @@ func (p *DatabaseProvider) CreateWhitelistEvent(ctx context.Context, whitelistID
 // GetWhitelistEventsByEntry gets all audit events for a specific whitelist entry
 func (p *DatabaseProvider) GetWhitelistEventsByEntry(ctx context.Context, whitelistID int) ([]*models.FirewallIPWhitelistEvent, error) {
 	query := `
-        SELECT fwe.id, fwe.whitelist_id, fwe.actor_iss, fwe.actor_sub, fwe.event_type, fwe.notes, fwe.client_ip, 
+        SELECT fwe.id, fwe.whitelist_id, fwe.actor_iss, fwe.actor_sub, fwe.event_type, fwe.notes, fwe.client_ip::text,
                fwe.user_agent, fwe.created_at,
                COALESCE(actor.username, sa_creator.username) as actor_username,
                COALESCE(actor.display_name, sa_creator.display_name) as actor_display_name

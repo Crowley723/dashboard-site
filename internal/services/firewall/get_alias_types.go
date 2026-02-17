@@ -1,8 +1,6 @@
 package firewall
 
-import (
-	"time"
-)
+import "strings"
 
 type AliasGetResponse struct {
 	Alias AliasDetail `json:"alias"`
@@ -24,7 +22,7 @@ type AliasDetail struct {
 	AuthType       map[string]SelectOption `json:"authtype"`
 	Categories     map[string]SelectOption `json:"categories"`
 	CurrentItems   string                  `json:"current_items"`
-	LastUpdated    time.Time               `json:"last_updated"`
+	LastUpdated    string                  `json:"last_updated"`
 	Description    string                  `json:"description"`
 }
 
@@ -47,7 +45,12 @@ func (a *AliasDetail) GetSelectedIPs() []string {
 	var ips []string
 	for key, item := range a.Content {
 		if item.Selected == 1 && !isInternalAlias(key) && !isAliasReference(key) {
-			ips = append(ips, item.Value)
+			// Strip CIDR notation if present (e.g., "192.168.1.1/32" -> "192.168.1.1")
+			ip := item.Value
+			if strings.Contains(ip, "/") {
+				ip = strings.Split(ip, "/")[0]
+			}
+			ips = append(ips, ip)
 		}
 	}
 	return ips

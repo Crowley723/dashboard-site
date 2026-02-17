@@ -11,8 +11,13 @@ export interface MTLSConfig {
   enabled: boolean;
 }
 
+export interface FirewallConfig {
+  enabled: boolean;
+}
+
 export interface Config {
   mtls?: MTLSConfig;
+  firewall?: FirewallConfig;
 }
 
 export interface LoginResponse {

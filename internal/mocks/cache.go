@@ -18,7 +18,7 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// MockCacheProvider is a mock of CacheProvider interface.
+// MockCacheProvider is a mock of Provider interface.
 type MockCacheProvider struct {
 	ctrl     *gomock.Controller
 	recorder *MockCacheProviderMockRecorder

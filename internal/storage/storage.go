@@ -13,7 +13,7 @@ import (
 //go:generate mockgen -source=storage.go -destination=../mocks/storage.go -package=mocks
 
 // noinspection GoNameStartsWithPackageName
-type StorageProvider interface {
+type Provider interface {
 	GetPool() *pgxpool.Pool
 	Close()
 	Ping(ctx context.Context) error
@@ -26,6 +26,8 @@ type StorageProvider interface {
 	UpsertUser(ctx context.Context, sub, iss, username, displayName, email string, groups []string) (*models.User, error)
 	GetUserByID(ctx context.Context, iss, sub string) (*models.User, error)
 
+	/* Certificate Request Queries */
+
 	CreateCertificateRequest(ctx context.Context, sub string, iss string, commonName string, status string, message string, dnsNames []string, organizationalUnits []string, validityDays int) (*models.CertificateRequest, error)
 	GetCertificateRequestByID(ctx context.Context, id int) (*models.CertificateRequest, error)
 	GetCertificateRequests(ctx context.Context) ([]*models.CertificateRequest, error)
@@ -37,9 +39,7 @@ type StorageProvider interface {
 	GetPendingCertificateRequests(ctx context.Context) ([]*models.CertificateRequest, error)
 	UpdateCertificateRequestIssued(ctx context.Context, requestID int, certPEM string, serialNumber string, issuedAt time.Time, expiresAt time.Time, systemUserIss string, systemUserSub string) error
 
-	InsertAuditLogCertificateDownload(ctx context.Context, certId int, sub, iss, ipAddress, rawUserAgent string, userAgent uasurfer.UserAgent) (*models.CertificateDownload, error)
-	GetCertificateDownloadAuditLogByID(ctx context.Context, id int) (*models.CertificateDownload, error)
-	GetRecentCertificateDownloadLogs(ctx context.Context, limit int) ([]models.CertificateDownload, error)
+	/* Service Account Queries */
 
 	CreateServiceAccount(ctx context.Context, serviceAccount *models.ServiceAccount) (*models.ServiceAccount, error)
 	GetServiceAccountByID(ctx context.Context, iss string, sub string) (*models.ServiceAccount, error)
@@ -50,4 +50,32 @@ type StorageProvider interface {
 	DeleteServiceAccount(ctx context.Context, iss string, sub string) error
 	DisableServiceAccount(ctx context.Context, iss string, sub string) error
 	EnableServiceAccount(ctx context.Context, iss, sub string) error
+
+	/* Firewall Alias Queries */
+
+	AddIPToWhitelist(ctx context.Context, ownerIss, ownerSub, aliasName, aliasUUID, ipAddress, description string, expiresAt *time.Time) (*models.FirewallIPWhitelistEntry, error)
+	GetAllWhitelistEntries(ctx context.Context) ([]*models.FirewallIPWhitelistEntry, error)
+	GetWhitelistEntryByID(ctx context.Context, id int) (*models.FirewallIPWhitelistEntry, error)
+	GetUserWhitelistEntries(ctx context.Context, ownerIss, ownerSub string) ([]*models.FirewallIPWhitelistEntry, error)
+	RemoveIPFromWhitelist(ctx context.Context, id int, ownerIss, ownerSub string) error
+
+	BlacklistIP(ctx context.Context, id int, adminIss, adminSub, reason string) error
+	//GetBlacklistedIPs(ctx context.Context, aliasUUID string) ([]*models.FirewallIPWhitelistEntry, error)
+	IsIPBlacklisted(ctx context.Context, aliasName, ipAddress string) (bool, error)
+
+	GetPendingIPs(ctx context.Context, aliasUUID string) ([]*models.FirewallIPWhitelistEntry, error)
+	MarkIPsAsAdded(ctx context.Context, ids []int, systemUserIss, systemUserSub string) error
+	ExpireOldIPs(ctx context.Context, systemUserIss, systemUserSub string) (int, error)
+
+	CountUserActiveIPs(ctx context.Context, ownerIss, ownerSub, aliasUUID string) (int, error)
+	CountTotalActiveIPs(ctx context.Context, aliasUUID string) (int, error)
+
+	/* Audit Log Queries */
+
+	InsertAuditLogCertificateDownload(ctx context.Context, certId int, sub, iss, ipAddress, rawUserAgent string, userAgent uasurfer.UserAgent) (*models.CertificateDownload, error)
+	GetCertificateDownloadAuditLogByID(ctx context.Context, id int) (*models.CertificateDownload, error)
+	GetRecentCertificateDownloadLogs(ctx context.Context, limit int) ([]models.CertificateDownload, error)
+
+	CreateWhitelistEvent(ctx context.Context, whitelistID int, actorIss, actorSub, eventType, notes string, clientIP, userAgent *string) error
+	GetWhitelistEventsByEntry(ctx context.Context, whitelistID int) ([]*models.FirewallIPWhitelistEvent, error)
 }

@@ -41,6 +41,10 @@ func (s ServiceAccount) GetEmail() string {
 	return ""
 }
 
+func (s ServiceAccount) GetGroups() []string {
+	return []string{}
+}
+
 func (s ServiceAccount) GetScopes(cfg *config.Config) []string {
 	return s.Scopes
 }

@@ -9,7 +9,7 @@ import (
 
 //go:generate mockgen -source=cache_provider.go -destination=../mocks/cache.go -package=mocks
 
-type CacheProvider interface {
+type Provider interface {
 	Get(ctx context.Context, queryName string) (CachedData, bool)
 	ListAll(ctx context.Context) []string
 	Set(ctx context.Context, queryName string, data CachedData)
@@ -20,8 +20,8 @@ type CacheProvider interface {
 	GetDelKey(ctx context.Context, key string) (string, error)
 }
 
-// NewCacheProvider returns a new CacheProvider
-func NewCacheProvider(config *config.Config, logger *slog.Logger) (CacheProvider, error) {
+// NewCacheProvider returns a new Provider
+func NewCacheProvider(config *config.Config, logger *slog.Logger) (Provider, error) {
 	switch config.Cache.Type {
 	case "redis":
 		return NewRedisCache(config, logger)

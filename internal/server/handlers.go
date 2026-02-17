@@ -95,6 +95,19 @@ func setupRouter(ctx *middlewares.AppContext) *chi.Mux {
 			})
 		}
 
+		//firewall management does not support service accounts until groups have been implemented for service accounts
+		if ctx.Config.Storage.Enabled && ctx.Config.Features.FirewallManagement.Enabled {
+			r.Route("/firewall", func(r chi.Router) {
+				r.Group(func(r chi.Router) {
+					r.Use(middlewares.RequireCookieAuth)
+					r.Get("/aliases", ctx.HandlerFunc(handlers.GETAvailableAliases))
+					r.Get("/entries", ctx.HandlerFunc(handlers.GETUserEntries))
+					r.Post("/entries", ctx.HandlerFunc(handlers.POSTAddIPEntry))
+					r.Delete("/entries/{id}", ctx.HandlerFunc(handlers.DELETERemoveIPEntry))
+				})
+			})
+		}
+
 		r.Get("/queries", ctx.HandlerFunc(handlers.GetQueriesGET))
 		r.Get("/data", ctx.HandlerFunc(handlers.GetMetricsGET))
 

@@ -8,6 +8,7 @@ import (
 	"homelab-dashboard/internal/config"
 	"homelab-dashboard/internal/data"
 	"homelab-dashboard/internal/distributed"
+	"homelab-dashboard/internal/jobs"
 	"homelab-dashboard/internal/k8s"
 	"homelab-dashboard/internal/metrics"
 	"homelab-dashboard/internal/middlewares"
@@ -32,9 +33,9 @@ type Server struct {
 	httpServer  *http.Server
 	debugServer *http.Server
 	dataService *data.Service
-	cache       data.CacheProvider
+	cache       data.Provider
 	election    *distributed.Election
-	jobManager  *JobManager
+	jobManager  *jobs.JobManager
 	ctx         *context.Context
 	cancel      context.CancelFunc
 }
@@ -107,7 +108,7 @@ func New(cfg *config.Config) (*Server, error) {
 		}
 	}
 
-	var database storage.StorageProvider
+	var database storage.Provider
 	if cfg.Storage.Enabled == true {
 		dbProvider, err := storage.NewStorageProvider(ctx, cfg)
 		if err != nil {
@@ -144,18 +145,22 @@ func New(cfg *config.Config) (*Server, error) {
 
 	appCtx := middlewares.NewAppContext(ctx, cfg, logger, cache, sessionManager, oidcProvider, database, kubernetesClient)
 
-	jobManager := NewJobManager(election, logger)
+	jobManager := jobs.NewJobManager(election, logger)
 
 	interval := calculateFetchInterval(cfg, cfg.Data.FallbackFetchInterval)
-	dataFetchJob := NewDataFetchJob(dataService, appCtx, interval, logger)
+	dataFetchJob := jobs.NewDataFetchJob(dataService, appCtx, interval, logger)
 	jobManager.Register(dataFetchJob)
 
 	if cfg.Features.MTLSManagement.Enabled {
-		certificateCreationJob := NewCertificateCreationJob(appCtx, cfg.Features.MTLSManagement.BackgroundJobConfig.ApprovedCertificatePollingInterval)
+		certificateCreationJob := jobs.NewCertificateCreationJob(appCtx, cfg.Features.MTLSManagement.BackgroundJobConfig.ApprovedCertificatePollingInterval)
 		jobManager.Register(certificateCreationJob)
 
-		certificateIssuedJob := NewCertificateIssuedStatusJob(appCtx, cfg.Features.MTLSManagement.BackgroundJobConfig.IssuedCertificatePollingInterval)
+		certificateIssuedJob := jobs.NewCertificateIssuedStatusJob(appCtx, cfg.Features.MTLSManagement.BackgroundJobConfig.IssuedCertificatePollingInterval)
 		jobManager.Register(certificateIssuedJob)
+	}
+
+	if cfg.Features.FirewallManagement.Enabled {
+
 	}
 
 	router := setupRouter(appCtx)
@@ -255,7 +260,7 @@ func (s *Server) Start() error {
 	return nil
 }
 
-func setupDataService(cfg *config.Config, logger *slog.Logger) (*data.Service, data.CacheProvider, error) {
+func setupDataService(cfg *config.Config, logger *slog.Logger) (*data.Service, data.Provider, error) {
 	mimirClient, err := data.NewMimirClient(
 		cfg.Data.PrometheusURL,
 		cfg.Data.BasicAuth.Username,

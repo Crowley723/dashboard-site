@@ -175,6 +175,19 @@ data:
     cache:
       type: {{ .Values.config.cache.type | default "memory" | quote }}
 
+    {{- with .Values.config.authorization }}
+    authorization:
+      {{- if .group_scopes }}
+      group_scopes:
+        {{- range $group, $scopes := .group_scopes }}
+        {{ $group }}:
+          {{- range $scopes }}
+          - {{ . | quote }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+
     {{- with .Values.config.storage }}
     storage:
       enabled: {{ .enabled | default false }}
@@ -228,6 +241,33 @@ data:
         background_job_config:
           approved_certificate_polling_interval: {{ .approved_certificate_polling_interval | default "30s" | quote }}
           issued_certificate_polling_interval: {{ .issued_certificate_polling_interval | default "30s" | quote }}
+        {{- end }}
+        {{- end }}
+      {{- end }}
+      {{- with .firewall_management }}
+      firewall_management:
+        enabled: {{ .enabled | default false }}
+        {{- if .enabled }}
+        {{- with .background_job_config }}
+        background_job_config:
+          sync_interval: {{ .sync_interval | default "5m" | quote }}
+          expiration_interval: {{ .expiration_interval | default "1h" | quote }}
+        {{- end }}
+        {{- if .aliases }}
+        aliases:
+          {{- range .aliases }}
+          - name: {{ .name | quote }}
+            uuid: {{ .uuid | quote }}
+            description: {{ .description | quote }}
+            max_ips_per_user: {{ .max_ips_per_user }}
+            max_total_ips: {{ .max_total_ips }}
+            {{- if .default_ttl }}
+            default_ttl: {{ .default_ttl | quote }}
+            {{- else }}
+            default_ttl: null
+            {{- end }}
+            auth_group: {{ .auth_group | quote }}
+          {{- end }}
         {{- end }}
         {{- end }}
       {{- end }}

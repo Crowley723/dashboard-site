@@ -176,7 +176,8 @@ var DefaultStorageConfig = StorageConfig{
 }
 
 type FeaturesConfig struct {
-	MTLSManagement MTLSManagement `yaml:"mtls_management,omitempty"`
+	MTLSManagement     MTLSManagement     `yaml:"mtls_management,omitempty"`
+	FirewallManagement FirewallManagement `yaml:"firewall_management,omitempty"`
 }
 
 var DefaultFeaturesConfig = FeaturesConfig{
@@ -248,6 +249,41 @@ var DefaultMTLSIssuerConfig = MTLSManagement{
 	BackgroundJobConfig:             DefaultMTLSBackgroundJobConfig,
 }
 
+type FirewallManagement struct {
+	Enabled             bool                         `yaml:"enabled"`
+	RouterEndpoint      string                       `yaml:"router_endpoint"`
+	RouterAPIKey        string                       `yaml:"router_api_key"`
+	RouterAPISecret     string                       `yaml:"router_api_secret"`
+	Aliases             []FirewallAliasConfig        `yaml:"aliases"`
+	BackgroundJobConfig *FirewallBackgroundJobConfig `yaml:"background_job_config,omitempty"`
+}
+
+type FirewallAliasConfig struct {
+	Name          string         `yaml:"name"`
+	UUID          string         `yaml:"uuid"`
+	Description   string         `yaml:"description"`
+	MaxIPsPerUser int            `yaml:"max_ips_per_user"`
+	MaxTotalIPs   int            `yaml:"max_total_ips"`
+	DefaultTTL    *time.Duration `yaml:"default_ttl"` // nil = no expiration
+	AuthGroup     string         `yaml:"auth_group"`  // References authorization.group_scopes key
+}
+
+type FirewallBackgroundJobConfig struct {
+	SyncInterval       time.Duration `yaml:"sync_interval"`
+	ExpirationInterval time.Duration `yaml:"expiration_interval"`
+}
+
+var DefaultFirewallBackgroundJobConfig = &FirewallBackgroundJobConfig{
+	SyncInterval:       5 * time.Minute,
+	ExpirationInterval: 1 * time.Hour,
+}
+
+var DefaultFirewallManagement = FirewallManagement{
+	Enabled:             false,
+	Aliases:             []FirewallAliasConfig{},
+	BackgroundJobConfig: DefaultFirewallBackgroundJobConfig,
+}
+
 type AuthorizationConfig struct {
 	GroupScopes map[string][]string `yaml:"group_scopes"`
 }
@@ -270,6 +306,14 @@ var DefaultAuthorizationConfig = AuthorizationConfig{
 			authorization.ScopeMTLSReadCert,
 			authorization.ScopeMTLSRenewCert,
 			authorization.ScopeMTLSDownloadCert,
+		},
+		"conduit:firewall:admin": {
+			authorization.ScopeFirewallReadOwn,
+			authorization.ScopeFirewallRequestOwn,
+			authorization.ScopeFirewallRevokeOwn,
+			authorization.ScopeFirewallReadAll,
+			authorization.ScopeFirewallRevokeAll,
+			authorization.ScopeFirewallBlacklist,
 		},
 	},
 }

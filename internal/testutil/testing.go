@@ -368,7 +368,7 @@ func (tc *TestContext) WithLogger(logger *slog.Logger) *TestContext {
 }
 
 // WithCache allows you to override the cache with a different mock or implementation
-func (tc *TestContext) WithCache(cache data.CacheProvider) *TestContext {
+func (tc *TestContext) WithCache(cache data.Provider) *TestContext {
 	tc.AppContext.Cache = cache
 	return tc
 }

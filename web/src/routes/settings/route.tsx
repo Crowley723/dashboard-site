@@ -1,4 +1,4 @@
-import { Settings, ScrollText as Certificate, Key } from 'lucide-react';
+import { ScrollText as Certificate, Key, Shield, User } from 'lucide-react';
 import { AppSidebar } from '@/components/app-sidebar';
 import { createFileRoute, Outlet } from '@tanstack/react-router';
 import {
@@ -21,9 +21,9 @@ export const Route = createFileRoute('/settings')({
 });
 
 export default function SettingsLayout() {
-  const { isMTLSUser, isMTLSAdmin } = useAuth();
+  const { isMTLSUser, isMTLSAdmin, hasFirewallAccess, isFirewallAdmin } =
+    useAuth();
 
-  // Build certificate menu items based on user permissions
   const certificateItems = [];
   if (isMTLSUser() || isMTLSAdmin()) {
     certificateItems.push({ title: 'Certificates', url: '/settings/certs' });
@@ -45,11 +45,45 @@ export default function SettingsLayout() {
     });
   }
 
+  // Build firewall menu items based on user permissions
+  const firewallItems = [];
+  if (hasFirewallAccess() || isFirewallAdmin()) {
+    firewallItems.push({ title: 'Whitelist', url: '/settings/firewall' });
+  }
+  if (isFirewallAdmin()) {
+    firewallItems.push({
+      title: 'Admin',
+      url: '/settings/firewall/admin',
+    });
+  }
+
   const settingsNavItems = [];
 
-  // Only show certificates section if user has access
+  settingsNavItems.push({
+    groupLabel: 'Account',
+    items: [
+      {
+        title: 'Profile',
+        url: '/settings/profile',
+        icon: User,
+      },
+    ],
+  });
+
+  settingsNavItems.push({
+    groupLabel: 'API & Access',
+    items: [
+      {
+        title: 'Service Accounts',
+        url: '/settings/service-accounts',
+        icon: Key,
+      },
+    ],
+  });
+
+  const securityItems = [];
   if (certificateItems.length > 0) {
-    settingsNavItems.push({
+    securityItems.push({
       title: 'Certificates',
       url: '/settings/certs',
       icon: Certificate,
@@ -57,22 +91,21 @@ export default function SettingsLayout() {
       items: certificateItems,
     });
   }
+  if (firewallItems.length > 0) {
+    securityItems.push({
+      title: 'Firewall',
+      url: '/settings/firewall',
+      icon: Shield,
+      items: firewallItems.length > 1 ? firewallItems : undefined,
+    });
+  }
 
-  // Service Accounts (always visible for authenticated users)
-  settingsNavItems.push({
-    title: 'Service Accounts',
-    url: '/settings/service-accounts',
-    icon: Key,
-    items: [{ title: 'API Tokens', url: '/settings/service-accounts' }],
-  });
-
-  // General settings (always visible)
-  settingsNavItems.push({
-    title: 'General',
-    url: '/settings',
-    icon: Settings,
-    items: [{ title: 'Profile', url: '/settings/profile' }],
-  });
+  if (securityItems.length > 0) {
+    settingsNavItems.push({
+      groupLabel: 'Security',
+      items: securityItems,
+    });
+  }
 
   return (
     <SidebarProvider className="flex flex-col">

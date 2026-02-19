@@ -402,12 +402,12 @@ func TestMemCache_TimestampUpdates(t *testing.T) {
 func BenchmarkCache_Set(b *testing.B) {
 	tests := []struct {
 		name      string
-		setupFunc func(testing.TB) CacheProvider
+		setupFunc func(testing.TB) Provider
 		dataFunc  func() (string, []byte)
 	}{
 		{
 			name:      "MemCache_SmallVector",
-			setupFunc: func(tb testing.TB) CacheProvider { return setupMemCache() },
+			setupFunc: func(tb testing.TB) Provider { return setupMemCache() },
 			dataFunc: func() (string, []byte) {
 				vec := createTestVector(10)
 				jsonBytes, _ := json.Marshal(vec)
@@ -416,7 +416,7 @@ func BenchmarkCache_Set(b *testing.B) {
 		},
 		{
 			name:      "RedisCache_SmallVector",
-			setupFunc: func(tb testing.TB) CacheProvider { return setupRedisCache(tb) },
+			setupFunc: func(tb testing.TB) Provider { return setupRedisCache(tb) },
 			dataFunc: func() (string, []byte) {
 				vec := createTestVector(10)
 				jsonBytes, _ := json.Marshal(vec)
@@ -425,7 +425,7 @@ func BenchmarkCache_Set(b *testing.B) {
 		},
 		{
 			name:      "MemCache_LargeVector",
-			setupFunc: func(tb testing.TB) CacheProvider { return setupMemCache() },
+			setupFunc: func(tb testing.TB) Provider { return setupMemCache() },
 			dataFunc: func() (string, []byte) {
 				vec := createTestVector(1000)
 				jsonBytes, _ := json.Marshal(vec)
@@ -434,7 +434,7 @@ func BenchmarkCache_Set(b *testing.B) {
 		},
 		{
 			name:      "RedisCache_LargeVector",
-			setupFunc: func(tb testing.TB) CacheProvider { return setupRedisCache(tb) },
+			setupFunc: func(tb testing.TB) Provider { return setupRedisCache(tb) },
 			dataFunc: func() (string, []byte) {
 				vec := createTestVector(1000)
 				jsonBytes, _ := json.Marshal(vec)
@@ -443,7 +443,7 @@ func BenchmarkCache_Set(b *testing.B) {
 		},
 		{
 			name:      "MemCache_Matrix",
-			setupFunc: func(tb testing.TB) CacheProvider { return setupMemCache() },
+			setupFunc: func(tb testing.TB) Provider { return setupMemCache() },
 			dataFunc: func() (string, []byte) {
 				matrix := createTestMatrix(50, 100)
 				jsonBytes, _ := json.Marshal(matrix)
@@ -452,7 +452,7 @@ func BenchmarkCache_Set(b *testing.B) {
 		},
 		{
 			name:      "RedisCache_Matrix",
-			setupFunc: func(tb testing.TB) CacheProvider { return setupRedisCache(tb) },
+			setupFunc: func(tb testing.TB) Provider { return setupRedisCache(tb) },
 			dataFunc: func() (string, []byte) {
 				matrix := createTestMatrix(50, 100)
 				jsonBytes, _ := json.Marshal(matrix)
@@ -484,15 +484,15 @@ func BenchmarkCache_Set(b *testing.B) {
 func BenchmarkCache_Get(b *testing.B) {
 	tests := []struct {
 		name      string
-		setupFunc func(testing.TB) CacheProvider
+		setupFunc func(testing.TB) Provider
 	}{
 		{
 			name:      "MemCache",
-			setupFunc: func(tb testing.TB) CacheProvider { return setupMemCache() },
+			setupFunc: func(tb testing.TB) Provider { return setupMemCache() },
 		},
 		{
 			name:      "RedisCache",
-			setupFunc: func(tb testing.TB) CacheProvider { return setupRedisCache(tb) },
+			setupFunc: func(tb testing.TB) Provider { return setupRedisCache(tb) },
 		},
 	}
 
@@ -524,15 +524,15 @@ func BenchmarkCache_Get(b *testing.B) {
 func BenchmarkCache_GetMiss(b *testing.B) {
 	tests := []struct {
 		name      string
-		setupFunc func(testing.TB) CacheProvider
+		setupFunc func(testing.TB) Provider
 	}{
 		{
 			name:      "MemCache",
-			setupFunc: func(tb testing.TB) CacheProvider { return setupMemCache() },
+			setupFunc: func(tb testing.TB) Provider { return setupMemCache() },
 		},
 		{
 			name:      "RedisCache",
-			setupFunc: func(tb testing.TB) CacheProvider { return setupRedisCache(tb) },
+			setupFunc: func(tb testing.TB) Provider { return setupRedisCache(tb) },
 		},
 	}
 
@@ -553,15 +553,15 @@ func BenchmarkCache_GetMiss(b *testing.B) {
 func BenchmarkCache_Delete(b *testing.B) {
 	tests := []struct {
 		name      string
-		setupFunc func(testing.TB) CacheProvider
+		setupFunc func(testing.TB) Provider
 	}{
 		{
 			name:      "MemCache",
-			setupFunc: func(tb testing.TB) CacheProvider { return setupMemCache() },
+			setupFunc: func(tb testing.TB) Provider { return setupMemCache() },
 		},
 		{
 			name:      "RedisCache",
-			setupFunc: func(tb testing.TB) CacheProvider { return setupRedisCache(tb) },
+			setupFunc: func(tb testing.TB) Provider { return setupRedisCache(tb) },
 		},
 	}
 
@@ -593,27 +593,27 @@ func BenchmarkCache_Delete(b *testing.B) {
 func BenchmarkCache_ListAll(b *testing.B) {
 	tests := []struct {
 		name      string
-		setupFunc func(testing.TB) CacheProvider
+		setupFunc func(testing.TB) Provider
 		numItems  int
 	}{
 		{
 			name:      "MemCache_10",
-			setupFunc: func(tb testing.TB) CacheProvider { return setupMemCache() },
+			setupFunc: func(tb testing.TB) Provider { return setupMemCache() },
 			numItems:  10,
 		},
 		{
 			name:      "RedisCache_10",
-			setupFunc: func(tb testing.TB) CacheProvider { return setupRedisCache(tb) },
+			setupFunc: func(tb testing.TB) Provider { return setupRedisCache(tb) },
 			numItems:  10,
 		},
 		{
 			name:      "MemCache_100",
-			setupFunc: func(tb testing.TB) CacheProvider { return setupMemCache() },
+			setupFunc: func(tb testing.TB) Provider { return setupMemCache() },
 			numItems:  100,
 		},
 		{
 			name:      "RedisCache_100",
-			setupFunc: func(tb testing.TB) CacheProvider { return setupRedisCache(tb) },
+			setupFunc: func(tb testing.TB) Provider { return setupRedisCache(tb) },
 			numItems:  100,
 		},
 	}
@@ -646,15 +646,15 @@ func BenchmarkCache_ListAll(b *testing.B) {
 func BenchmarkCache_ConcurrentReadWrite(b *testing.B) {
 	tests := []struct {
 		name      string
-		setupFunc func(testing.TB) CacheProvider
+		setupFunc func(testing.TB) Provider
 	}{
 		{
 			name:      "MemCache",
-			setupFunc: func(tb testing.TB) CacheProvider { return setupMemCache() },
+			setupFunc: func(tb testing.TB) Provider { return setupMemCache() },
 		},
 		{
 			name:      "RedisCache",
-			setupFunc: func(tb testing.TB) CacheProvider { return setupRedisCache(tb) },
+			setupFunc: func(tb testing.TB) Provider { return setupRedisCache(tb) },
 		},
 	}
 
@@ -689,15 +689,15 @@ func BenchmarkCache_ConcurrentReadWrite(b *testing.B) {
 func BenchmarkCache_Size(b *testing.B) {
 	tests := []struct {
 		name      string
-		setupFunc func(testing.TB) CacheProvider
+		setupFunc func(testing.TB) Provider
 	}{
 		{
 			name:      "MemCache",
-			setupFunc: func(tb testing.TB) CacheProvider { return setupMemCache() },
+			setupFunc: func(tb testing.TB) Provider { return setupMemCache() },
 		},
 		{
 			name:      "RedisCache",
-			setupFunc: func(tb testing.TB) CacheProvider { return setupRedisCache(tb) },
+			setupFunc: func(tb testing.TB) Provider { return setupRedisCache(tb) },
 		},
 	}
 

@@ -38,6 +38,10 @@ func (u *User) GetEmail() string {
 	return u.Email
 }
 
+func (u *User) GetGroups() []string {
+	return u.Groups
+}
+
 func (u *User) GetScopes(cfg *config.Config) []string {
 	var scopes []string
 	for _, group := range u.Groups {

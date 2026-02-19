@@ -16,10 +16,13 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as BlogIndexRouteImport } from './routes/blog/index'
 import { Route as SettingsServiceAccountsRouteImport } from './routes/settings/service-accounts'
+import { Route as SettingsProfileRouteImport } from './routes/settings/profile'
 import { Route as BlogSlugRouteImport } from './routes/blog/$slug'
+import { Route as SettingsFirewallIndexRouteImport } from './routes/settings/firewall/index'
 import { Route as SettingsCertsIndexRouteImport } from './routes/settings/certs/index'
 import { Route as SettingsCertsSettingsRouteImport } from './routes/settings/certs/settings'
 import { Route as SettingsCertsRequestsRouteImport } from './routes/settings/certs/requests'
+import { Route as SettingsFirewallAdminIndexRouteImport } from './routes/settings/firewall/admin/index'
 import { Route as SettingsCertsAdminRequestsRouteImport } from './routes/settings/certs/admin/requests'
 
 const ErrorRoute = ErrorRouteImport.update({
@@ -57,10 +60,20 @@ const SettingsServiceAccountsRoute = SettingsServiceAccountsRouteImport.update({
   path: '/service-accounts',
   getParentRoute: () => SettingsRouteRoute,
 } as any)
+const SettingsProfileRoute = SettingsProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => SettingsRouteRoute,
+} as any)
 const BlogSlugRoute = BlogSlugRouteImport.update({
   id: '/blog/$slug',
   path: '/blog/$slug',
   getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsFirewallIndexRoute = SettingsFirewallIndexRouteImport.update({
+  id: '/firewall/',
+  path: '/firewall/',
+  getParentRoute: () => SettingsRouteRoute,
 } as any)
 const SettingsCertsIndexRoute = SettingsCertsIndexRouteImport.update({
   id: '/certs/',
@@ -77,6 +90,12 @@ const SettingsCertsRequestsRoute = SettingsCertsRequestsRouteImport.update({
   path: '/certs/requests',
   getParentRoute: () => SettingsRouteRoute,
 } as any)
+const SettingsFirewallAdminIndexRoute =
+  SettingsFirewallAdminIndexRouteImport.update({
+    id: '/firewall/admin/',
+    path: '/firewall/admin/',
+    getParentRoute: () => SettingsRouteRoute,
+  } as any)
 const SettingsCertsAdminRequestsRoute =
   SettingsCertsAdminRequestsRouteImport.update({
     id: '/certs/admin/requests',
@@ -90,26 +109,32 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/error': typeof ErrorRoute
   '/blog/$slug': typeof BlogSlugRoute
+  '/settings/profile': typeof SettingsProfileRoute
   '/settings/service-accounts': typeof SettingsServiceAccountsRoute
   '/blog/': typeof BlogIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/settings/certs/requests': typeof SettingsCertsRequestsRoute
   '/settings/certs/settings': typeof SettingsCertsSettingsRoute
   '/settings/certs/': typeof SettingsCertsIndexRoute
+  '/settings/firewall/': typeof SettingsFirewallIndexRoute
   '/settings/certs/admin/requests': typeof SettingsCertsAdminRequestsRoute
+  '/settings/firewall/admin/': typeof SettingsFirewallAdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/error': typeof ErrorRoute
   '/blog/$slug': typeof BlogSlugRoute
+  '/settings/profile': typeof SettingsProfileRoute
   '/settings/service-accounts': typeof SettingsServiceAccountsRoute
   '/blog': typeof BlogIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/settings/certs/requests': typeof SettingsCertsRequestsRoute
   '/settings/certs/settings': typeof SettingsCertsSettingsRoute
   '/settings/certs': typeof SettingsCertsIndexRoute
+  '/settings/firewall': typeof SettingsFirewallIndexRoute
   '/settings/certs/admin/requests': typeof SettingsCertsAdminRequestsRoute
+  '/settings/firewall/admin': typeof SettingsFirewallAdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -118,13 +143,16 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/error': typeof ErrorRoute
   '/blog/$slug': typeof BlogSlugRoute
+  '/settings/profile': typeof SettingsProfileRoute
   '/settings/service-accounts': typeof SettingsServiceAccountsRoute
   '/blog/': typeof BlogIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/settings/certs/requests': typeof SettingsCertsRequestsRoute
   '/settings/certs/settings': typeof SettingsCertsSettingsRoute
   '/settings/certs/': typeof SettingsCertsIndexRoute
+  '/settings/firewall/': typeof SettingsFirewallIndexRoute
   '/settings/certs/admin/requests': typeof SettingsCertsAdminRequestsRoute
+  '/settings/firewall/admin/': typeof SettingsFirewallAdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -134,26 +162,32 @@ export interface FileRouteTypes {
     | '/about'
     | '/error'
     | '/blog/$slug'
+    | '/settings/profile'
     | '/settings/service-accounts'
     | '/blog/'
     | '/settings/'
     | '/settings/certs/requests'
     | '/settings/certs/settings'
     | '/settings/certs/'
+    | '/settings/firewall/'
     | '/settings/certs/admin/requests'
+    | '/settings/firewall/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/about'
     | '/error'
     | '/blog/$slug'
+    | '/settings/profile'
     | '/settings/service-accounts'
     | '/blog'
     | '/settings'
     | '/settings/certs/requests'
     | '/settings/certs/settings'
     | '/settings/certs'
+    | '/settings/firewall'
     | '/settings/certs/admin/requests'
+    | '/settings/firewall/admin'
   id:
     | '__root__'
     | '/'
@@ -161,13 +195,16 @@ export interface FileRouteTypes {
     | '/about'
     | '/error'
     | '/blog/$slug'
+    | '/settings/profile'
     | '/settings/service-accounts'
     | '/blog/'
     | '/settings/'
     | '/settings/certs/requests'
     | '/settings/certs/settings'
     | '/settings/certs/'
+    | '/settings/firewall/'
     | '/settings/certs/admin/requests'
+    | '/settings/firewall/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -230,12 +267,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsServiceAccountsRouteImport
       parentRoute: typeof SettingsRouteRoute
     }
+    '/settings/profile': {
+      id: '/settings/profile'
+      path: '/profile'
+      fullPath: '/settings/profile'
+      preLoaderRoute: typeof SettingsProfileRouteImport
+      parentRoute: typeof SettingsRouteRoute
+    }
     '/blog/$slug': {
       id: '/blog/$slug'
       path: '/blog/$slug'
       fullPath: '/blog/$slug'
       preLoaderRoute: typeof BlogSlugRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/settings/firewall/': {
+      id: '/settings/firewall/'
+      path: '/firewall'
+      fullPath: '/settings/firewall/'
+      preLoaderRoute: typeof SettingsFirewallIndexRouteImport
+      parentRoute: typeof SettingsRouteRoute
     }
     '/settings/certs/': {
       id: '/settings/certs/'
@@ -258,6 +309,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsCertsRequestsRouteImport
       parentRoute: typeof SettingsRouteRoute
     }
+    '/settings/firewall/admin/': {
+      id: '/settings/firewall/admin/'
+      path: '/firewall/admin'
+      fullPath: '/settings/firewall/admin/'
+      preLoaderRoute: typeof SettingsFirewallAdminIndexRouteImport
+      parentRoute: typeof SettingsRouteRoute
+    }
     '/settings/certs/admin/requests': {
       id: '/settings/certs/admin/requests'
       path: '/certs/admin/requests'
@@ -269,21 +327,27 @@ declare module '@tanstack/react-router' {
 }
 
 interface SettingsRouteRouteChildren {
+  SettingsProfileRoute: typeof SettingsProfileRoute
   SettingsServiceAccountsRoute: typeof SettingsServiceAccountsRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
   SettingsCertsRequestsRoute: typeof SettingsCertsRequestsRoute
   SettingsCertsSettingsRoute: typeof SettingsCertsSettingsRoute
   SettingsCertsIndexRoute: typeof SettingsCertsIndexRoute
+  SettingsFirewallIndexRoute: typeof SettingsFirewallIndexRoute
   SettingsCertsAdminRequestsRoute: typeof SettingsCertsAdminRequestsRoute
+  SettingsFirewallAdminIndexRoute: typeof SettingsFirewallAdminIndexRoute
 }
 
 const SettingsRouteRouteChildren: SettingsRouteRouteChildren = {
+  SettingsProfileRoute: SettingsProfileRoute,
   SettingsServiceAccountsRoute: SettingsServiceAccountsRoute,
   SettingsIndexRoute: SettingsIndexRoute,
   SettingsCertsRequestsRoute: SettingsCertsRequestsRoute,
   SettingsCertsSettingsRoute: SettingsCertsSettingsRoute,
   SettingsCertsIndexRoute: SettingsCertsIndexRoute,
+  SettingsFirewallIndexRoute: SettingsFirewallIndexRoute,
   SettingsCertsAdminRequestsRoute: SettingsCertsAdminRequestsRoute,
+  SettingsFirewallAdminIndexRoute: SettingsFirewallAdminIndexRoute,
 }
 
 const SettingsRouteRouteWithChildren = SettingsRouteRoute._addFileChildren(

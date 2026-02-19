@@ -265,6 +265,24 @@ deployment:
           secretKeyRef:
             name: conduit-cluster-app
             key: dbname
+      - name: DASHBOARD_FIREWALL_ROUTER_ENDPOINT
+        valueFrom:
+          secretKeyRef:
+            name: dashboard-secrets
+            key: DASHBOARD_FIREWALL_ROUTER_ENDPOINT
+            optional: true
+      - name: DASHBOARD_FIREWALL_ROUTER_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: dashboard-secrets
+            key: DASHBOARD_FIREWALL_ROUTER_API_KEY
+            optional: true
+      - name: DASHBOARD_FIREWALL_ROUTER_API_SECRET
+        valueFrom:
+          secretKeyRef:
+            name: dashboard-secrets
+            key: DASHBOARD_FIREWALL_ROUTER_API_SECRET
+            optional: true
 
     resources:
       limits:
@@ -342,6 +360,27 @@ config:
         country: "United States"
         province: "California"
         locality: "San Francisco"
+    firewall_management:
+      enabled: false
+      background_job_config:
+        sync_interval: "5m"
+        expiration_interval: "1h"
+      aliases: []
+        # Example aliases configuration:
+        # - name: "Database"
+        #   uuid: "c0daef37-718c-40e4-bb2b-ba5aab418d0d"
+        #   description: "PostgreSQL Database Access"
+        #   max_ips_per_user: 5
+        #   max_total_ips: 100
+        #   default_ttl: null
+        #   auth_group: "conduit:firewall:database_access"
+        # - name: "VPNUsers"
+        #   uuid: "7f93ff45-6c60-4a21-9767-3fc246f4d335"
+        #   description: "VPN Access"
+        #   max_ips_per_user: 3
+        #   max_total_ips: 50
+        #   default_ttl: "720h"
+        #   auth_group: "conduit:firewall:vpn_access"
 
   log:
     level: "info"
@@ -361,6 +400,39 @@ config:
 
   cache:
     type: "redis"
+
+  authorization:
+    group_scopes:
+      conduit:mtls:admin:
+        - "mtls:request:cert"
+        - "mtls:read:all_certs"
+        - "mtls:read:cert"
+        - "mtls:approve:cert"
+        - "mtls:renew:cert"
+        - "mtls:revoke:cert"
+        - "mtls:download:all_certs"
+        - "mtls:download:cert"
+        - "mtls:auto_approve:cert"
+      conduit:mtls:user:
+        - "mtls:request:cert"
+        - "mtls:read:cert"
+        - "mtls:renew:cert"
+        - "mtls:download:cert"
+      conduit:firewall:admin:
+        - "firewall:read:own"
+        - "firewall:request:own"
+        - "firewall:revoke:own"
+        - "firewall:read:all"
+        - "firewall:revoke:all"
+        - "firewall:blacklist"
+      conduit:firewall:database_access:
+        - "firewall:read:own"
+        - "firewall:request:own"
+        - "firewall:revoke:own"
+      conduit:firewall:vpn_access:
+        - "firewall:read:own"
+        - "firewall:request:own"
+        - "firewall:revoke:own"
 
   oidc:
     scopes:

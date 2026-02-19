@@ -12,6 +12,7 @@ type Principal interface {
 	GetUsername() string
 	GetDisplayName() string
 	GetEmail() string
+	GetGroups() []string
 	GetScopes(cfg *config.Config) []string
 	HasScope(cfg *config.Config, scope string) bool
 	MatchesOwner(iss, sub string) bool

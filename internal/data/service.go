@@ -17,21 +17,21 @@ import (
 
 type Service struct {
 	client  *MimirClient
-	cache   CacheProvider
+	cache   Provider
 	logger  *slog.Logger
 	queries []config.PrometheusQuery
 }
 
-func NewService(client *MimirClient, cache CacheProvider, logger *slog.Logger, queries []config.PrometheusQuery) *Service {
+func NewService(client *MimirClient, cache Provider, logger *slog.Logger, queries []config.PrometheusQuery) *Service {
 	return &Service{
 		client:  client,
 		cache:   cache,
 		queries: queries,
-  logger: logger,
+		logger:  logger,
 	}
 }
 
-func (s *Service) ExecuteQueries(ctx context.Context, cache CacheProvider) error {
+func (s *Service) ExecuteQueries(ctx context.Context, cache Provider) error {
 	if cache == nil {
 		cache = s.cache
 	}
@@ -65,7 +65,7 @@ func (s *Service) ExecuteQueries(ctx context.Context, cache CacheProvider) error
 	return nil
 }
 
-func (s *Service) executeQuery(ctx context.Context, cache CacheProvider, config config.PrometheusQuery) error {
+func (s *Service) executeQuery(ctx context.Context, cache Provider, config config.PrometheusQuery) error {
 	var result model.Value
 	var err error
 

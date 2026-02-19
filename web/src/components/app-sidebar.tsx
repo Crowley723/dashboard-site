@@ -10,6 +10,20 @@ import {
 } from '@/components/ui/sidebar.tsx';
 import type { LucideIcon } from 'lucide-react';
 
+interface NavGroup {
+  groupLabel?: string;
+  items: Array<{
+    title: string;
+    url: string;
+    icon?: LucideIcon;
+    isActive?: boolean;
+    items?: Array<{
+      title: string;
+      url: string;
+    }>;
+  }>;
+}
+
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   navItems: Array<{
     title: string;
@@ -20,11 +34,14 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
       title: string;
       url: string;
     }>;
-  }>;
+  }> | NavGroup[];
   title?: string;
 }
 
 export function AppSidebar({ navItems, title, ...props }: AppSidebarProps) {
+  // Check if navItems is grouped or flat
+  const isGrouped = navItems.length > 0 && 'groupLabel' in navItems[0];
+
   return (
     <Sidebar collapsible="icon" {...props}>
       {title && (
@@ -35,7 +52,13 @@ export function AppSidebar({ navItems, title, ...props }: AppSidebarProps) {
         </SidebarHeader>
       )}
       <SidebarContent>
-        <NavMain items={navItems} />
+        {isGrouped ? (
+          (navItems as NavGroup[]).map((group, index) => (
+            <NavMain key={index} items={group.items} groupLabel={group.groupLabel} />
+          ))
+        ) : (
+          <NavMain items={navItems as NavGroup['items']} />
+        )}
       </SidebarContent>
       <SidebarRail />
     </Sidebar>

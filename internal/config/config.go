@@ -56,6 +56,9 @@ var (
 	EnvStorageUsername          = "DASHBOARD_STORAGE_USERNAME"
 	EnvStoragePassword          = "DASHBOARD_STORAGE_PASSWORD"
 	EnvStorageDatabase          = "DASHBOARD_STORAGE_DATABASE"
+	EnvFirewallRouterEndpoint   = "DASHBOARD_FIREWALL_ROUTER_ENDPOINT"
+	EnvFirewallRouterAPIKey     = "DASHBOARD_FIREWALL_ROUTER_API_KEY"
+	EnvFirewallRouterAPISecret  = "DASHBOARD_FIREWALL_ROUTER_API_SECRET"
 )
 
 func applyEnvironmentOverrides(config *Config) {
@@ -170,6 +173,27 @@ func applyEnvironmentOverrides(config *Config) {
 		}
 		config.Storage.Database = database
 	}
+
+	if endpoint := os.Getenv(EnvFirewallRouterEndpoint); endpoint != "" {
+		if config.Features == nil {
+			config.Features = &FeaturesConfig{}
+		}
+		config.Features.FirewallManagement.RouterEndpoint = endpoint
+	}
+
+	if apiKey := os.Getenv(EnvFirewallRouterAPIKey); apiKey != "" {
+		if config.Features == nil {
+			config.Features = &FeaturesConfig{}
+		}
+		config.Features.FirewallManagement.RouterAPIKey = apiKey
+	}
+
+	if apiSecret := os.Getenv(EnvFirewallRouterAPISecret); apiSecret != "" {
+		if config.Features == nil {
+			config.Features = &FeaturesConfig{}
+		}
+		config.Features.FirewallManagement.RouterAPISecret = apiSecret
+	}
 }
 
 func validateConfig(config *Config) error {
@@ -226,12 +250,12 @@ func validateConfig(config *Config) error {
 		return err
 	}
 
-	err = config.ValidateFeaturesConfig()
+	err = config.validateAuthorizationConfig()
 	if err != nil {
 		return err
 	}
 
-	err = config.validateAuthorizationConfig()
+	err = config.ValidateFeaturesConfig()
 	if err != nil {
 		return err
 	}
@@ -584,6 +608,12 @@ func (c *Config) ValidateFeaturesConfig() error {
 		}
 	}
 
+	if c.Features.FirewallManagement.Enabled {
+		if err := c.ValidateFirewallManagementConfig(); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -665,6 +695,109 @@ func (c *Config) ValidateMTLSManagementConfig() error {
 	kind := c.Features.MTLSManagement.CertificateIssuer.Kind
 	if kind != "Issuer" && kind != "ClusterIssuer" {
 		return fmt.Errorf("features.mtls_management.certificate_issuer.kind must be either 'Issuer' or 'ClusterIssuer', got '%s'", kind)
+	}
+
+	return nil
+}
+
+func (c *Config) ValidateFirewallManagementConfig() error {
+	if c.Features == nil || !c.Features.FirewallManagement.Enabled {
+		return nil
+	}
+
+	if c.Storage == nil || !c.Storage.Enabled {
+		return fmt.Errorf("storage must be enabled when firewall_management is enabled")
+	}
+
+	if c.Features.FirewallManagement.RouterEndpoint == "" {
+		return fmt.Errorf("features.firewall_management.router_endpoint is required when firewall_management is enabled")
+	}
+
+	if c.Features.FirewallManagement.RouterEndpoint[len(c.Features.FirewallManagement.RouterEndpoint)-1] == '/' {
+		c.Features.FirewallManagement.RouterEndpoint = c.Features.FirewallManagement.RouterEndpoint[:len(c.Features.FirewallManagement.RouterEndpoint)-1]
+	}
+
+	if err := validateURL(c.Features.FirewallManagement.RouterEndpoint, "features.firewall_management.router_endpoint"); err != nil {
+		return err
+	}
+
+	if c.Features.FirewallManagement.RouterAPIKey == "" {
+		return fmt.Errorf("features.firewall_management.router_api_key is required when firewall_management is enabled")
+	}
+
+	if c.Features.FirewallManagement.RouterAPISecret == "" {
+		return fmt.Errorf("features.firewall_management.router_api_secret is required when firewall_management is enabled")
+	}
+
+	if c.Features.FirewallManagement.BackgroundJobConfig == nil {
+		c.Features.FirewallManagement.BackgroundJobConfig = DefaultFirewallBackgroundJobConfig
+	}
+
+	if c.Features.FirewallManagement.BackgroundJobConfig.SyncInterval == 0 {
+		c.Features.FirewallManagement.BackgroundJobConfig.SyncInterval = DefaultFirewallBackgroundJobConfig.SyncInterval
+	}
+
+	if c.Features.FirewallManagement.BackgroundJobConfig.SyncInterval < 30*time.Second {
+		return fmt.Errorf("features.firewall_management.background_job_config.sync_interval cannot be less than 30 seconds")
+	}
+
+	if c.Features.FirewallManagement.BackgroundJobConfig.ExpirationInterval == 0 {
+		c.Features.FirewallManagement.BackgroundJobConfig.ExpirationInterval = DefaultFirewallBackgroundJobConfig.ExpirationInterval
+	}
+
+	if c.Features.FirewallManagement.BackgroundJobConfig.ExpirationInterval < 1*time.Minute {
+		return fmt.Errorf("features.firewall_management.background_job_config.expiration_interval cannot be less than 1 minute")
+	}
+
+	if len(c.Features.FirewallManagement.Aliases) == 0 {
+		return fmt.Errorf("features.firewall_management.aliases must have at least one alias configured when firewall_management is enabled")
+	}
+
+	aliasNames := make(map[string]bool)
+	for i, alias := range c.Features.FirewallManagement.Aliases {
+		if alias.Name == "" {
+			return fmt.Errorf("features.firewall_management.aliases[%d].name is required", i)
+		}
+
+		if alias.UUID == "" {
+			return fmt.Errorf("features.firewall_management.aliases[%d].uuid is required", i)
+		}
+
+		if len(alias.UUID) != 36 {
+			return fmt.Errorf("features.firewall_management.aliases[%d].uuid must be a valid UUID", i)
+		}
+
+		if alias.AuthGroup == "" {
+			return fmt.Errorf("features.firewall_management.aliases[%d].auth_group is required", i)
+		}
+
+		if _, exists := c.Authorization.GroupScopes[alias.AuthGroup]; !exists {
+			return fmt.Errorf("features.firewall_management.aliases[%d].auth_group '%s' does not exist in authorization.group_scopes", i, alias.AuthGroup)
+		}
+
+		if alias.MaxIPsPerUser <= 0 {
+			return fmt.Errorf("features.firewall_management.aliases[%d].max_ips_per_user must be greater than 0", i)
+		}
+
+		if alias.MaxTotalIPs <= 0 {
+			return fmt.Errorf("features.firewall_management.aliases[%d].max_total_ips must be greater than 0", i)
+		}
+
+		if alias.MaxIPsPerUser > alias.MaxTotalIPs {
+			return fmt.Errorf("features.firewall_management.aliases[%d].max_ips_per_user (%d) cannot be greater than max_total_ips (%d)",
+				i, alias.MaxIPsPerUser, alias.MaxTotalIPs)
+		}
+
+		if alias.DefaultTTL != nil && *alias.DefaultTTL < 1*time.Hour {
+			return fmt.Errorf("features.firewall_management.aliases[%d].default_ttl cannot be less than 1 hour if set", i)
+		}
+
+		key := fmt.Sprintf("%s:%s", alias.Name, alias.UUID)
+		if aliasNames[key] {
+			// This is actually intentional - same UUID with different groups/limits
+			// So we just note it but don't error
+		}
+		aliasNames[key] = true
 	}
 
 	return nil

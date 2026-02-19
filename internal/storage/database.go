@@ -22,7 +22,7 @@ type DatabaseProvider struct {
 	cfg  *config.Config
 }
 
-func NewStorageProvider(ctx context.Context, cfg *config.Config) (StorageProvider, error) {
+func NewStorageProvider(ctx context.Context, cfg *config.Config) (Provider, error) {
 	pPool, err := pgxpool.New(ctx, GetConnectionStringFromConfig(cfg))
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)

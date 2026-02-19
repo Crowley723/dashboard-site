@@ -49,6 +49,9 @@ const UserMenu = ({
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
+          <Link to={'/settings/profile'}>Profile</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
           <Link to={'/settings'}>Settings</Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />

@@ -113,3 +113,68 @@ func (p *DatabaseProvider) GetRecentCertificateDownloadLogs(ctx context.Context,
 
 	return downloads, nil
 }
+
+// CreateWhitelistEvent creates an audit event for a whitelist entry
+func (p *DatabaseProvider) CreateWhitelistEvent(ctx context.Context, whitelistID int, actorIss, actorSub, eventType, notes string, clientIP, userAgent *string) error {
+	query := `
+        INSERT INTO firewall_whitelist_events (whitelist_id, actor_iss, actor_sub, event_type, notes, client_ip, user_agent)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `
+
+	_, err := p.pool.Exec(ctx, query, whitelistID, actorIss, actorSub, eventType, notes, clientIP, userAgent)
+	if err != nil {
+		return fmt.Errorf("failed to create whitelist event: %w", err)
+	}
+
+	return nil
+}
+
+// GetWhitelistEventsByEntry gets all audit events for a specific whitelist entry
+func (p *DatabaseProvider) GetWhitelistEventsByEntry(ctx context.Context, whitelistID int) ([]*models.FirewallIPWhitelistEvent, error) {
+	query := `
+        SELECT fwe.id, fwe.whitelist_id, fwe.actor_iss, fwe.actor_sub, fwe.event_type, fwe.notes, fwe.client_ip::text,
+               fwe.user_agent, fwe.created_at,
+               COALESCE(actor.username, sa_creator.username) as actor_username,
+               COALESCE(actor.display_name, sa_creator.display_name) as actor_display_name
+        FROM firewall_whitelist_events fwe
+        LEFT JOIN users actor ON fwe.actor_iss = actor.iss AND fwe.actor_sub = actor.sub
+        LEFT JOIN service_accounts sa ON fwe.actor_iss = sa.iss AND fwe.actor_sub = sa.sub
+        LEFT JOIN users sa_creator ON sa.created_by_iss = sa_creator.iss AND sa.created_by_sub = sa_creator.sub
+        WHERE fwe.whitelist_id = $1
+        ORDER BY fwe.created_at DESC
+    `
+
+	rows, err := p.pool.Query(ctx, query, whitelistID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get whitelist events: %w", err)
+	}
+	defer rows.Close()
+
+	var events []*models.FirewallIPWhitelistEvent
+	for rows.Next() {
+		var event models.FirewallIPWhitelistEvent
+		err := rows.Scan(
+			&event.ID,
+			&event.WhitelistID,
+			&event.ActorISS,
+			&event.ActorSub,
+			&event.EventType,
+			&event.Notes,
+			&event.ClientIP,
+			&event.UserAgent,
+			&event.CreatedAt,
+			&event.ActorUsername,
+			&event.ActorDisplayName,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan whitelist event: %w", err)
+		}
+		events = append(events, &event)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate whitelist events: %w", err)
+	}
+
+	return events, nil
+}

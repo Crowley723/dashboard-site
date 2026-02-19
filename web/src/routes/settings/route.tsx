@@ -21,7 +21,8 @@ export const Route = createFileRoute('/settings')({
 });
 
 export default function SettingsLayout() {
-  const { isMTLSUser, isMTLSAdmin, hasFirewallAccess } = useAuth();
+  const { isMTLSUser, isMTLSAdmin, hasFirewallAccess, isFirewallAdmin } =
+    useAuth();
 
   // Build certificate menu items based on user permissions
   const certificateItems = [];
@@ -49,6 +50,12 @@ export default function SettingsLayout() {
   const firewallItems = [];
   if (hasFirewallAccess()) {
     firewallItems.push({ title: 'Whitelist', url: '/settings/firewall' });
+  }
+  if (isFirewallAdmin()) {
+    firewallItems.push({
+      title: 'Admin',
+      url: '/settings/firewall/admin',
+    });
   }
 
   const settingsNavItems = [];
@@ -90,9 +97,10 @@ export default function SettingsLayout() {
   }
   if (firewallItems.length > 0) {
     securityItems.push({
-      title: 'Firewall Whitelist',
+      title: 'Firewall',
       url: '/settings/firewall',
       icon: Shield,
+      items: firewallItems.length > 1 ? firewallItems : undefined,
     });
   }
 

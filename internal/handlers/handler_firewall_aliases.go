@@ -172,7 +172,6 @@ func POSTAddIPEntry(ctx *middlewares.AppContext) {
 		return
 	}
 
-	// Check if user has the firewall:request:own scope
 	if !principal.HasScope(ctx.Config, authorization.ScopeFirewallRequestOwn) {
 		ctx.SetJSONError(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 		return
@@ -203,13 +202,12 @@ func POSTAddIPEntry(ctx *middlewares.AppContext) {
 		return
 	}
 
-	// CRITICAL SECURITY FIX: Validate IP address format
 	parsedIP := net.ParseIP(strings.TrimSpace(req.IPAddress))
 	if parsedIP == nil {
 		ctx.SetJSONError(http.StatusBadRequest, "Invalid IP address format")
 		return
 	}
-	// Use canonical form from parsing
+
 	req.IPAddress = parsedIP.String()
 
 	user, ok := principal.(*models.User)
@@ -298,17 +296,14 @@ func POSTAddIPEntry(ctx *middlewares.AppContext) {
 		expiresAt = &expiry
 	}
 
-	// Extract client IP from request
 	clientIP := ""
 	host, _, err := net.SplitHostPort(ctx.Request.RemoteAddr)
 	if err == nil {
 		clientIP = host
 	}
 
-	// Extract user agent
 	userAgentStr := ctx.Request.UserAgent()
 
-	// Convert to pointers for storage function
 	var clientIPPtr, userAgentPtr *string
 	if clientIP != "" {
 		clientIPPtr = &clientIP
@@ -317,7 +312,6 @@ func POSTAddIPEntry(ctx *middlewares.AppContext) {
 		userAgentPtr = &userAgentStr
 	}
 
-	// Add IP to whitelist
 	entry, err := ctx.Storage.AddIPToWhitelist(
 		ctx,
 		principal.GetIss(),
@@ -364,12 +358,11 @@ func DELETERemoveIPEntry(ctx *middlewares.AppContext) {
 		return
 	}
 
-	if !principal.HasScope(ctx.Config, authorization.ScopeFirewallRevokeOwn) {
+	if !principal.HasScope(ctx.Config, authorization.ScopeFirewallRevokeOwn) && !principal.HasScope(ctx.Config, authorization.ScopeFirewallRevokeAll) {
 		ctx.SetJSONError(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 		return
 	}
 
-	// Get entry ID from URL
 	idParam := chi.URLParam(ctx.Request, "id")
 	if idParam == "" {
 		ctx.SetJSONError(http.StatusBadRequest, "Entry ID is required")
@@ -392,12 +385,10 @@ func DELETERemoveIPEntry(ctx *middlewares.AppContext) {
 		return
 	}
 
-	if !principal.MatchesOwner(entry.OwnerIss, entry.OwnerSub) {
-		ctx.Logger.Warn("user attempted to remove IP they don't own",
-			"user", principal.GetUsername(),
-			"entry_id", entryID,
-			"owner", entry.OwnerUsername,
-		)
+	isOwner := principal.MatchesOwner(entry.OwnerIss, entry.OwnerSub)
+	hasAdminScope := principal.HasScope(ctx.Config, authorization.ScopeFirewallRevokeAll)
+
+	if !isOwner && !hasAdminScope {
 		ctx.SetJSONError(http.StatusForbidden, "You can only remove your own IP addresses")
 		return
 	}
@@ -410,23 +401,23 @@ func DELETERemoveIPEntry(ctx *middlewares.AppContext) {
 		return
 	}
 
-	// Extract client IP from request
 	clientIP := ""
 	host, _, err := net.SplitHostPort(ctx.Request.RemoteAddr)
 	if err == nil {
 		clientIP = host
 	}
 
-	// Extract user agent
 	userAgentStr := ctx.Request.UserAgent()
 
-	// Convert to pointers
 	var clientIPPtr, userAgentPtr *string
-	if clientIP != "" {
-		clientIPPtr = &clientIP
-	}
-	if userAgentStr != "" {
-		userAgentPtr = &userAgentStr
+
+	if isOwner {
+		if clientIP != "" {
+			clientIPPtr = &clientIP
+		}
+		if userAgentStr != "" {
+			userAgentPtr = &userAgentStr
+		}
 	}
 
 	err = ctx.Storage.RemoveIPFromWhitelist(ctx, entryID, principal.GetIss(), principal.GetSub(), clientIPPtr, userAgentPtr)
@@ -453,14 +444,12 @@ func DELETERemoveIPEntry(ctx *middlewares.AppContext) {
 // DELETEBlacklistIPEntry blacklists an IP address (admin-only).
 // This blacklists ALL entries with the same IP address, preventing it from being re-added.
 func DELETEBlacklistIPEntry(ctx *middlewares.AppContext) {
-	// 1. Authenticate
 	principal := ctx.GetPrincipal()
 	if principal == nil {
 		ctx.SetJSONError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
 		return
 	}
 
-	// 2. Authorize (admin-only scope)
 	if !principal.HasScope(ctx.Config, authorization.ScopeFirewallBlacklist) {
 		ctx.SetJSONError(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 		return

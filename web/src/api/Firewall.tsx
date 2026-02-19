@@ -94,6 +94,18 @@ async function blacklistIPEntry(
   }
 }
 
+async function fetchAllEntries(): Promise<FirewallIPWhitelistEntry[]> {
+  const response = await fetch('/api/firewall/entries?all_users=1', {
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch all entries: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
 export function useAvailableAliases() {
   return useQuery({
     queryKey: firewallKeys.aliases(),
@@ -106,6 +118,15 @@ export function useUserEntries() {
   return useQuery({
     queryKey: firewallKeys.entries(),
     queryFn: fetchUserEntries,
+    staleTime: 1000 * 60, // 1 minute
+    refetchInterval: 30000, // Auto-refresh every 30 seconds
+  });
+}
+
+export function useAllFirewallEntries() {
+  return useQuery({
+    queryKey: [...firewallKeys.entries(), 'all'],
+    queryFn: fetchAllEntries,
     staleTime: 1000 * 60, // 1 minute
     refetchInterval: 30000, // Auto-refresh every 30 seconds
   });

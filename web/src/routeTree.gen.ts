@@ -20,9 +20,9 @@ import { Route as SettingsProfileRouteImport } from './routes/settings/profile'
 import { Route as BlogSlugRouteImport } from './routes/blog/$slug'
 import { Route as SettingsFirewallIndexRouteImport } from './routes/settings/firewall/index'
 import { Route as SettingsCertsIndexRouteImport } from './routes/settings/certs/index'
-import { Route as SettingsFirewallAddRouteImport } from './routes/settings/firewall/add'
 import { Route as SettingsCertsSettingsRouteImport } from './routes/settings/certs/settings'
 import { Route as SettingsCertsRequestsRouteImport } from './routes/settings/certs/requests'
+import { Route as SettingsFirewallAdminIndexRouteImport } from './routes/settings/firewall/admin/index'
 import { Route as SettingsCertsAdminRequestsRouteImport } from './routes/settings/certs/admin/requests'
 
 const ErrorRoute = ErrorRouteImport.update({
@@ -80,11 +80,6 @@ const SettingsCertsIndexRoute = SettingsCertsIndexRouteImport.update({
   path: '/certs/',
   getParentRoute: () => SettingsRouteRoute,
 } as any)
-const SettingsFirewallAddRoute = SettingsFirewallAddRouteImport.update({
-  id: '/firewall/add',
-  path: '/firewall/add',
-  getParentRoute: () => SettingsRouteRoute,
-} as any)
 const SettingsCertsSettingsRoute = SettingsCertsSettingsRouteImport.update({
   id: '/certs/settings',
   path: '/certs/settings',
@@ -95,6 +90,12 @@ const SettingsCertsRequestsRoute = SettingsCertsRequestsRouteImport.update({
   path: '/certs/requests',
   getParentRoute: () => SettingsRouteRoute,
 } as any)
+const SettingsFirewallAdminIndexRoute =
+  SettingsFirewallAdminIndexRouteImport.update({
+    id: '/firewall/admin/',
+    path: '/firewall/admin/',
+    getParentRoute: () => SettingsRouteRoute,
+  } as any)
 const SettingsCertsAdminRequestsRoute =
   SettingsCertsAdminRequestsRouteImport.update({
     id: '/certs/admin/requests',
@@ -114,10 +115,10 @@ export interface FileRoutesByFullPath {
   '/settings/': typeof SettingsIndexRoute
   '/settings/certs/requests': typeof SettingsCertsRequestsRoute
   '/settings/certs/settings': typeof SettingsCertsSettingsRoute
-  '/settings/firewall/add': typeof SettingsFirewallAddRoute
   '/settings/certs/': typeof SettingsCertsIndexRoute
   '/settings/firewall/': typeof SettingsFirewallIndexRoute
   '/settings/certs/admin/requests': typeof SettingsCertsAdminRequestsRoute
+  '/settings/firewall/admin/': typeof SettingsFirewallAdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -130,10 +131,10 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsIndexRoute
   '/settings/certs/requests': typeof SettingsCertsRequestsRoute
   '/settings/certs/settings': typeof SettingsCertsSettingsRoute
-  '/settings/firewall/add': typeof SettingsFirewallAddRoute
   '/settings/certs': typeof SettingsCertsIndexRoute
   '/settings/firewall': typeof SettingsFirewallIndexRoute
   '/settings/certs/admin/requests': typeof SettingsCertsAdminRequestsRoute
+  '/settings/firewall/admin': typeof SettingsFirewallAdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -148,10 +149,10 @@ export interface FileRoutesById {
   '/settings/': typeof SettingsIndexRoute
   '/settings/certs/requests': typeof SettingsCertsRequestsRoute
   '/settings/certs/settings': typeof SettingsCertsSettingsRoute
-  '/settings/firewall/add': typeof SettingsFirewallAddRoute
   '/settings/certs/': typeof SettingsCertsIndexRoute
   '/settings/firewall/': typeof SettingsFirewallIndexRoute
   '/settings/certs/admin/requests': typeof SettingsCertsAdminRequestsRoute
+  '/settings/firewall/admin/': typeof SettingsFirewallAdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -167,10 +168,10 @@ export interface FileRouteTypes {
     | '/settings/'
     | '/settings/certs/requests'
     | '/settings/certs/settings'
-    | '/settings/firewall/add'
     | '/settings/certs/'
     | '/settings/firewall/'
     | '/settings/certs/admin/requests'
+    | '/settings/firewall/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -183,10 +184,10 @@ export interface FileRouteTypes {
     | '/settings'
     | '/settings/certs/requests'
     | '/settings/certs/settings'
-    | '/settings/firewall/add'
     | '/settings/certs'
     | '/settings/firewall'
     | '/settings/certs/admin/requests'
+    | '/settings/firewall/admin'
   id:
     | '__root__'
     | '/'
@@ -200,10 +201,10 @@ export interface FileRouteTypes {
     | '/settings/'
     | '/settings/certs/requests'
     | '/settings/certs/settings'
-    | '/settings/firewall/add'
     | '/settings/certs/'
     | '/settings/firewall/'
     | '/settings/certs/admin/requests'
+    | '/settings/firewall/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -294,13 +295,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsCertsIndexRouteImport
       parentRoute: typeof SettingsRouteRoute
     }
-    '/settings/firewall/add': {
-      id: '/settings/firewall/add'
-      path: '/firewall/add'
-      fullPath: '/settings/firewall/add'
-      preLoaderRoute: typeof SettingsFirewallAddRouteImport
-      parentRoute: typeof SettingsRouteRoute
-    }
     '/settings/certs/settings': {
       id: '/settings/certs/settings'
       path: '/certs/settings'
@@ -313,6 +307,13 @@ declare module '@tanstack/react-router' {
       path: '/certs/requests'
       fullPath: '/settings/certs/requests'
       preLoaderRoute: typeof SettingsCertsRequestsRouteImport
+      parentRoute: typeof SettingsRouteRoute
+    }
+    '/settings/firewall/admin/': {
+      id: '/settings/firewall/admin/'
+      path: '/firewall/admin'
+      fullPath: '/settings/firewall/admin/'
+      preLoaderRoute: typeof SettingsFirewallAdminIndexRouteImport
       parentRoute: typeof SettingsRouteRoute
     }
     '/settings/certs/admin/requests': {
@@ -331,10 +332,10 @@ interface SettingsRouteRouteChildren {
   SettingsIndexRoute: typeof SettingsIndexRoute
   SettingsCertsRequestsRoute: typeof SettingsCertsRequestsRoute
   SettingsCertsSettingsRoute: typeof SettingsCertsSettingsRoute
-  SettingsFirewallAddRoute: typeof SettingsFirewallAddRoute
   SettingsCertsIndexRoute: typeof SettingsCertsIndexRoute
   SettingsFirewallIndexRoute: typeof SettingsFirewallIndexRoute
   SettingsCertsAdminRequestsRoute: typeof SettingsCertsAdminRequestsRoute
+  SettingsFirewallAdminIndexRoute: typeof SettingsFirewallAdminIndexRoute
 }
 
 const SettingsRouteRouteChildren: SettingsRouteRouteChildren = {
@@ -343,10 +344,10 @@ const SettingsRouteRouteChildren: SettingsRouteRouteChildren = {
   SettingsIndexRoute: SettingsIndexRoute,
   SettingsCertsRequestsRoute: SettingsCertsRequestsRoute,
   SettingsCertsSettingsRoute: SettingsCertsSettingsRoute,
-  SettingsFirewallAddRoute: SettingsFirewallAddRoute,
   SettingsCertsIndexRoute: SettingsCertsIndexRoute,
   SettingsFirewallIndexRoute: SettingsFirewallIndexRoute,
   SettingsCertsAdminRequestsRoute: SettingsCertsAdminRequestsRoute,
+  SettingsFirewallAdminIndexRoute: SettingsFirewallAdminIndexRoute,
 }
 
 const SettingsRouteRouteWithChildren = SettingsRouteRoute._addFileChildren(

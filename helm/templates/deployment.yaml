@@ -53,7 +53,11 @@ spec:
       {{- end }}
       containers:
         - name: {{ .Values.deployment.container.name | default "dashboard" }}
-          image: "{{ .Values.deployment.image.repository | default "ghcr.io/crowley723/dashboard-site" }}@{{ .Values.deployment.image.tag | default .Chart.AppVersion }}"
+          {{- if contains "sha256:" .Values.deployment.image.tag }}
+          image: "{{ .Values.deployment.image.repository }}@{{ .Values.deployment.image.tag }}"
+          {{- else }}
+          image: "{{ .Values.deployment.image.repository }}:{{ .Values.deployment.image.tag }}"
+          {{- end }}
           imagePullPolicy: {{ .Values.deployment.image.pullPolicy | default "IfNotPresent" }}
         {{- if .Values.deployment.container.command }}
           command:

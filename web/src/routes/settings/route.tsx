@@ -24,7 +24,6 @@ export default function SettingsLayout() {
   const { isMTLSUser, isMTLSAdmin, hasFirewallAccess, isFirewallAdmin } =
     useAuth();
 
-  // Build certificate menu items based on user permissions
   const certificateItems = [];
   if (isMTLSUser() || isMTLSAdmin()) {
     certificateItems.push({ title: 'Certificates', url: '/settings/certs' });
@@ -48,7 +47,7 @@ export default function SettingsLayout() {
 
   // Build firewall menu items based on user permissions
   const firewallItems = [];
-  if (hasFirewallAccess()) {
+  if (hasFirewallAccess() || isFirewallAdmin()) {
     firewallItems.push({ title: 'Whitelist', url: '/settings/firewall' });
   }
   if (isFirewallAdmin()) {
@@ -60,7 +59,6 @@ export default function SettingsLayout() {
 
   const settingsNavItems = [];
 
-  // Account Group (top)
   settingsNavItems.push({
     groupLabel: 'Account',
     items: [
@@ -72,7 +70,6 @@ export default function SettingsLayout() {
     ],
   });
 
-  // API & Access Group
   settingsNavItems.push({
     groupLabel: 'API & Access',
     items: [
@@ -84,7 +81,6 @@ export default function SettingsLayout() {
     ],
   });
 
-  // Security Group
   const securityItems = [];
   if (certificateItems.length > 0) {
     securityItems.push({

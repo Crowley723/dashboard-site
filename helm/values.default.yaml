@@ -331,23 +331,24 @@ config:
   # Authorization configuration - maps OIDC groups to application scopes
   authorization:
     group_scopes:
-      # mTLS management permissions
       conduit:mtls:admin:
-        - "mtls:request:cert"
-        - "mtls:read:all_certs"
-        - "mtls:read:cert"
-        - "mtls:approve:cert"
-        - "mtls:renew:cert"
-        - "mtls:revoke:cert"
-        - "mtls:download:all_certs"
-        - "mtls:download:cert"
-        - "mtls:auto_approve:cert"
+        - "mtls:request"
+        - "mtls:read"
+        - "mtls:renew"
+        - "mtls:revoke"
+        - "mtls:approve"
+        - "mtls:download"
+        - "mtls:read_all"
+        - "mtls:download_all"
+        - "mtls:auto_approve"
+        - "mtls:self_approve_certs"
       conduit:mtls:user:
-        - "mtls:request:cert"
-        - "mtls:read:cert"
-        - "mtls:renew:cert"
-        - "mtls:download:cert"
-      # Firewall management permissions
+        - "mtls:request"
+        - "mtls:read"
+        - "mtls:renew"
+        - "mtls:revoke"
+        - "mtls:approve"
+        - "mtls:download"
       conduit:firewall:admin:
         - "firewall:read:own"
         - "firewall:request:own"

@@ -33,7 +33,6 @@ func (p *DatabaseProvider) AddIPToWhitelist(ctx context.Context, ownerIss, owner
 		return nil, fmt.Errorf("failed to count user active IPs: %w", err)
 	}
 
-	// Check total limit within transaction
 	totalCountQuery := `
 		SELECT COUNT(*)
 		FROM firewall_ip_whitelist_entries
@@ -46,7 +45,6 @@ func (p *DatabaseProvider) AddIPToWhitelist(ctx context.Context, ownerIss, owner
 		return nil, fmt.Errorf("failed to count total active IPs: %w", err)
 	}
 
-	// Check if user already has this IP for this alias (active status)
 	duplicateCheckQuery := `
 		SELECT id
 		FROM firewall_ip_whitelist_entries
@@ -64,7 +62,6 @@ func (p *DatabaseProvider) AddIPToWhitelist(ctx context.Context, ownerIss, owner
 		return nil, fmt.Errorf("you already have this IP address whitelisted for this alias")
 	}
 
-	// Insert whitelist entry
 	insertQuery := `
 		INSERT INTO firewall_ip_whitelist_entries (owner_iss, owner_sub, alias_name, alias_uuid, ip_address, description, expires_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -77,7 +74,6 @@ func (p *DatabaseProvider) AddIPToWhitelist(ctx context.Context, ownerIss, owner
 		return nil, fmt.Errorf("failed to add IP to whitelist: %w", err)
 	}
 
-	// Create "requested" event with client metadata
 	eventQuery := `
 		INSERT INTO firewall_whitelist_events (whitelist_id, actor_iss, actor_sub, event_type, notes, client_ip, user_agent)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -185,18 +181,18 @@ func (p *DatabaseProvider) GetUserWhitelistEntries(ctx context.Context, ownerIss
 
 	for rows.Next() {
 		var (
-			entryID, ipVersion                                      int
-			ownerIss, ownerSub, aliasName, aliasUUID, ipAddress     string
-			description, status                                     string
-			ownerUsername, ownerDisplayName                         string
-			requestedAt                                             time.Time
-			addedAt, removedAt, expiresAt                           *time.Time
-			removedByIss, removedBySub, removalReason               *string
-			eventID, eventWhitelistID                               *int
-			eventActorIss, eventActorSub, eventType, eventNotes     *string
-			eventClientIP, eventUserAgent                           *string
-			eventCreatedAt                                          *time.Time
-			eventActorUsername, eventActorDisplay                   *string
+			entryID, ipVersion                                  int
+			ownerIss, ownerSub, aliasName, aliasUUID, ipAddress string
+			description, status                                 string
+			ownerUsername, ownerDisplayName                     string
+			requestedAt                                         time.Time
+			addedAt, removedAt, expiresAt                       *time.Time
+			removedByIss, removedBySub, removalReason           *string
+			eventID, eventWhitelistID                           *int
+			eventActorIss, eventActorSub, eventType, eventNotes *string
+			eventClientIP, eventUserAgent                       *string
+			eventCreatedAt                                      *time.Time
+			eventActorUsername, eventActorDisplay               *string
 		)
 
 		err := rows.Scan(
@@ -314,18 +310,18 @@ func (p *DatabaseProvider) GetAllWhitelistEntries(ctx context.Context) ([]*model
 
 	for rows.Next() {
 		var (
-			entryID, ipVersion                                      int
-			ownerIss, ownerSub, aliasName, aliasUUID, ipAddress     string
-			description, status                                     string
-			ownerUsername, ownerDisplayName                         string
-			requestedAt                                             time.Time
-			addedAt, removedAt, expiresAt                           *time.Time
-			removedByIss, removedBySub, removalReason               *string
-			eventID, eventWhitelistID                               *int
-			eventActorIss, eventActorSub, eventType, eventNotes     *string
-			eventClientIP, eventUserAgent                           *string
-			eventCreatedAt                                          *time.Time
-			eventActorUsername, eventActorDisplay                   *string
+			entryID, ipVersion                                  int
+			ownerIss, ownerSub, aliasName, aliasUUID, ipAddress string
+			description, status                                 string
+			ownerUsername, ownerDisplayName                     string
+			requestedAt                                         time.Time
+			addedAt, removedAt, expiresAt                       *time.Time
+			removedByIss, removedBySub, removalReason           *string
+			eventID, eventWhitelistID                           *int
+			eventActorIss, eventActorSub, eventType, eventNotes *string
+			eventClientIP, eventUserAgent                       *string
+			eventCreatedAt                                      *time.Time
+			eventActorUsername, eventActorDisplay               *string
 		)
 
 		err := rows.Scan(

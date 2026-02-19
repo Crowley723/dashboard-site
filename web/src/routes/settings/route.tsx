@@ -1,4 +1,4 @@
-import { Settings, ScrollText as Certificate, Key, Shield, User } from 'lucide-react';
+import { ScrollText as Certificate, Key, Shield, User } from 'lucide-react';
 import { AppSidebar } from '@/components/app-sidebar';
 import { createFileRoute, Outlet } from '@tanstack/react-router';
 import {

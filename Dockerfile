@@ -1,4 +1,4 @@
-FROM node:25-alpine@sha256:b087258bb49712939096cc774651f50df2f580acc5821968731ae46d4e7c200a AS frontend-build
+FROM node:25-alpine@sha256:5209bcaca9836eb3448b650396213dbe9d9a34d31840c2ae1f206cb2986a8543 AS frontend-build
 RUN npm install -g pnpm
 WORKDIR /app/web
 COPY web/package.json web/pnpm-lock.yaml ./

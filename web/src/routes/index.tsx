@@ -43,12 +43,15 @@ function Index() {
 
   const handleLogin = () => {
     login(rd, {
-      onSuccess: () => {
-        setShowLoginModal(false);
-        router.navigate({ to: '/', search: {} as any });
-        if (rd) {
-          router.navigate({ to: rd });
+      onSuccess: (data) => {
+        if (data.status === 'already_authenticated') {
+          setShowLoginModal(false);
+          router.navigate({ to: '/', search: {} as any });
+          if (rd) {
+            router.navigate({ to: rd });
+          }
         }
+        // For redirect_required: mutation-level onSuccess in useAuth handles window.location.href
       },
     });
   };

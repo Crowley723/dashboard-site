@@ -125,7 +125,7 @@ importers:
         version: 1.166.16
       '@tanstack/router-plugin':
         specifier: ^1.131.27
-        version: 1.167.1(@tanstack/react-router@1.168.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(vite@7.3.1(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0))
+        version: 1.167.2(@tanstack/react-router@1.168.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(vite@7.3.1(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0))
       '@types/node':
         specifier: ^25.0.0
         version: 25.5.0
@@ -1627,8 +1627,8 @@ packages:
     resolution: {integrity: sha512-W8ybCktgN/45fc7ohWJKAyG5Al1pnTg7V8Z6RiG8NkSrN7Igo4BqanUmXULnhnkdCID5XhMbkhP84r2hzkXbPw==}
     engines: {node: '>=20.19'}
 
-  '@tanstack/router-plugin@1.167.1':
-    resolution: {integrity: sha512-bPDdwvpoznjyCUWd+w2ss+y9GemXvF3R6Zzi36rxiWUGwuqDhQbvs1fWkjsx2oBqXSG8vkF74yFdUxFEX90o4g==}
+  '@tanstack/router-plugin@1.167.2':
+    resolution: {integrity: sha512-33KSngqHzFTMFz7rPIIeroVi0x+GzbCOch1goEdH71s1MbdyNhCTPuzKFO3QOkT+aqirCXkCgSgHVoU//Zletw==}
     engines: {node: '>=20.19'}
     hasBin: true
     peerDependencies:
@@ -4804,7 +4804,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@tanstack/router-plugin@1.167.1(@tanstack/react-router@1.168.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(vite@7.3.1(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0))':
+  '@tanstack/router-plugin@1.167.2(@tanstack/react-router@1.168.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(vite@7.3.1(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0))':
     dependencies:
       '@babel/core': 7.29.0
       '@babel/plugin-syntax-jsx': 7.28.6(@babel/core@7.29.0)

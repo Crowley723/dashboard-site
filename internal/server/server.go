@@ -9,9 +9,9 @@ import (
 	"homelab-dashboard/internal/data"
 	"homelab-dashboard/internal/distributed"
 	"homelab-dashboard/internal/jobs"
-	"homelab-dashboard/internal/k8s"
 	"homelab-dashboard/internal/metrics"
 	"homelab-dashboard/internal/middlewares"
+	"homelab-dashboard/internal/services/certificate"
 	"homelab-dashboard/internal/services/firewall"
 	"homelab-dashboard/internal/storage"
 	"log/slog"
@@ -134,17 +134,21 @@ func New(cfg *config.Config) (*Server, error) {
 		database = dbProvider
 	}
 
-	var kubernetesClient *k8s.Client
+	var certProvider certificate.Provider
 	if cfg.Features.MTLSManagement.Enabled {
-		kubernetesClient, err = k8s.NewClient(ctx, cfg, logger)
-		if err != nil {
-			logger.Error("failed to initialize kubernetes client", "error", err)
-			cancel()
-			return nil, err
+		if cfg.Features.MTLSManagement.Kubernetes != nil && cfg.Features.MTLSManagement.Kubernetes.Enabled {
+			certProvider, err = certificate.NewKubernetesClient(ctx, cfg, logger)
+			if err != nil {
+				logger.Error("failed to initialize kubernetes client", "error", err)
+				cancel()
+				return nil, err
+			}
+		} else {
+
 		}
 	}
 
-	appCtx := middlewares.NewAppContext(ctx, cfg, logger, cache, sessionManager, oidcProvider, database, kubernetesClient)
+	appCtx := middlewares.NewAppContext(ctx, cfg, logger, cache, sessionManager, oidcProvider, database, certProvider)
 
 	jobManager := jobs.NewJobManager(election, logger)
 

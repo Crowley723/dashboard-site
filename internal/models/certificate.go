@@ -124,7 +124,7 @@ type CertificateSpec struct {
 	RequestID           int
 }
 
-// IssuedCertificateDetails contains the additional details related to certificates that have been issued
+// IssuedCertificateDetails contains the additional details related to certificate that have been issued
 type IssuedCertificateDetails struct {
 	SerialNumber string
 	Subject      string

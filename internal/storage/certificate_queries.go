@@ -33,7 +33,7 @@ func (p *DatabaseProvider) CreateCertificateRequest(ctx context.Context, sub, is
 
 func (p *DatabaseProvider) GetCertificateRequestByID(ctx context.Context, id int) (*models.CertificateRequest, error) {
 	query := `
-		SELECT id, owner_iss, owner_sub, message, common_name, dns_names, organizational_units, validity_days, status, requested_at, k8s_certificate_name, k8s_namespace, k8s_secret_name, issued_at, expires_at, serial_number, certificate_pem
+		SELECT id, owner_iss, owner_sub, message, common_name, dns_names, organizational_units, validity_days, status, requested_at, certificate_identifier, provider_metadata, issued_at, expires_at, serial_number, certificate_pem
 		FROM certificate_requests
 		WHERE id = $1
 	`
@@ -56,9 +56,8 @@ func (p *DatabaseProvider) GetCertificateRequestByID(ctx context.Context, id int
 		&certificateRequest.ValidityDays,
 		&certificateRequest.Status,
 		&certificateRequest.RequestedAt,
-		&certificateRequest.K8sCertificateName,
-		&certificateRequest.K8sNamespace,
-		&certificateRequest.K8sSecretName,
+		&certificateRequest.CertificateIdentifier,
+		&certificateRequest.ProviderMetadata,
 		&certificateRequest.IssuedAt,
 		&certificateRequest.ExpiresAt,
 		&certificateRequest.SerialNumber,
@@ -111,7 +110,7 @@ func (p *DatabaseProvider) GetCertificateRequestByID(ctx context.Context, id int
 
 func (p *DatabaseProvider) GetCertificateRequests(ctx context.Context) ([]*models.CertificateRequest, error) {
 	query := `
-       SELECT id, owner_iss, owner_sub, message, common_name, dns_names, organizational_units, validity_days, status, requested_at, k8s_certificate_name, k8s_namespace, k8s_secret_name, issued_at, expires_at, serial_number, certificate_pem
+       SELECT id, owner_iss, owner_sub, message, common_name, dns_names, organizational_units, validity_days, status, requested_at, certificate_identifier, provider_metadata, issued_at, expires_at, serial_number, certificate_pem
        FROM certificate_requests
        ORDER BY requested_at DESC
     `
@@ -145,9 +144,8 @@ func (p *DatabaseProvider) GetCertificateRequests(ctx context.Context) ([]*model
 			&req.ValidityDays,
 			&req.Status,
 			&req.RequestedAt,
-			&req.K8sCertificateName,
-			&req.K8sNamespace,
-			&req.K8sSecretName,
+			&req.CertificateIdentifier,
+			&req.ProviderMetadata,
 			&req.IssuedAt,
 			&req.ExpiresAt,
 			&req.SerialNumber,
@@ -214,7 +212,7 @@ func (p *DatabaseProvider) GetCertificateRequestsByUser(ctx context.Context, sub
        SELECT
 			cr.id, cr.owner_iss, cr.owner_sub, cr.message, cr.common_name,
 			cr.dns_names, cr.organizational_units, cr.validity_days, cr.status,
-			cr.requested_at, cr.k8s_certificate_name, cr.k8s_namespace, cr.k8s_secret_name,
+			cr.requested_at, cr.certificate_identifier, cr.provider_metadata,
 			cr.issued_at, cr.expires_at, cr.serial_number, cr.certificate_pem,
 			owner.username as owner_username,
 			owner.display_name as owner_display_name
@@ -263,9 +261,8 @@ func (p *DatabaseProvider) GetCertificateRequestsByUser(ctx context.Context, sub
 			&req.ValidityDays,
 			&req.Status,
 			&req.RequestedAt,
-			&req.K8sCertificateName,
-			&req.K8sNamespace,
-			&req.K8sSecretName,
+			&req.CertificateIdentifier,
+			&req.ProviderMetadata,
 			&req.IssuedAt,
 			&req.ExpiresAt,
 			&req.SerialNumber,
@@ -355,7 +352,7 @@ func (p *DatabaseProvider) GetCertificateRequestsPaginated(ctx context.Context, 
 
 	// Get paginated requests
 	query := `
-       SELECT id, owner_iss, owner_sub, message, common_name, dns_names, organizational_units, validity_days, status, requested_at, k8s_certificate_name, k8s_namespace, k8s_secret_name, issued_at, expires_at, serial_number, certificate_pem
+       SELECT id, owner_iss, owner_sub, message, common_name, dns_names, organizational_units, validity_days, status, requested_at, certificate_identifier, provider_metadata, issued_at, expires_at, serial_number, certificate_pem
        FROM certificate_requests
        ORDER BY requested_at DESC
        LIMIT $1 OFFSET $2
@@ -383,9 +380,8 @@ func (p *DatabaseProvider) GetCertificateRequestsPaginated(ctx context.Context, 
 			&req.ValidityDays,
 			&req.Status,
 			&req.RequestedAt,
-			&req.K8sCertificateName,
-			&req.K8sNamespace,
-			&req.K8sSecretName,
+			&req.CertificateIdentifier,
+			&req.ProviderMetadata,
 			&req.IssuedAt,
 			&req.ExpiresAt,
 			&req.SerialNumber,
@@ -507,19 +503,18 @@ func (p *DatabaseProvider) UpdateCertificateRequestStatus(ctx context.Context, r
 	return tx.Commit(ctx)
 }
 
-// UpdateCertificateK8sMetadata updates the Kubernetes resource metadata for a certificate request
-func (p *DatabaseProvider) UpdateCertificateK8sMetadata(ctx context.Context, requestID int, certName, namespace, secretName string) error {
+// UpdateCertificateMetadata updates the certificate identifier an metadata
+func (p *DatabaseProvider) UpdateCertificateMetadata(ctx context.Context, requestID int, identifier string, metadata map[string]interface{}) error {
 	query := `
 		UPDATE certificate_requests
-		SET k8s_certificate_name = $1,
-			k8s_namespace = $2,
-			k8s_secret_name = $3
-		WHERE id = $4
+		SET certificate_identifier = $1,
+			provider_metadata = $2
+		WHERE id = $3
 	`
 
-	result, err := p.pool.Exec(ctx, query, certName, namespace, secretName, requestID)
+	result, err := p.pool.Exec(ctx, query, identifier, metadata, requestID)
 	if err != nil {
-		return fmt.Errorf("failed to update k8s metadata for request %d: %w", requestID, err)
+		return fmt.Errorf("failed to update certificate metadata for request %d: %w", requestID, err)
 	}
 
 	if result.RowsAffected() == 0 {
@@ -532,7 +527,7 @@ func (p *DatabaseProvider) UpdateCertificateK8sMetadata(ctx context.Context, req
 // GetApprovedCertificateRequests returns all certificate requests with status = APPROVED
 func (p *DatabaseProvider) GetApprovedCertificateRequests(ctx context.Context) ([]*models.CertificateRequest, error) {
 	query := `
-		SELECT id, owner_iss, owner_sub, message, common_name, dns_names, organizational_units, validity_days, status, requested_at, k8s_certificate_name, k8s_namespace, k8s_secret_name, issued_at, expires_at, serial_number, certificate_pem
+		SELECT id, owner_iss, owner_sub, message, common_name, dns_names, organizational_units, validity_days, status, requested_at, certificate_identifier, provider_metadata, issued_at, expires_at, serial_number, certificate_pem
 		FROM certificate_requests
 		WHERE status = $1
 		ORDER BY requested_at ASC
@@ -558,9 +553,8 @@ func (p *DatabaseProvider) GetApprovedCertificateRequests(ctx context.Context) (
 			&req.ValidityDays,
 			&req.Status,
 			&req.RequestedAt,
-			&req.K8sCertificateName,
-			&req.K8sNamespace,
-			&req.K8sSecretName,
+			&req.CertificateIdentifier,
+			&req.ProviderMetadata,
 			&req.IssuedAt,
 			&req.ExpiresAt,
 			&req.SerialNumber,
@@ -578,12 +572,12 @@ func (p *DatabaseProvider) GetApprovedCertificateRequests(ctx context.Context) (
 	return requests, nil
 }
 
-// GetPendingCertificateRequests returns all certificate requests with status = PENDING (awaiting K8s Certificate to be ready)
+// GetPendingCertificateRequests returns all certificate requests with status = PENDING (awaiting certificate to be ready)
 func (p *DatabaseProvider) GetPendingCertificateRequests(ctx context.Context) ([]*models.CertificateRequest, error) {
 	query := `
-		SELECT id, owner_iss, owner_sub, message, common_name, dns_names, organizational_units, validity_days, status, requested_at, k8s_certificate_name, k8s_namespace, k8s_secret_name, issued_at, expires_at, serial_number, certificate_pem
+		SELECT id, owner_iss, owner_sub, message, common_name, dns_names, organizational_units, validity_days, status, requested_at, certificate_identifier, provider_metadata, issued_at, expires_at, serial_number, certificate_pem
 		FROM certificate_requests
-		WHERE status = $1 AND k8s_certificate_name IS NOT NULL
+		WHERE status = $1 AND certificate_identifier IS NOT NULL
 		ORDER BY requested_at ASC
 	`
 
@@ -607,9 +601,8 @@ func (p *DatabaseProvider) GetPendingCertificateRequests(ctx context.Context) ([
 			&req.ValidityDays,
 			&req.Status,
 			&req.RequestedAt,
-			&req.K8sCertificateName,
-			&req.K8sNamespace,
-			&req.K8sSecretName,
+			&req.CertificateIdentifier,
+			&req.ProviderMetadata,
 			&req.IssuedAt,
 			&req.ExpiresAt,
 			&req.SerialNumber,

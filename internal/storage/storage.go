@@ -34,7 +34,7 @@ type Provider interface {
 	GetCertificateRequestsByUser(ctx context.Context, sub string, iss string) ([]*models.CertificateRequest, error)
 	GetCertificateRequestsPaginated(ctx context.Context, params models.PaginationParams) (*models.PaginatedCertResult, error)
 	UpdateCertificateRequestStatus(ctx context.Context, requestId int, newStatus models.CertificateRequestStatus, reviewerIss string, reviewerSub string, notes string) error
-	UpdateCertificateK8sMetadata(ctx context.Context, requestID int, certName string, namespace string, secretName string) error
+	UpdateCertificateMetadata(ctx context.Context, requestID int, identifier string, metadata map[string]interface{}) error
 	GetApprovedCertificateRequests(ctx context.Context) ([]*models.CertificateRequest, error)
 	GetPendingCertificateRequests(ctx context.Context) ([]*models.CertificateRequest, error)
 	UpdateCertificateRequestIssued(ctx context.Context, requestID int, certPEM string, serialNumber string, issuedAt time.Time, expiresAt time.Time, systemUserIss string, systemUserSub string) error

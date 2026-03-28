@@ -3,28 +3,26 @@ package certificate
 import (
 	"context"
 	"homelab-dashboard/internal/models"
-
-	certmanagerv1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 )
 
 type DatabaseCertificateProvider struct{}
 
-func (DatabaseCertificateProvider) CreateCertificateFromRequest(ctx context.Context, request *models.CertificateRequest) (*certmanagerv1.Certificate, error) {
+func (DatabaseCertificateProvider) CreateCertificateFromRequest(ctx context.Context, request *models.CertificateRequest) (string, map[string]interface{}, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (DatabaseCertificateProvider) GetCertificateData(ctx context.Context, name string) (certPEM, keyPEM, caPEM []byte, err error) {
+func (DatabaseCertificateProvider) GetCertificateData(ctx context.Context, identifier string) (certPEM, keyPEM, caPEM []byte, err error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (DatabaseCertificateProvider) IsCertificateReady(ctx context.Context, name string) (bool, error) {
+func (DatabaseCertificateProvider) IsCertificateReady(ctx context.Context, identifier string) (bool, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (DatabaseCertificateProvider) DeleteCertificate(ctx context.Context, name string) error {
+func (DatabaseCertificateProvider) DeleteCertificate(ctx context.Context, identifier string) error {
 	//TODO implement me
 	panic("implement me")
 }

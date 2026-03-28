@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"homelab-dashboard/internal/k8s"
 	"homelab-dashboard/internal/middlewares"
 	"homelab-dashboard/internal/models"
+	"homelab-dashboard/internal/services/certificate"
 	"strings"
 	"time"
 
@@ -49,7 +49,7 @@ func (j *CertificateCreationJob) Run(ctx context.Context) error {
 	certs, err := getApprovedCertificates(j.appCtx)
 	if err != nil {
 		if !errors.Is(err, errNoApprovedCertificates) {
-			j.appCtx.Logger.Error("error checking for approved certificates", "error", err)
+			j.appCtx.Logger.Error("error checking for approved certificate", "error", err)
 		}
 	}
 
@@ -67,7 +67,7 @@ func (j *CertificateCreationJob) Run(ctx context.Context) error {
 			certs, err := getApprovedCertificates(j.appCtx)
 			if err != nil {
 				if !errors.Is(err, errNoApprovedCertificates) {
-					j.appCtx.Logger.Error("unable to check for approved certificates", "error", err)
+					j.appCtx.Logger.Error("unable to check for approved certificate", "error", err)
 				}
 			}
 
@@ -116,13 +116,13 @@ func handleApprovedCertificates(ctx *middlewares.AppContext, certs []*models.Cer
 
 		// Check if K8s certificate already exists
 		// This handles cases where cert was created but DB update failed
-		certName := k8s.GenerateCertificateName(cert.OwnerSub, cert.OwnerIss, cert.RequestedAt)
-		existingCert, err := ctx.KubernetesClient.GetCertificate(ctx, ctx.KubernetesClient.Namespace, certName)
+		certName := certificate.GenerateCertificateName(cert.OwnerSub, cert.OwnerIss, cert.RequestedAt)
+		existingCert, err := ctx.CertificateManager.GetCertificateData(ctx, certName)
 
-		var createdCert *certmanagerv1.Certificate
+		var createdCert bool
 		if err != nil {
 			if isNotFoundError(err) {
-				createdCert, err = ctx.KubernetesClient.CreateCertificateFromRequest(ctx, cert)
+				createdCertName, err = ctx.KubernetesClient.CreateCertificateFromRequest(ctx, cert)
 				if err != nil {
 					ctx.Logger.Error("error creating certificate from request", "error", err, "request_id", cert.ID)
 					// Rollback: mark as APPROVED again so it can be retried later

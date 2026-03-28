@@ -1,49 +1,128 @@
-package k8s
+package certificate
 
 import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"homelab-dashboard/internal/config"
 	"homelab-dashboard/internal/models"
+	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	certmanagerv1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	cmmeta "github.com/cert-manager/cert-manager/pkg/apis/meta/v1"
+	certmanagerclientset "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
-// labels for tracking certificates created by this system
-const (
-	LabelManagedBy   = "app.kubernetes.io/managed-by"
-	LabelOwnerSub    = "conduit.homelab.dev/owner-sub"
-	LabelOwnerIss    = "conduit.homelab.dev/owner-iss"
-	LabelRequestID   = "conduit.homelab.dev/request-id"
-	ManagedByConduit = "conduit"
-)
+// KubernetesCertificateProvider wraps the Kubernetes and cert-manager clients
+type KubernetesCertificateProvider struct {
+	ClientSet          *kubernetes.Clientset
+	CertManagerClient  *certmanagerclientset.Clientset
+	Config             *rest.Config
+	Namespace          string
+	IssuerName         string
+	IssuerKind         string
+	CertificateSubject *config.CertificateSubject
+	Logger             *slog.Logger
+}
 
-// GenerateCertificateName generates a unique certificate name based on owner and timestamp
-// Format: hash of "sub:iss:timestamp" truncated to fit Kubernetes naming constraints
-func GenerateCertificateName(sub, iss string, timestamp time.Time) string {
-	input := fmt.Sprintf("%s:%s:%d", sub, iss, timestamp.Unix())
-	hash := sha256.Sum256([]byte(input))
-	hashStr := hex.EncodeToString(hash[:])
+// NewKubernetesClient creates a new Kubernetes client based on the configuration
+func NewKubernetesClient(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*KubernetesCertificateProvider, error) {
+	if cfg.Features == nil || !cfg.Features.MTLSManagement.Enabled {
+		return nil, fmt.Errorf("mtls_management is not enabled")
+	}
 
-	// Kubernetes DNS-1123 subdomain naming requirements:
-	// - lowercase alphanumeric characters, '-' or '.'
-	// - must start and end with alphanumeric
-	// - max 253 characters
-	// We'll use "cert-" prefix + first 32 chars of hash
-	name := fmt.Sprintf("cert-%s", hashStr[:32])
-	return strings.ToLower(name)
+	if cfg.Features == nil {
+		return nil, fmt.Errorf("features configuration is nil")
+
+	}
+
+	if cfg.Features.MTLSManagement.Kubernetes == nil {
+		return nil, fmt.Errorf("kubernetes configuration is nil")
+	}
+
+	k8sCfg := cfg.Features.MTLSManagement.Kubernetes
+	issuerCfg := cfg.Features.MTLSManagement.CertificateIssuer
+	subjectCfg := cfg.Features.MTLSManagement.CertificateSubject
+
+	if issuerCfg == nil {
+		return nil, fmt.Errorf("certificate issuer configuration is missing")
+	}
+
+	if k8sCfg == nil || k8sCfg.Namespace == "" {
+		return nil, fmt.Errorf("kubernetes namespace configuration is missing")
+	}
+
+	var restConfig *rest.Config
+	var err error
+
+	if k8sCfg.InCluster {
+		logger.Info("using in-cluster Kubernetes configuration")
+		restConfig, err = rest.InClusterConfig()
+		if err != nil {
+			return nil, fmt.Errorf("failed to create in-cluster config: %w", err)
+		}
+	} else {
+		kubeconfig := k8sCfg.Kubeconfig
+		if kubeconfig == "" {
+			if home := homeDir(); home != "" {
+				kubeconfig = filepath.Join(home, ".kube", "config")
+			}
+		}
+
+		logger.Debug("Using Kubeconfig File", "path", kubeconfig)
+		restConfig, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build config from kubeconfig: %w", err)
+		}
+	}
+
+	clientset, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create kubernetes clientset: %w", err)
+	}
+
+	certManagerClient, err := certmanagerclientset.NewForConfig(restConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cert-manager clientset: %w", err)
+	}
+
+	_, err = clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{Limit: 1})
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify kubernetes connection: %w", err)
+	}
+
+	return &KubernetesCertificateProvider{
+		ClientSet:          clientset,
+		CertManagerClient:  certManagerClient,
+		Config:             restConfig,
+		Namespace:          k8sCfg.Namespace,
+		IssuerName:         issuerCfg.Name,
+		IssuerKind:         issuerCfg.Kind,
+		CertificateSubject: subjectCfg,
+		Logger:             logger,
+	}, nil
+}
+
+func homeDir() string {
+	if h := os.Getenv("HOME"); h != "" {
+		return h
+	}
+	return os.Getenv("USERPROFILE")
 }
 
 // CreateCertificateFromRequest creates a cert-manager Certificate resource from a CertificateRequest
-func (c *Client) CreateCertificateFromRequest(ctx context.Context, request *models.CertificateRequest) (*certmanagerv1.Certificate, error) {
-	// Generate certificate name
+func (c *KubernetesCertificateProvider) CreateCertificateFromRequest(ctx context.Context, request *models.CertificateRequest) (string, error) {
 	certName := GenerateCertificateName(request.OwnerSub, request.OwnerIss, request.RequestedAt)
 	secretName := fmt.Sprintf("%s-tls", certName)
 
@@ -120,30 +199,30 @@ func (c *Client) CreateCertificateFromRequest(ctx context.Context, request *mode
 
 	created, err := c.CertManagerClient.CertmanagerV1().Certificates(c.Namespace).Create(ctx, cert, metav1.CreateOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create certificate: %w", err)
+		return "", fmt.Errorf("failed to create certificate: %w", err)
 	}
 
 	c.Logger.Debug("Certificate Created Successfully",
 		"name", created.Name,
 		"namespace", created.Namespace)
 
-	return created, nil
+	return certName, nil
 }
 
 // GetCertificate retrieves a Certificate resource
-func (c *Client) GetCertificate(ctx context.Context, namespace, name string) (*certmanagerv1.Certificate, error) {
-	cert, err := c.CertManagerClient.CertmanagerV1().Certificates(namespace).Get(ctx, name, metav1.GetOptions{})
+func (c *KubernetesCertificateProvider) GetCertificate(ctx context.Context, name string) (*certmanagerv1.Certificate, error) {
+	cert, err := c.CertManagerClient.CertmanagerV1().Certificates(c.Namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			return nil, fmt.Errorf("certificate not found: %s/%s", namespace, name)
+			return nil, fmt.Errorf("certificate not found: %s/%s", c.Namespace, name)
 		}
 		return nil, fmt.Errorf("failed to get certificate: %w", err)
 	}
 	return cert, nil
 }
 
-func (c *Client) GetCertificateForDownload(ctx context.Context, namespace, name string) (certPEM, keyPEM, caPEM []byte, err error) {
-	cert, err := c.GetCertificate(ctx, namespace, name)
+func (c *KubernetesCertificateProvider) GetCertificateData(ctx context.Context, name string) (certPEM, keyPEM, caPEM []byte, err error) {
+	cert, err := c.GetCertificate(ctx, name)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -160,9 +239,9 @@ func (c *Client) GetCertificateForDownload(ctx context.Context, namespace, name 
 		return nil, nil, nil, fmt.Errorf("certificate is not ready yet")
 	}
 
-	secret, err := c.GetCertificateSecret(ctx, namespace, cert.Spec.SecretName)
+	secret, err := c.getCertificateSecret(ctx, cert.Spec.SecretName)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to get certificate secret: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to get certificate data: %w", err)
 	}
 
 	certPEM = secret.Data["tls.crt"]
@@ -170,34 +249,19 @@ func (c *Client) GetCertificateForDownload(ctx context.Context, namespace, name 
 	caPEM = secret.Data["ca.crt"]
 
 	if len(certPEM) == 0 {
-		return nil, nil, nil, fmt.Errorf("certificate secret missing tls.crt")
+		return nil, nil, nil, fmt.Errorf("failed to get certificate data: certificate secret missing tls.crt")
 	}
 	if len(keyPEM) == 0 {
-		return nil, nil, nil, fmt.Errorf("certificate secret missing tls.key")
+		return nil, nil, nil, fmt.Errorf("failed to get certificate data: certificate secret missing tls.key")
 	}
 
 	return certPEM, keyPEM, caPEM, nil
 
 }
 
-// GetCertificatePEM retrieves the PEM-encoded certificate data from the secret
-func (c *Client) GetCertificatePEM(ctx context.Context, namespace, name string) (certPEM, keyPEM, caPEM []byte, err error) {
-	cert, err := c.GetCertificate(ctx, namespace, name)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	secret, err := c.GetCertificateSecret(ctx, namespace, cert.Spec.SecretName)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	return secret.Data["tls.crt"], secret.Data["tls.key"], secret.Data["ca.crt"], nil
-}
-
 // IsCertificateReady checks if a Certificate is ready
-func (c *Client) IsCertificateReady(ctx context.Context, namespace, name string) (bool, error) {
-	cert, err := c.GetCertificate(ctx, namespace, name)
+func (c *KubernetesCertificateProvider) IsCertificateReady(ctx context.Context, name string) (bool, error) {
+	cert, err := c.GetCertificate(ctx, name)
 	if err != nil {
 		return false, err
 	}
@@ -211,12 +275,12 @@ func (c *Client) IsCertificateReady(ctx context.Context, namespace, name string)
 	return false, nil
 }
 
-// GetCertificateSecret retrieves the Secret containing the issued certificate
-func (c *Client) GetCertificateSecret(ctx context.Context, namespace, secretName string) (*corev1.Secret, error) {
-	secret, err := c.ClientSet.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
+// getCertificateSecret retrieves the Secret containing the issued certificate
+func (c *KubernetesCertificateProvider) getCertificateSecret(ctx context.Context, secretName string) (*corev1.Secret, error) {
+	secret, err := c.ClientSet.CoreV1().Secrets(c.Namespace).Get(ctx, secretName, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			return nil, fmt.Errorf("certificate secret not found: %s/%s", namespace, secretName)
+			return nil, fmt.Errorf("certificate secret not found: %s/%s", c.Namespace, secretName)
 		}
 		return nil, fmt.Errorf("failed to get certificate secret: %w", err)
 	}
@@ -224,19 +288,19 @@ func (c *Client) GetCertificateSecret(ctx context.Context, namespace, secretName
 }
 
 // DeleteCertificate deletes a Certificate resource
-func (c *Client) DeleteCertificate(ctx context.Context, namespace, name string) error {
-	c.Logger.Info("deleting certificate", "name", name, "namespace", namespace)
+func (c *KubernetesCertificateProvider) DeleteCertificate(ctx context.Context, name string) error {
+	c.Logger.DebugContext(ctx, "deleting certificate", "name", name, "namespace", c.Namespace)
 
-	err := c.CertManagerClient.CertmanagerV1().Certificates(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+	err := c.CertManagerClient.CertmanagerV1().Certificates(c.Namespace).Delete(ctx, name, metav1.DeleteOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			c.Logger.Warn("certificate already deleted", "name", name, "namespace", namespace)
+			c.Logger.WarnContext(ctx, "failed to delete certificate: certificate already deleted", "name", name, "namespace", c.Namespace)
 			return nil
 		}
 		return fmt.Errorf("failed to delete certificate: %w", err)
 	}
 
-	c.Logger.Info("certificate deleted successfully", "name", name, "namespace", namespace)
+	c.Logger.Info("certificate deleted successfully", "name", name, "namespace", c.Namespace)
 	return nil
 }
 

@@ -5,6 +5,6 @@ import (
 )
 
 var (
-	errNoApprovedCertificates = errors.New("no approved certificates")
-	errNoIssuedCertificates   = errors.New("no issued certificates")
+	errNoApprovedCertificates = errors.New("no approved certificate")
+	errNoIssuedCertificates   = errors.New("no issued certificate")
 )

@@ -648,13 +648,8 @@ func (c *Config) ValidateMTLSManagementConfig() error {
 		return fmt.Errorf("features.mtls_management.max_certificate_validity_days cannot be less than min_certificate_validity_days")
 	}
 
-	// Apply default Kubernetes configuration if not set
-	if c.Features.MTLSManagement.Kubernetes == nil {
-		c.Features.MTLSManagement.Kubernetes = DefaultKubernetesConfig
-	}
-
-	if c.Features.MTLSManagement.Kubernetes.Namespace == "" {
-		c.Features.MTLSManagement.Kubernetes.Namespace = DefaultKubernetesConfig.Namespace
+	if c.Features.MTLSManagement.Kubernetes == nil && c.Features.MTLSManagement.Kubernetes.Enabled {
+		c.Features.MTLSManagement.Kubernetes = DefaultMTLSManagementKubernetesConfig
 	}
 
 	if c.Features.MTLSManagement.CertificateSubject == nil {

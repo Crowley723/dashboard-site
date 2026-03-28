@@ -211,7 +211,7 @@ func GETCertificateDownload(ctx *middlewares.AppContext) {
 		return
 	}
 
-	certPEM, keyPEM, caPEM, err := ctx.KubernetesClient.GetCertificateForDownload(
+	certPEM, keyPEM, caPEM, err := ctx.KubernetesClient.GetCertificateData(
 		ctx,
 		*request.K8sNamespace,
 		*request.K8sCertificateName,
@@ -285,7 +285,7 @@ func GenerateP12(certPEM, keyPEM, caPEM []byte, passphrase string) ([]byte, erro
 	if len(caPEM) > 0 {
 		caCerts, err = parseCACertificates(caPEM)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse CA certificates: %w", err)
+			return nil, fmt.Errorf("failed to parse CA certificate: %w", err)
 		}
 	}
 
@@ -337,7 +337,7 @@ func parsePrivateKey(keyPEM []byte) (interface{}, error) {
 	return nil, fmt.Errorf("failed to parse private key: unsupported format")
 }
 
-// parseCACertificates parses multiple PEM-encoded CA certificates
+// parseCACertificates parses multiple PEM-encoded CA certificate
 func parseCACertificates(caPEM []byte) ([]*x509.Certificate, error) {
 	var caCerts []*x509.Certificate
 

@@ -660,18 +660,18 @@ func (mr *MockStorageProviderMockRecorder) UnpauseServiceAccount(ctx, iss, sub a
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnpauseServiceAccount", reflect.TypeOf((*MockStorageProvider)(nil).UnpauseServiceAccount), ctx, iss, sub)
 }
 
-// UpdateCertificateK8sMetadata mocks base method.
-func (m *MockStorageProvider) UpdateCertificateK8sMetadata(ctx context.Context, requestID int, certName, namespace, secretName string) error {
+// UpdateCertificateMetadata mocks base method.
+func (m *MockStorageProvider) UpdateCertificateMetadata(ctx context.Context, requestID int, identifier string, metadata map[string]any) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateCertificateK8sMetadata", ctx, requestID, certName, namespace, secretName)
+	ret := m.ctrl.Call(m, "UpdateCertificateMetadata", ctx, requestID, identifier, metadata)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateCertificateK8sMetadata indicates an expected call of UpdateCertificateK8sMetadata.
-func (mr *MockStorageProviderMockRecorder) UpdateCertificateK8sMetadata(ctx, requestID, certName, namespace, secretName any) *gomock.Call {
+// UpdateCertificateMetadata indicates an expected call of UpdateCertificateMetadata.
+func (mr *MockStorageProviderMockRecorder) UpdateCertificateMetadata(ctx, requestID, identifier, metadata any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateCertificateK8sMetadata", reflect.TypeOf((*MockStorageProvider)(nil).UpdateCertificateK8sMetadata), ctx, requestID, certName, namespace, secretName)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateCertificateMetadata", reflect.TypeOf((*MockStorageProvider)(nil).UpdateCertificateMetadata), ctx, requestID, identifier, metadata)
 }
 
 // UpdateCertificateRequestIssued mocks base method.

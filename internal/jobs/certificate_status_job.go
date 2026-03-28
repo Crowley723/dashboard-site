@@ -97,26 +97,31 @@ func handleIssuedCertificates(ctx *middlewares.AppContext, certs []*models.Certi
 	}
 
 	for _, cert := range certs {
-		k8sCert, err := ctx.KubernetesClient.GetCertificate(ctx, *cert.K8sCertificateName)
-		if err != nil {
-			ctx.Logger.Error("error getting certificate", "error", err, "name", *cert.K8sCertificateName)
+		if cert.CertificateIdentifier == nil {
+			ctx.Logger.Error("certificate request missing identifier", "request_id", cert.ID)
 			continue
 		}
 
-		//TODO: properly handle non-ready certificates?
-		if !utils.IsCertificateReady(k8sCert) {
+		// Check if certificate is ready
+		ready, err := ctx.CertificateManager.IsCertificateReady(ctx, *cert.CertificateIdentifier)
+		if err != nil {
+			ctx.Logger.Error("error checking certificate readiness", "error", err, "identifier", *cert.CertificateIdentifier)
 			continue
 		}
 
-		certPEM, _, _, err := ctx.CertificateManager.GetCertificateData(ctx, *cert.K8sCertificateName)
+		if !ready {
+			continue
+		}
+
+		certPEM, _, _, err := ctx.CertificateManager.GetCertificateData(ctx, *cert.CertificateIdentifier)
 		if err != nil {
-			ctx.Logger.Error("unable to get certificate PEM", "error", err, "name", *cert.K8sCertificateName)
+			ctx.Logger.Error("unable to get certificate PEM", "error", err, "identifier", *cert.CertificateIdentifier)
 			continue
 		}
 
 		certDetails, err := utils.ParseCertificateDetails(certPEM)
 		if err != nil {
-			ctx.Logger.Error("unable to parse certificate PEM", "error", err, "name", *cert.K8sCertificateName)
+			ctx.Logger.Error("unable to parse certificate PEM", "error", err, "identifier", *cert.CertificateIdentifier)
 			continue
 		}
 
@@ -128,8 +133,7 @@ func handleIssuedCertificates(ctx *middlewares.AppContext, certs []*models.Certi
 
 		ctx.Logger.Debug("Certificate Issuance Completed",
 			"request_id", cert.ID,
-			"k8s_name", k8sCert.Name,
-			"namespace", k8sCert.Namespace)
+			"identifier", *cert.CertificateIdentifier)
 	}
 
 	return nil

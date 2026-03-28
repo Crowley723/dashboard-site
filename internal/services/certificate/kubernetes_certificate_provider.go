@@ -122,7 +122,7 @@ func homeDir() string {
 }
 
 // CreateCertificateFromRequest creates a cert-manager Certificate resource from a CertificateRequest
-func (c *KubernetesCertificateProvider) CreateCertificateFromRequest(ctx context.Context, request *models.CertificateRequest) (string, error) {
+func (c *KubernetesCertificateProvider) CreateCertificateFromRequest(ctx context.Context, request *models.CertificateRequest) (string, map[string]interface{}, error) {
 	certName := GenerateCertificateName(request.OwnerSub, request.OwnerIss, request.RequestedAt)
 	secretName := fmt.Sprintf("%s-tls", certName)
 
@@ -199,14 +199,20 @@ func (c *KubernetesCertificateProvider) CreateCertificateFromRequest(ctx context
 
 	created, err := c.CertManagerClient.CertmanagerV1().Certificates(c.Namespace).Create(ctx, cert, metav1.CreateOptions{})
 	if err != nil {
-		return "", fmt.Errorf("failed to create certificate: %w", err)
+		return "", nil, fmt.Errorf("failed to create certificate: %w", err)
 	}
 
 	c.Logger.Debug("Certificate Created Successfully",
 		"name", created.Name,
 		"namespace", created.Namespace)
 
-	return certName, nil
+	// Return metadata about the Kubernetes resources
+	metadata := map[string]interface{}{
+		"namespace":   created.Namespace,
+		"secret_name": created.Spec.SecretName,
+	}
+
+	return certName, metadata, nil
 }
 
 // GetCertificate retrieves a Certificate resource

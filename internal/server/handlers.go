@@ -77,7 +77,7 @@ func setupRouter(ctx *middlewares.AppContext) *chi.Mux {
 		}
 
 		if ctx.Config.Storage.Enabled && ctx.Config.Features.MTLSManagement.Enabled {
-			r.Route("/certificate", func(r chi.Router) {
+			r.Route("/certificates", func(r chi.Router) {
 				r.Group(func(r chi.Router) {
 					r.Use(middlewares.RequireAuth)
 					r.Post("/request", ctx.HandlerFunc(handlers.POSTCertificateRequest))

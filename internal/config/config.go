@@ -648,7 +648,7 @@ func (c *Config) ValidateMTLSManagementConfig() error {
 		return fmt.Errorf("features.mtls_management.max_certificate_validity_days cannot be less than min_certificate_validity_days")
 	}
 
-	if c.Features.MTLSManagement.Kubernetes == nil && c.Features.MTLSManagement.Kubernetes.Enabled {
+	if c.Features.MTLSManagement.Kubernetes == nil {
 		c.Features.MTLSManagement.Kubernetes = DefaultMTLSManagementKubernetesConfig
 	}
 
@@ -673,21 +673,38 @@ func (c *Config) ValidateMTLSManagementConfig() error {
 		c.Features.MTLSManagement.BackgroundJobConfig.IssuedCertificatePollingInterval = DefaultMTLSBackgroundJobConfig.IssuedCertificatePollingInterval
 	}
 
+	err := c.ValidateMTLSManagementKubernetesConfig()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Config) ValidateMTLSManagementKubernetesConfig() error {
+	if c.Features.MTLSManagement.Kubernetes == nil {
+		return nil
+	}
+
+	if !c.Features.MTLSManagement.Kubernetes.Enabled {
+		return nil
+	}
+
 	// Validate certificate issuer configuration
-	if c.Features.MTLSManagement.CertificateIssuer == nil {
-		return fmt.Errorf("features.mtls_management.certificate_issuer is required when mtls_management is enabled")
+	if c.Features.MTLSManagement.Kubernetes.Issuer == nil {
+		return fmt.Errorf("features.mtls_management.kubernetes.issuer is required when features.mtls_management.kubernetes is enabled")
 	}
 
-	if c.Features.MTLSManagement.CertificateIssuer.Name == "" {
-		return fmt.Errorf("features.mtls_management.certificate_issuer.name is required when mtls_management is enabled")
+	if c.Features.MTLSManagement.Kubernetes.Issuer.Name == "" {
+		return fmt.Errorf("features.mtls_management.kubernetes.issuer.name is required when features.mtls_management.kubernetes is enabled")
 	}
 
-	if c.Features.MTLSManagement.CertificateIssuer.Kind == "" {
-		return fmt.Errorf("features.mtls_management.certificate_issuer.kind is required when mtls_management is enabled")
+	if c.Features.MTLSManagement.Kubernetes.Issuer.Kind == "" {
+		return fmt.Errorf("features.mtls_management.kubernetes.issuer.kind is required when features.mtls_management.kubernetes is enabled")
 	}
 
 	// Validate issuer kind is either Issuer or ClusterIssuer
-	kind := c.Features.MTLSManagement.CertificateIssuer.Kind
+	kind := c.Features.MTLSManagement.Kubernetes.Issuer.Kind
 	if kind != "Issuer" && kind != "ClusterIssuer" {
 		return fmt.Errorf("features.mtls_management.certificate_issuer.kind must be either 'Issuer' or 'ClusterIssuer', got '%s'", kind)
 	}

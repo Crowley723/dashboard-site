@@ -191,23 +191,24 @@ type MTLSManagement struct {
 	AllowAdminsToApproveOwnRequests bool                     `yaml:"allow_admins_to_approve_own_requests"`
 	MinCertificateValidityDays      int                      `yaml:"min_certificate_validity_days"`
 	MaxCertificateValidityDays      int                      `yaml:"max_certificate_validity_days"`
-	CertificateIssuer               *CertificateIssuer       `yaml:"certificate_issuer,omitempty"`
 	CertificateSubject              *CertificateSubject      `yaml:"certificate_subject,omitempty"`
 	BackgroundJobConfig             *MTLSBackgroundJobConfig `yaml:"background_job_config,omitempty"`
 	Kubernetes                      *KubernetesConfig        `yaml:"kubernetes,omitempty"`
 }
 
 type KubernetesConfig struct {
-	Enabled    bool   `yaml:"enabled"`
-	Namespace  string `yaml:"namespace"`
-	Kubeconfig string `yaml:"kubeconfig"`
-	InCluster  bool   `yaml:"in_cluster"`
+	Enabled    bool               `yaml:"enabled"`
+	Namespace  string             `yaml:"namespace"`
+	Kubeconfig string             `yaml:"kubeconfig"`
+	InCluster  bool               `yaml:"in_cluster"`
+	Issuer     *CertificateIssuer `yaml:"issuer"`
 }
 
 var DefaultMTLSManagementKubernetesConfig = &KubernetesConfig{
 	Enabled:   false,
 	InCluster: true,
 	Namespace: "conduit",
+	Issuer:    nil,
 }
 
 type CertificateIssuer struct {
@@ -246,7 +247,6 @@ var DefaultMTLSIssuerConfig = MTLSManagement{
 	MinCertificateValidityDays:      30,
 	MaxCertificateValidityDays:      365,
 	Kubernetes:                      DefaultMTLSManagementKubernetesConfig,
-	CertificateIssuer:               nil,
 	CertificateSubject:              DefaultCertificateSubject,
 	BackgroundJobConfig:             DefaultMTLSBackgroundJobConfig,
 }

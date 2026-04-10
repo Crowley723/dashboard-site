@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"homelab-dashboard/internal/models"
+	"homelab-dashboard/internal/utils"
 	"log/slog"
 	"time"
 
@@ -79,4 +80,21 @@ type Provider interface {
 
 	CreateWhitelistEvent(ctx context.Context, whitelistID int, actorIss, actorSub, eventType, notes string, clientIP, userAgent *string) error
 	GetWhitelistEventsByEntry(ctx context.Context, whitelistID int) ([]*models.FirewallIPWhitelistEvent, error)
+
+	/* Encryption Validation */
+
+	GetEncryptionValidation(ctx context.Context) ([]byte, error)
+	SetEncryptionValidation(ctx context.Context, validationData []byte) error
+	ValidateEncryptionKey(ctx context.Context) error
+
+	/* Certificate Authority */
+
+	InsertCertificateAuthority(ctx context.Context, caCert utils.CertificateData, keyAlgorithm utils.KeyAlgorithm) error
+	GetCertificateAuthority(ctx context.Context) (*utils.CertificateData, utils.KeyAlgorithm, error)
+
+	/* Issued Certificates */
+
+	InsertIssuedCertificate(ctx context.Context, identifier string, certData *utils.CertificateData, caCertPEM []byte, keyAlgorithm utils.KeyAlgorithm, certificateRequestID int, request *models.CertificateRequest) error
+	GetIssuedCertificateByIdentifier(ctx context.Context, identifier string) (certPEM, keyPEM, caPEM []byte, err error)
+	DeleteIssuedCertificate(ctx context.Context, identifier string) error
 }

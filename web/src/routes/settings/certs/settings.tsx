@@ -1,9 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { requireAuth } from '@/utils/Auth.ts';
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { useAuth } from '@/hooks/useAuth';
 import { Badge } from '@/components/ui/badge';
 import {
   Card,
@@ -12,6 +9,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { InfoIcon } from 'lucide-react';
 
 export const Route = createFileRoute('/settings/certs/settings')({
   component: RouteComponent,
@@ -24,340 +23,171 @@ export const Route = createFileRoute('/settings/certs/settings')({
   },
 });
 
-interface CertificateSettings {
-  defaultOrganization: string;
-  defaultOrganizationalUnits: string[];
-  issuerName: string;
-  defaultValidityDays: number;
-  allowedDnsPatterns: string[];
-  allowedCommonNamePatterns: string[];
-}
-
-// Mock initial settings - replace with actual API call
-const mockInitialSettings: CertificateSettings = {
-  defaultOrganization: 'Crowley Labs',
-  defaultOrganizationalUnits: ['Engineering', 'Security'],
-  issuerName: 'Crowley Labs Internal CA',
-  defaultValidityDays: 365,
-  allowedDnsPatterns: [
-    '*.example.com',
-    '*.crowley.example.com',
-    '*.internal.example.com',
-  ],
-  allowedCommonNamePatterns: ['*.example.com', '*.crowley.example.com'],
-};
-
 function RouteComponent() {
-  const [settings, setSettings] =
-    useState<CertificateSettings>(mockInitialSettings);
-  const [isSaving, setIsSaving] = useState(false);
+  const { config } = useAuth();
+  const mtlsConfig = config?.mtls;
 
-  // Temporary input states for adding new items
-  const [newOU, setNewOU] = useState('');
-  const [newDnsPattern, setNewDnsPattern] = useState('');
-  const [newCNPattern, setNewCNPattern] = useState('');
+  if (!mtlsConfig?.enabled) {
+    return (
+      <div className="container mx-auto p-6 max-w-4xl">
+        <Alert>
+          <InfoIcon className="h-4 w-4" />
+          <AlertDescription>
+            mTLS management is not enabled on this server.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    // TODO: Implement actual save API call
-    console.log('Saving settings:', settings);
-    setTimeout(() => {
-      setIsSaving(false);
-      alert('Settings saved successfully!');
-    }, 1000);
-  };
-
-  const handleAddOU = () => {
-    if (
-      newOU.trim() &&
-      !settings.defaultOrganizationalUnits.includes(newOU.trim())
-    ) {
-      setSettings({
-        ...settings,
-        defaultOrganizationalUnits: [
-          ...settings.defaultOrganizationalUnits,
-          newOU.trim(),
-        ],
-      });
-      setNewOU('');
-    }
-  };
-
-  const handleRemoveOU = (ou: string) => {
-    setSettings({
-      ...settings,
-      defaultOrganizationalUnits: settings.defaultOrganizationalUnits.filter(
-        (u) => u !== ou
-      ),
-    });
-  };
-
-  const handleAddDnsPattern = () => {
-    if (
-      newDnsPattern.trim() &&
-      !settings.allowedDnsPatterns.includes(newDnsPattern.trim())
-    ) {
-      setSettings({
-        ...settings,
-        allowedDnsPatterns: [
-          ...settings.allowedDnsPatterns,
-          newDnsPattern.trim(),
-        ],
-      });
-      setNewDnsPattern('');
-    }
-  };
-
-  const handleRemoveDnsPattern = (pattern: string) => {
-    setSettings({
-      ...settings,
-      allowedDnsPatterns: settings.allowedDnsPatterns.filter(
-        (p) => p !== pattern
-      ),
-    });
-  };
-
-  const handleAddCNPattern = () => {
-    if (
-      newCNPattern.trim() &&
-      !settings.allowedCommonNamePatterns.includes(newCNPattern.trim())
-    ) {
-      setSettings({
-        ...settings,
-        allowedCommonNamePatterns: [
-          ...settings.allowedCommonNamePatterns,
-          newCNPattern.trim(),
-        ],
-      });
-      setNewCNPattern('');
-    }
-  };
-
-  const handleRemoveCNPattern = (pattern: string) => {
-    setSettings({
-      ...settings,
-      allowedCommonNamePatterns: settings.allowedCommonNamePatterns.filter(
-        (p) => p !== pattern
-      ),
-    });
-  };
+  const subject = mtlsConfig.certificate_subject;
+  const isDatabaseProvider = mtlsConfig.provider_type === 'database';
 
   return (
     <div className="container mx-auto p-6 max-w-4xl">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">Certificate Settings</h1>
+        <h1 className="text-3xl font-bold mb-2">Certificate Configuration</h1>
         <p className="text-muted-foreground">
-          Configure default values and policies for certificate issuance
+          Configured Certificate Issuer Settings
         </p>
       </div>
+
+      <Alert className="mb-6">
+        <InfoIcon className="h-4 w-4" />
+        <AlertDescription>
+          These settings are currently managed by the server and cannot be
+          modified through the UI. Contact your system administrator to make
+          changes.
+        </AlertDescription>
+      </Alert>
 
       <div className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>Default Values</CardTitle>
+            <CardTitle>Provider Information</CardTitle>
             <CardDescription>
-              Default values applied to new certificate requests
+              Certificate provider configuration
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="organization">Default Organization</Label>
-              <Input
-                id="organization"
-                value={settings.defaultOrganization}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    defaultOrganization: e.target.value,
-                  })
-                }
-                placeholder="e.g., Crowley Labs"
-              />
-            </div>
+            <div className="grid grid-cols-[200px_1fr] gap-4">
+              <dt className="text-sm font-medium text-muted-foreground">
+                Provider Type
+              </dt>
+              <dd className="text-sm">
+                <Badge variant={isDatabaseProvider ? 'default' : 'secondary'}>
+                  {mtlsConfig.provider_type || 'unknown'}
+                </Badge>
+              </dd>
 
-            <div className="space-y-2">
-              <Label htmlFor="issuer">Issuer Name</Label>
-              <Input
-                id="issuer"
-                value={settings.issuerName}
-                onChange={(e) =>
-                  setSettings({ ...settings, issuerName: e.target.value })
-                }
-                placeholder="e.g., Crowley Labs Internal CA"
-              />
+              {isDatabaseProvider && mtlsConfig.key_algorithm && (
+                <>
+                  <dt className="text-sm font-medium text-muted-foreground">
+                    Key Algorithm
+                  </dt>
+                  <dd className="text-sm font-mono">
+                    {mtlsConfig.key_algorithm}
+                  </dd>
+                </>
+              )}
             </div>
+          </CardContent>
+        </Card>
 
-            <div className="space-y-2">
-              <Label htmlFor="validity">Default Validity Period (days)</Label>
-              <Input
-                id="validity"
-                type="number"
-                min="1"
-                max="3650"
-                value={settings.defaultValidityDays}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    defaultValidityDays: parseInt(e.target.value) || 365,
-                  })
-                }
-              />
-              <p className="text-sm text-muted-foreground">
-                Current: {settings.defaultValidityDays} days (~
-                {Math.round(settings.defaultValidityDays / 30)} months)
+        {subject && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Certificate Subject</CardTitle>
+              <CardDescription>
+                Default subject information included in all issued certificates
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <dl className="grid grid-cols-[200px_1fr] gap-4">
+                {subject.organization && (
+                  <>
+                    <dt className="text-sm font-medium text-muted-foreground">
+                      Organization (O)
+                    </dt>
+                    <dd className="text-sm">{subject.organization}</dd>
+                  </>
+                )}
+
+                {subject.country && (
+                  <>
+                    <dt className="text-sm font-medium text-muted-foreground">
+                      Country (C)
+                    </dt>
+                    <dd className="text-sm">{subject.country}</dd>
+                  </>
+                )}
+
+                {subject.locality && (
+                  <>
+                    <dt className="text-sm font-medium text-muted-foreground">
+                      Locality (L)
+                    </dt>
+                    <dd className="text-sm">{subject.locality}</dd>
+                  </>
+                )}
+
+                {subject.province && (
+                  <>
+                    <dt className="text-sm font-medium text-muted-foreground">
+                      Province/State (ST)
+                    </dt>
+                    <dd className="text-sm">{subject.province}</dd>
+                  </>
+                )}
+
+                {!subject.organization &&
+                  !subject.country &&
+                  !subject.locality &&
+                  !subject.province && (
+                    <dd className="col-span-2 text-sm text-muted-foreground">
+                      No certificate subject information configured
+                    </dd>
+                  )}
+              </dl>
+            </CardContent>
+          </Card>
+        )}
+
+        {isDatabaseProvider && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Database Provider</CardTitle>
+              <CardDescription>
+                Certificates are issued and stored directly in the database
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground">
+              <p>
+                The database certificate provider generates and stores all
+                certificates internally. Certificate private keys are encrypted
+                at rest using the configured encryption key.
               </p>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Default Organizational Units</CardTitle>
-            <CardDescription>
-              Organizational units that will be included in certificates by
-              default
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              {settings.defaultOrganizationalUnits.map((ou) => (
-                <Badge key={ou} variant="secondary" className="text-sm">
-                  {ou}
-                  <button
-                    onClick={() => handleRemoveOU(ou)}
-                    className="ml-2 hover:text-destructive"
-                  >
-                    ×
-                  </button>
-                </Badge>
-              ))}
-              {settings.defaultOrganizationalUnits.length === 0 && (
-                <span className="text-sm text-muted-foreground">
-                  No organizational units defined
-                </span>
-              )}
-            </div>
-
-            <div className="flex gap-2">
-              <Input
-                placeholder="Add organizational unit..."
-                value={newOU}
-                onChange={(e) => setNewOU(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddOU()}
-              />
-              <Button onClick={handleAddOU} variant="outline">
-                Add
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Allowed DNS Name Patterns</CardTitle>
-            <CardDescription>
-              Permitted DNS name patterns for certificate requests. Use
-              wildcards (*) for pattern matching.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              {settings.allowedDnsPatterns.map((pattern) => (
-                <Badge
-                  key={pattern}
-                  variant="outline"
-                  className="text-sm font-mono"
-                >
-                  {pattern}
-                  <button
-                    onClick={() => handleRemoveDnsPattern(pattern)}
-                    className="ml-2 hover:text-destructive"
-                  >
-                    ×
-                  </button>
-                </Badge>
-              ))}
-              {settings.allowedDnsPatterns.length === 0 && (
-                <span className="text-sm text-muted-foreground">
-                  No DNS patterns defined - all patterns will be allowed
-                </span>
-              )}
-            </div>
-
-            <div className="flex gap-2">
-              <Input
-                placeholder="Add DNS pattern (e.g., *.example.com)..."
-                value={newDnsPattern}
-                onChange={(e) => setNewDnsPattern(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddDnsPattern()}
-                className="font-mono"
-              />
-              <Button onClick={handleAddDnsPattern} variant="outline">
-                Add
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Allowed Common Name Patterns</CardTitle>
-            <CardDescription>
-              Permitted common name patterns for certificate requests. Use
-              wildcards (*) for pattern matching.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              {settings.allowedCommonNamePatterns.map((pattern) => (
-                <Badge
-                  key={pattern}
-                  variant="outline"
-                  className="text-sm font-mono"
-                >
-                  {pattern}
-                  <button
-                    onClick={() => handleRemoveCNPattern(pattern)}
-                    className="ml-2 hover:text-destructive"
-                  >
-                    ×
-                  </button>
-                </Badge>
-              ))}
-              {settings.allowedCommonNamePatterns.length === 0 && (
-                <span className="text-sm text-muted-foreground">
-                  No common name patterns defined - all patterns will be allowed
-                </span>
-              )}
-            </div>
-
-            <div className="flex gap-2">
-              <Input
-                placeholder="Add CN pattern (e.g., *.example.com)..."
-                value={newCNPattern}
-                onChange={(e) => setNewCNPattern(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddCNPattern()}
-                className="font-mono"
-              />
-              <Button onClick={handleAddCNPattern} variant="outline">
-                Add
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Save Button */}
-        <div className="flex justify-end gap-2 pt-4">
-          <Button
-            variant="outline"
-            onClick={() => setSettings(mockInitialSettings)}
-          >
-            Reset to Defaults
-          </Button>
-          <Button onClick={handleSave} disabled={isSaving}>
-            {isSaving ? 'Saving...' : 'Save Settings'}
-          </Button>
-        </div>
+        {mtlsConfig.provider_type === 'kubernetes' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Kubernetes Provider</CardTitle>
+              <CardDescription>
+                Certificates are issued via Kubernetes cert-manager
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground">
+              <p>
+                The Kubernetes certificate provider uses cert-manager to issue
+                and manage certificates. Certificate resources are created in
+                the Kubernetes cluster and synchronized with the database.
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

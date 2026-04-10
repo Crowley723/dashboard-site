@@ -1,3 +1,11 @@
+DROP TABLE IF EXISTS encryption;
+
+DROP INDEX IF EXISTS idx_issued_certs_expires_at;
+DROP INDEX IF EXISTS idx_issued_certs_request_id;
+
+DROP TABLE IF EXISTS issued_certificates;
+DROP TABLE IF EXISTS certificate_authority;
+
 DROP INDEX IF EXISTS idx_cert_requests_identifier;
 
 ALTER TABLE certificate_requests

@@ -19,7 +19,6 @@ type AppContext struct {
 	OIDCProvider       OIDCProvider
 	Cache              data.Provider
 	Storage            storage.Provider
-	KubernetesClient   *certificate.KubernetesCertificateProvider
 	CertificateManager certificate.Provider
 
 	principal Principal
@@ -36,17 +35,17 @@ func AppContextMiddleware(baseCtx *AppContext) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			requestCtx := &AppContext{
-				Context:          r.Context(),
-				Config:           baseCtx.Config,
-				Logger:           baseCtx.Logger,
-				SessionManager:   baseCtx.SessionManager,
-				OIDCProvider:     baseCtx.OIDCProvider,
-				Cache:            baseCtx.Cache,
-				Storage:          baseCtx.Storage,
-				KubernetesClient: baseCtx.KubernetesClient,
-				principal:        baseCtx.principal,
-				Request:          r,
-				Response:         w,
+				Context:            r.Context(),
+				Config:             baseCtx.Config,
+				Logger:             baseCtx.Logger,
+				SessionManager:     baseCtx.SessionManager,
+				OIDCProvider:       baseCtx.OIDCProvider,
+				Cache:              baseCtx.Cache,
+				Storage:            baseCtx.Storage,
+				CertificateManager: baseCtx.CertificateManager,
+				principal:          baseCtx.principal,
+				Request:            r,
+				Response:           w,
 			}
 
 			ctx := context.WithValue(r.Context(), appContextKey, requestCtx)

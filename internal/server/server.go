@@ -14,6 +14,7 @@ import (
 	"homelab-dashboard/internal/services/certificate"
 	"homelab-dashboard/internal/services/firewall"
 	"homelab-dashboard/internal/storage"
+	"homelab-dashboard/internal/utils"
 	"log/slog"
 	"net/http"
 	"os"
@@ -143,8 +144,23 @@ func New(cfg *config.Config) (*Server, error) {
 				cancel()
 				return nil, err
 			}
-		} else {
+			logger.Debug("Kubernetes Certificate Provider Initialized")
+		} else if cfg.Features.MTLSManagement.Database != nil && cfg.Features.MTLSManagement.Database.Enabled {
+			keyAlgorithm, err := utils.ParseKeyAlgorithm(cfg.Features.MTLSManagement.Database.KeyAlgorithm)
+			if err != nil {
+				logger.Error("failed to parse mtls_management.database.key_algorithm", "error", err)
+				cancel()
+				return nil, err
+			}
 
+			certProvider = certificate.NewDatabaseProvider(database, keyAlgorithm, cfg.Features.MTLSManagement.CertificateSubject)
+
+			if err := certProvider.(*certificate.DatabaseProvider).StartupCheck(ctx); err != nil {
+				logger.Error("database certificate provider startup check failed", "error", err)
+				cancel()
+				return nil, err
+			}
+			logger.Debug("Database Certificate Provider Initialized")
 		}
 	}
 

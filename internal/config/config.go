@@ -56,6 +56,7 @@ var (
 	EnvStorageUsername          = "DASHBOARD_STORAGE_USERNAME"
 	EnvStoragePassword          = "DASHBOARD_STORAGE_PASSWORD"
 	EnvStorageDatabase          = "DASHBOARD_STORAGE_DATABASE"
+	EnvStorageEncryptionKey     = "DASHBOARD_STORAGE_ENCRYPTION_KEY"
 	EnvFirewallRouterEndpoint   = "DASHBOARD_FIREWALL_ROUTER_ENDPOINT"
 	EnvFirewallRouterAPIKey     = "DASHBOARD_FIREWALL_ROUTER_API_KEY"
 	EnvFirewallRouterAPISecret  = "DASHBOARD_FIREWALL_ROUTER_API_SECRET"
@@ -172,6 +173,13 @@ func applyEnvironmentOverrides(config *Config) {
 			config.Storage = &StorageConfig{}
 		}
 		config.Storage.Database = database
+	}
+
+	if encryptionKey := os.Getenv(EnvStorageEncryptionKey); encryptionKey != "" {
+		if config.Storage == nil {
+			config.Storage = &StorageConfig{}
+		}
+		config.Storage.EncryptionKey = encryptionKey
 	}
 
 	if endpoint := os.Getenv(EnvFirewallRouterEndpoint); endpoint != "" {
@@ -673,9 +681,29 @@ func (c *Config) ValidateMTLSManagementConfig() error {
 		c.Features.MTLSManagement.BackgroundJobConfig.IssuedCertificatePollingInterval = DefaultMTLSBackgroundJobConfig.IssuedCertificatePollingInterval
 	}
 
-	err := c.ValidateMTLSManagementKubernetesConfig()
-	if err != nil {
-		return err
+	kubernetesEnabled := c.Features.MTLSManagement.Kubernetes != nil && c.Features.MTLSManagement.Kubernetes.Enabled
+	databaseEnabled := c.Features.MTLSManagement.Database != nil && c.Features.MTLSManagement.Database.Enabled
+
+	if kubernetesEnabled && databaseEnabled {
+		return fmt.Errorf("features.mtls_management.kubernetes and features.mtls_management.database cannot both be enabled")
+	}
+
+	if !kubernetesEnabled && !databaseEnabled {
+		return fmt.Errorf("one of features.mtls_management.kubernetes or features.mtls_management.database must be enabled when mtls_management is enabled")
+	}
+
+	if kubernetesEnabled {
+		err := c.ValidateMTLSManagementKubernetesConfig()
+		if err != nil {
+			return err
+		}
+	}
+
+	if databaseEnabled {
+		err := c.ValidateMTLSManagementDatabaseConfig()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -707,6 +735,42 @@ func (c *Config) ValidateMTLSManagementKubernetesConfig() error {
 	kind := c.Features.MTLSManagement.Kubernetes.Issuer.Kind
 	if kind != "Issuer" && kind != "ClusterIssuer" {
 		return fmt.Errorf("features.mtls_management.certificate_issuer.kind must be either 'Issuer' or 'ClusterIssuer', got '%s'", kind)
+	}
+
+	return nil
+}
+
+func (c *Config) ValidateMTLSManagementDatabaseConfig() error {
+	if c.Features.MTLSManagement.Database == nil {
+		return nil
+	}
+
+	if !c.Features.MTLSManagement.Database.Enabled {
+		return nil
+	}
+
+	if c.Storage == nil || !c.Storage.Enabled {
+		return fmt.Errorf("storage must be enabled when features.mtls_management.database is enabled")
+	}
+
+	if c.Storage.EncryptionKey == "" {
+		return fmt.Errorf("storage.encryption_key is required when features.mtls_management.database is enabled")
+	}
+
+	if c.Features.MTLSManagement.Database.KeyAlgorithm != "" {
+		validAlgorithms := []string{"RSA-2048", "RSA-4096", "ECDSA-P256"}
+		valid := false
+		for _, alg := range validAlgorithms {
+			if c.Features.MTLSManagement.Database.KeyAlgorithm == alg {
+				valid = true
+				break
+			}
+		}
+		if !valid {
+			return fmt.Errorf("features.mtls_management.database.key_algorithm must be one of: RSA-2048, RSA-4096, ECDSA-P256 (got '%s')", c.Features.MTLSManagement.Database.KeyAlgorithm)
+		}
+	} else {
+		c.Features.MTLSManagement.Database.KeyAlgorithm = DefaultMTLSManagementDatabaseConfig.KeyAlgorithm
 	}
 
 	return nil

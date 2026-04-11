@@ -4,13 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"homelab-dashboard/internal/k8s"
 	"homelab-dashboard/internal/middlewares"
 	"homelab-dashboard/internal/models"
+	"homelab-dashboard/internal/services/certificate"
 	"strings"
 	"time"
-
-	certmanagerv1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 )
 
 type CertificateCreationJob struct {
@@ -49,7 +47,7 @@ func (j *CertificateCreationJob) Run(ctx context.Context) error {
 	certs, err := getApprovedCertificates(j.appCtx)
 	if err != nil {
 		if !errors.Is(err, errNoApprovedCertificates) {
-			j.appCtx.Logger.Error("error checking for approved certificates", "error", err)
+			j.appCtx.Logger.Error("error checking for approved certificate", "error", err)
 		}
 	}
 
@@ -67,7 +65,7 @@ func (j *CertificateCreationJob) Run(ctx context.Context) error {
 			certs, err := getApprovedCertificates(j.appCtx)
 			if err != nil {
 				if !errors.Is(err, errNoApprovedCertificates) {
-					j.appCtx.Logger.Error("unable to check for approved certificates", "error", err)
+					j.appCtx.Logger.Error("unable to check for approved certificate", "error", err)
 				}
 			}
 
@@ -114,15 +112,17 @@ func handleApprovedCertificates(ctx *middlewares.AppContext, certs []*models.Cer
 			continue
 		}
 
-		// Check if K8s certificate already exists
+		// Check if certificate already exists
 		// This handles cases where cert was created but DB update failed
-		certName := k8s.GenerateCertificateName(cert.OwnerSub, cert.OwnerIss, cert.RequestedAt)
-		existingCert, err := ctx.KubernetesClient.GetCertificate(ctx, ctx.KubernetesClient.Namespace, certName)
+		expectedIdentifier := certificate.GenerateCertificateName(cert.OwnerSub, cert.OwnerIss, cert.RequestedAt)
+		_, _, _, err = ctx.CertificateManager.GetCertificateData(ctx, expectedIdentifier)
 
-		var createdCert *certmanagerv1.Certificate
+		var identifier string
+		var metadata map[string]interface{}
+
 		if err != nil {
 			if isNotFoundError(err) {
-				createdCert, err = ctx.KubernetesClient.CreateCertificateFromRequest(ctx, cert)
+				identifier, metadata, err = ctx.CertificateManager.CreateCertificateFromRequest(ctx, cert)
 				if err != nil {
 					ctx.Logger.Error("error creating certificate from request", "error", err, "request_id", cert.ID)
 					// Rollback: mark as APPROVED again so it can be retried later
@@ -132,7 +132,7 @@ func handleApprovedCertificates(ctx *middlewares.AppContext, certs []*models.Cer
 						models.StatusApproved,
 						systemIss,
 						systemSub,
-						fmt.Sprintf("K8s certificate creation failed"),
+						"Certificate creation failed",
 					)
 					if rollbackErr != nil {
 						ctx.Logger.Error("error rolling back certificate status", "error", rollbackErr, "request_id", cert.ID)
@@ -144,27 +144,21 @@ func handleApprovedCertificates(ctx *middlewares.AppContext, certs []*models.Cer
 				continue
 			}
 		} else {
-			ctx.Logger.Debug("certificate already exists in k8s, reusing", "cert_name", certName, "request_id", cert.ID)
-			createdCert = existingCert
+			ctx.Logger.Debug("certificate already exists, reusing", "identifier", expectedIdentifier, "request_id", cert.ID)
+			identifier = expectedIdentifier
+			metadata = cert.ProviderMetadata
 		}
 
-		err = ctx.Storage.UpdateCertificateK8sMetadata(
-			ctx,
-			cert.ID,
-			createdCert.Name,
-			createdCert.Namespace,
-			createdCert.Spec.SecretName,
-		)
+		err = ctx.Storage.UpdateCertificateMetadata(ctx, cert.ID, identifier, metadata)
 		if err != nil {
 			ctx.Logger.Error("error updating certificate metadata", "error", err, "request_id", cert.ID)
-			// Don't continue - metadata update is critical but cert exists in K8s
+			// Don't continue - metadata update is critical but cert exists
 			// Status polling job will eventually detect this certificate
 		}
 
 		ctx.Logger.Debug("Certificate Creation Completed",
 			"request_id", cert.ID,
-			"k8s_name", createdCert.Name,
-			"namespace", createdCert.Namespace)
+			"identifier", identifier)
 	}
 	return nil
 }

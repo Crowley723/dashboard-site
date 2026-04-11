@@ -7,8 +7,18 @@ export interface User {
   groups: string[];
 }
 
+export interface CertificateSubject {
+  organization?: string;
+  country?: string;
+  locality?: string;
+  province?: string;
+}
+
 export interface MTLSConfig {
   enabled: boolean;
+  certificate_subject?: CertificateSubject;
+  key_algorithm?: string;
+  provider_type?: 'kubernetes' | 'database';
 }
 
 export interface FirewallConfig {

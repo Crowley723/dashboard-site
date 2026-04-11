@@ -211,16 +211,21 @@ func GETCertificateDownload(ctx *middlewares.AppContext) {
 		return
 	}
 
-	certPEM, keyPEM, caPEM, err := ctx.KubernetesClient.GetCertificateForDownload(
+	if request.CertificateIdentifier == nil {
+		ctx.Logger.Error("certificate request missing identifier", "request_id", certificateId)
+		ctx.SetJSONError(http.StatusBadRequest, "Certificate identifier not found")
+		return
+	}
+
+	certPEM, keyPEM, caPEM, err := ctx.CertificateManager.GetCertificateData(
 		ctx,
-		*request.K8sNamespace,
-		*request.K8sCertificateName,
+		*request.CertificateIdentifier,
 	)
 
 	if err != nil {
-		ctx.Logger.Error("failed to get certificate from k8s",
+		ctx.Logger.Error("failed to get certificate data",
 			"error", err,
-			"certName", *request.K8sCertificateName)
+			"identifier", *request.CertificateIdentifier)
 		ctx.SetJSONError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 		return
 	}
@@ -239,8 +244,8 @@ func GETCertificateDownload(ctx *middlewares.AppContext) {
 		return
 	}
 
-	ctx.Logger.Info("retrieved certificate from k8s",
-		"certName", *request.K8sCertificateName,
+	ctx.Logger.Info("retrieved certificate data",
+		"identifier", *request.CertificateIdentifier,
 		"certPEMLen", len(certPEM),
 		"keyPEMLen", len(keyPEM),
 		"caPEMLen", len(caPEM))
@@ -285,7 +290,7 @@ func GenerateP12(certPEM, keyPEM, caPEM []byte, passphrase string) ([]byte, erro
 	if len(caPEM) > 0 {
 		caCerts, err = parseCACertificates(caPEM)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse CA certificates: %w", err)
+			return nil, fmt.Errorf("failed to parse CA certificate: %w", err)
 		}
 	}
 
@@ -337,7 +342,7 @@ func parsePrivateKey(keyPEM []byte) (interface{}, error) {
 	return nil, fmt.Errorf("failed to parse private key: unsupported format")
 }
 
-// parseCACertificates parses multiple PEM-encoded CA certificates
+// parseCACertificates parses multiple PEM-encoded CA certificate
 func parseCACertificates(caPEM []byte) ([]*x509.Certificate, error) {
 	var caCerts []*x509.Certificate
 

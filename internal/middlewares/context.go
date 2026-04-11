@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"homelab-dashboard/internal/config"
 	"homelab-dashboard/internal/data"
-	"homelab-dashboard/internal/k8s"
+	"homelab-dashboard/internal/services/certificate"
 	"homelab-dashboard/internal/storage"
 	"log/slog"
 	"net/http"
@@ -13,13 +13,13 @@ import (
 
 type AppContext struct {
 	context.Context
-	Config           *config.Config
-	Logger           *slog.Logger
-	SessionManager   SessionProvider
-	OIDCProvider     OIDCProvider
-	Cache            data.Provider
-	Storage          storage.Provider
-	KubernetesClient *k8s.Client
+	Config             *config.Config
+	Logger             *slog.Logger
+	SessionManager     SessionProvider
+	OIDCProvider       OIDCProvider
+	Cache              data.Provider
+	Storage            storage.Provider
+	CertificateManager certificate.Provider
 
 	principal Principal
 
@@ -35,17 +35,17 @@ func AppContextMiddleware(baseCtx *AppContext) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			requestCtx := &AppContext{
-				Context:          r.Context(),
-				Config:           baseCtx.Config,
-				Logger:           baseCtx.Logger,
-				SessionManager:   baseCtx.SessionManager,
-				OIDCProvider:     baseCtx.OIDCProvider,
-				Cache:            baseCtx.Cache,
-				Storage:          baseCtx.Storage,
-				KubernetesClient: baseCtx.KubernetesClient,
-				principal:        baseCtx.principal,
-				Request:          r,
-				Response:         w,
+				Context:            r.Context(),
+				Config:             baseCtx.Config,
+				Logger:             baseCtx.Logger,
+				SessionManager:     baseCtx.SessionManager,
+				OIDCProvider:       baseCtx.OIDCProvider,
+				Cache:              baseCtx.Cache,
+				Storage:            baseCtx.Storage,
+				CertificateManager: baseCtx.CertificateManager,
+				principal:          baseCtx.principal,
+				Request:            r,
+				Response:           w,
 			}
 
 			ctx := context.WithValue(r.Context(), appContextKey, requestCtx)
@@ -72,7 +72,6 @@ func (ctx *AppContext) Handler(h AppHandler) http.Handler {
 // HandlerFunc converts AppHandler to a http.HandlerFunc
 func (ctx *AppContext) HandlerFunc(h AppHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Get the AppContext from the request context
 		appCtx := GetAppContext(r)
 		if appCtx == nil {
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -87,17 +86,17 @@ func (ctx *AppContext) Redirect(url string, status int) {
 	http.Redirect(ctx.Response, ctx.Request, url, status)
 }
 
-func NewAppContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, cache data.Provider, sessionManager SessionProvider, oidcProvider OIDCProvider, storage storage.Provider, kubernetesClient *k8s.Client) *AppContext {
+func NewAppContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, cache data.Provider, sessionManager SessionProvider, oidcProvider OIDCProvider, storage storage.Provider, certificates certificate.Provider) *AppContext {
 	return &AppContext{
-		Context:          ctx,
-		Config:           cfg,
-		Logger:           logger,
-		SessionManager:   sessionManager,
-		OIDCProvider:     oidcProvider,
-		Cache:            cache,
-		Storage:          storage,
-		KubernetesClient: kubernetesClient,
-		principal:        nil,
+		Context:            ctx,
+		Config:             cfg,
+		Logger:             logger,
+		SessionManager:     sessionManager,
+		OIDCProvider:       oidcProvider,
+		Cache:              cache,
+		Storage:            storage,
+		CertificateManager: certificates,
+		principal:          nil,
 	}
 }
 

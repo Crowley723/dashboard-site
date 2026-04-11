@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"homelab-dashboard/internal/models"
+	"homelab-dashboard/internal/utils"
 	"log/slog"
 	"time"
 
@@ -34,7 +35,7 @@ type Provider interface {
 	GetCertificateRequestsByUser(ctx context.Context, sub string, iss string) ([]*models.CertificateRequest, error)
 	GetCertificateRequestsPaginated(ctx context.Context, params models.PaginationParams) (*models.PaginatedCertResult, error)
 	UpdateCertificateRequestStatus(ctx context.Context, requestId int, newStatus models.CertificateRequestStatus, reviewerIss string, reviewerSub string, notes string) error
-	UpdateCertificateK8sMetadata(ctx context.Context, requestID int, certName string, namespace string, secretName string) error
+	UpdateCertificateMetadata(ctx context.Context, requestID int, identifier string, metadata map[string]interface{}) error
 	GetApprovedCertificateRequests(ctx context.Context) ([]*models.CertificateRequest, error)
 	GetPendingCertificateRequests(ctx context.Context) ([]*models.CertificateRequest, error)
 	UpdateCertificateRequestIssued(ctx context.Context, requestID int, certPEM string, serialNumber string, issuedAt time.Time, expiresAt time.Time, systemUserIss string, systemUserSub string) error
@@ -79,4 +80,21 @@ type Provider interface {
 
 	CreateWhitelistEvent(ctx context.Context, whitelistID int, actorIss, actorSub, eventType, notes string, clientIP, userAgent *string) error
 	GetWhitelistEventsByEntry(ctx context.Context, whitelistID int) ([]*models.FirewallIPWhitelistEvent, error)
+
+	/* Encryption Validation */
+
+	GetEncryptionValidation(ctx context.Context) ([]byte, error)
+	SetEncryptionValidation(ctx context.Context, validationData []byte) error
+	ValidateEncryptionKey(ctx context.Context) error
+
+	/* Certificate Authority */
+
+	InsertCertificateAuthority(ctx context.Context, caCert utils.CertificateData, keyAlgorithm utils.KeyAlgorithm) error
+	GetCertificateAuthority(ctx context.Context) (*utils.CertificateData, utils.KeyAlgorithm, error)
+
+	/* Issued Certificates */
+
+	InsertIssuedCertificate(ctx context.Context, identifier string, certData *utils.CertificateData, caCertPEM []byte, keyAlgorithm utils.KeyAlgorithm, certificateRequestID int, request *models.CertificateRequest) error
+	GetIssuedCertificateByIdentifier(ctx context.Context, identifier string) (certPEM, keyPEM, caPEM []byte, err error)
+	DeleteIssuedCertificate(ctx context.Context, identifier string) error
 }

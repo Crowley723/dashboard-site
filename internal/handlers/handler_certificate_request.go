@@ -316,9 +316,8 @@ func redactCertificateFields(requests []*models.CertificateRequest) []*models.Ce
 	result := make([]*models.CertificateRequest, len(requests))
 	for i, req := range requests {
 		reqCopy := *req
-		reqCopy.K8sCertificateName = nil
-		reqCopy.K8sNamespace = nil
-		reqCopy.K8sSecretName = nil
+		reqCopy.CertificateIdentifier = nil
+		reqCopy.ProviderMetadata = nil
 		reqCopy.CertificatePem = nil
 		result[i] = &reqCopy
 	}

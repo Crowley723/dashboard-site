@@ -21,10 +21,8 @@ type CertificateRequest struct {
 	Status      CertificateRequestStatus `json:"status,omitempty"`
 	RequestedAt time.Time                `json:"requested_at"`
 
-	// Kubernetes Certificate metadata
-	K8sCertificateName *string `json:"k8s_certificate_name,omitempty"`
-	K8sNamespace       *string `json:"k8s_namespace,omitempty"`
-	K8sSecretName      *string `json:"k8s_secret_name,omitempty"`
+	CertificateIdentifier *string                `json:"certificate_identifier,omitempty"`
+	ProviderMetadata      map[string]interface{} `json:"provider_metadata,omitempty"`
 
 	IssuedAt       *time.Time `json:"issued_at,omitempty"`
 	ExpiresAt      *time.Time `json:"expires_at,omitempty"`
@@ -124,7 +122,7 @@ type CertificateSpec struct {
 	RequestID           int
 }
 
-// IssuedCertificateDetails contains the additional details related to certificates that have been issued
+// IssuedCertificateDetails contains the additional details related to certificate that have been issued
 type IssuedCertificateDetails struct {
 	SerialNumber string
 	Subject      string

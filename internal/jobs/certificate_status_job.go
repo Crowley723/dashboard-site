@@ -43,11 +43,10 @@ func (j *CertificateIssuedStatusJob) Run(ctx context.Context) error {
 	ticker := time.NewTicker(j.interval)
 	defer ticker.Stop()
 
-	// Initial run
 	certs, err := getIssuedCertificates(j.appCtx)
 	if err != nil {
 		if !errors.Is(err, errNoIssuedCertificates) {
-			j.appCtx.Logger.Error("error checking for issued certificates", "error", err)
+			j.appCtx.Logger.Error("error checking for issued certificate", "error", err)
 		}
 	} else {
 		err = handleIssuedCertificates(j.appCtx, certs)
@@ -65,7 +64,7 @@ func (j *CertificateIssuedStatusJob) Run(ctx context.Context) error {
 			certs, err := getIssuedCertificates(j.appCtx)
 			if err != nil {
 				if !errors.Is(err, errNoIssuedCertificates) {
-					j.appCtx.Logger.Error("unable to check for issued certificates", "error", err)
+					j.appCtx.Logger.Error("unable to check for issued certificate", "error", err)
 				}
 				continue
 			}
@@ -98,36 +97,43 @@ func handleIssuedCertificates(ctx *middlewares.AppContext, certs []*models.Certi
 	}
 
 	for _, cert := range certs {
-		k8sCert, err := ctx.KubernetesClient.GetCertificate(ctx, *cert.K8sNamespace, *cert.K8sCertificateName)
-		if err != nil {
-			ctx.Logger.Error("error getting certificate", "error", err, "name", *cert.K8sCertificateName)
+		if cert.CertificateIdentifier == nil {
+			ctx.Logger.Error("certificate request missing identifier", "request_id", cert.ID)
 			continue
 		}
 
-		if utils.IsCertificateReady(k8sCert) {
-			certPEM, _, _, err := ctx.KubernetesClient.GetCertificatePEM(ctx, *cert.K8sNamespace, *cert.K8sCertificateName)
-			if err != nil {
-				ctx.Logger.Error("unable to get certificate PEM", "error", err, "name", *cert.K8sCertificateName)
-				continue
-			}
-
-			certDetails, err := utils.ParseCertificateDetails(certPEM)
-			if err != nil {
-				ctx.Logger.Error("unable to parse certificate PEM", "error", err, "name", *cert.K8sCertificateName)
-				continue
-			}
-
-			err = ctx.Storage.UpdateCertificateRequestIssued(ctx, cert.ID, string(certPEM), certDetails.SerialNumber, certDetails.NotBefore, certDetails.NotAfter, systemIss, systemSub)
-			if err != nil {
-				ctx.Logger.Error("unable to update certificate status", "error", err, "request_id", cert.ID)
-				continue
-			}
-
-			ctx.Logger.Debug("Certificate Issuance Completed",
-				"request_id", cert.ID,
-				"k8s_name", k8sCert.Name,
-				"namespace", k8sCert.Namespace)
+		// Check if certificate is ready
+		ready, err := ctx.CertificateManager.IsCertificateReady(ctx, *cert.CertificateIdentifier)
+		if err != nil {
+			ctx.Logger.Error("error checking certificate readiness", "error", err, "identifier", *cert.CertificateIdentifier)
+			continue
 		}
+
+		if !ready {
+			continue
+		}
+
+		certPEM, _, _, err := ctx.CertificateManager.GetCertificateData(ctx, *cert.CertificateIdentifier)
+		if err != nil {
+			ctx.Logger.Error("unable to get certificate PEM", "error", err, "identifier", *cert.CertificateIdentifier)
+			continue
+		}
+
+		certDetails, err := utils.ParseCertificateDetails(certPEM)
+		if err != nil {
+			ctx.Logger.Error("unable to parse certificate PEM", "error", err, "identifier", *cert.CertificateIdentifier)
+			continue
+		}
+
+		err = ctx.Storage.UpdateCertificateRequestIssued(ctx, cert.ID, string(certPEM), certDetails.SerialNumber, certDetails.NotBefore, certDetails.NotAfter, systemIss, systemSub)
+		if err != nil {
+			ctx.Logger.Error("unable to update certificate status", "error", err, "request_id", cert.ID)
+			continue
+		}
+
+		ctx.Logger.Debug("Certificate Issuance Completed",
+			"request_id", cert.ID,
+			"identifier", *cert.CertificateIdentifier)
 	}
 
 	return nil

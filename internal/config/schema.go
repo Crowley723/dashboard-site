@@ -163,12 +163,13 @@ var DefaultDistributedConfig = DistributedConfig{
 }
 
 type StorageConfig struct {
-	Enabled  bool   `yaml:"enabled"`
-	Host     string `yaml:"host"`
-	Port     int    `yaml:"port"`
-	Username string `yaml:"username"`
-	Password string `yaml:"password"`
-	Database string `yaml:"database"`
+	Enabled       bool   `yaml:"enabled"`
+	Host          string `yaml:"host"`
+	Port          int    `yaml:"port"`
+	Username      string `yaml:"username"`
+	Password      string `yaml:"password"`
+	Database      string `yaml:"database"`
+	EncryptionKey string `yaml:"encryption_key"`
 }
 
 var DefaultStorageConfig = StorageConfig{
@@ -191,26 +192,40 @@ type MTLSManagement struct {
 	AllowAdminsToApproveOwnRequests bool                     `yaml:"allow_admins_to_approve_own_requests"`
 	MinCertificateValidityDays      int                      `yaml:"min_certificate_validity_days"`
 	MaxCertificateValidityDays      int                      `yaml:"max_certificate_validity_days"`
-	Kubernetes                      *KubernetesConfig        `yaml:"kubernetes,omitempty"`
-	CertificateIssuer               *CertificateIssuer       `yaml:"certificate_issuer,omitempty"`
 	CertificateSubject              *CertificateSubject      `yaml:"certificate_subject,omitempty"`
 	BackgroundJobConfig             *MTLSBackgroundJobConfig `yaml:"background_job_config,omitempty"`
+	Kubernetes                      *KubernetesConfig        `yaml:"kubernetes,omitempty"`
+	Database                        *DatabaseConfig          `yaml:"database,omitempty"`
 }
 
 type KubernetesConfig struct {
-	Namespace  string `yaml:"namespace"`
-	Kubeconfig string `yaml:"kubeconfig"`
-	InCluster  bool   `yaml:"in_cluster"`
+	Enabled    bool               `yaml:"enabled"`
+	Namespace  string             `yaml:"namespace"`
+	Kubeconfig string             `yaml:"kubeconfig"`
+	InCluster  bool               `yaml:"in_cluster"`
+	Issuer     *CertificateIssuer `yaml:"issuer"`
 }
 
-var DefaultKubernetesConfig = &KubernetesConfig{
+var DefaultMTLSManagementKubernetesConfig = &KubernetesConfig{
+	Enabled:   false,
 	InCluster: true,
 	Namespace: "conduit",
+	Issuer:    nil,
 }
 
 type CertificateIssuer struct {
 	Name string `yaml:"name"`
 	Kind string `yaml:"kind"`
+}
+
+type DatabaseConfig struct {
+	Enabled      bool   `yaml:"enabled"`
+	KeyAlgorithm string `yaml:"key_algorithm"`
+}
+
+var DefaultMTLSManagementDatabaseConfig = &DatabaseConfig{
+	Enabled:      false,
+	KeyAlgorithm: "ECDSA-P256",
 }
 
 type CertificateSubject struct {
@@ -243,8 +258,7 @@ var DefaultMTLSIssuerConfig = MTLSManagement{
 	AllowAdminsToApproveOwnRequests: true,
 	MinCertificateValidityDays:      30,
 	MaxCertificateValidityDays:      365,
-	Kubernetes:                      DefaultKubernetesConfig,
-	CertificateIssuer:               nil,
+	Kubernetes:                      DefaultMTLSManagementKubernetesConfig,
 	CertificateSubject:              DefaultCertificateSubject,
 	BackgroundJobConfig:             DefaultMTLSBackgroundJobConfig,
 }

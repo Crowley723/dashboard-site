@@ -9,11 +9,12 @@ import (
 	"homelab-dashboard/internal/data"
 	"homelab-dashboard/internal/distributed"
 	"homelab-dashboard/internal/jobs"
-	"homelab-dashboard/internal/k8s"
 	"homelab-dashboard/internal/metrics"
 	"homelab-dashboard/internal/middlewares"
+	"homelab-dashboard/internal/services/certificate"
 	"homelab-dashboard/internal/services/firewall"
 	"homelab-dashboard/internal/storage"
+	"homelab-dashboard/internal/utils"
 	"log/slog"
 	"net/http"
 	"os"
@@ -134,17 +135,36 @@ func New(cfg *config.Config) (*Server, error) {
 		database = dbProvider
 	}
 
-	var kubernetesClient *k8s.Client
+	var certProvider certificate.Provider
 	if cfg.Features.MTLSManagement.Enabled {
-		kubernetesClient, err = k8s.NewClient(ctx, cfg, logger)
-		if err != nil {
-			logger.Error("failed to initialize kubernetes client", "error", err)
-			cancel()
-			return nil, err
+		if cfg.Features.MTLSManagement.Kubernetes != nil && cfg.Features.MTLSManagement.Kubernetes.Enabled {
+			certProvider, err = certificate.NewKubernetesClient(ctx, cfg, logger)
+			if err != nil {
+				logger.Error("failed to initialize kubernetes client", "error", err)
+				cancel()
+				return nil, err
+			}
+			logger.Debug("Kubernetes Certificate Provider Initialized")
+		} else if cfg.Features.MTLSManagement.Database != nil && cfg.Features.MTLSManagement.Database.Enabled {
+			keyAlgorithm, err := utils.ParseKeyAlgorithm(cfg.Features.MTLSManagement.Database.KeyAlgorithm)
+			if err != nil {
+				logger.Error("failed to parse mtls_management.database.key_algorithm", "error", err)
+				cancel()
+				return nil, err
+			}
+
+			certProvider = certificate.NewDatabaseProvider(database, keyAlgorithm, cfg.Features.MTLSManagement.CertificateSubject)
+
+			if err := certProvider.(*certificate.DatabaseProvider).StartupCheck(ctx); err != nil {
+				logger.Error("database certificate provider startup check failed", "error", err)
+				cancel()
+				return nil, err
+			}
+			logger.Debug("Database Certificate Provider Initialized")
 		}
 	}
 
-	appCtx := middlewares.NewAppContext(ctx, cfg, logger, cache, sessionManager, oidcProvider, database, kubernetesClient)
+	appCtx := middlewares.NewAppContext(ctx, cfg, logger, cache, sessionManager, oidcProvider, database, certProvider)
 
 	jobManager := jobs.NewJobManager(election, logger)
 

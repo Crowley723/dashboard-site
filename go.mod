@@ -6,7 +6,7 @@ require (
 	github.com/alexedwards/scs/goredisstore v0.0.0-20251002162104-209de6e426de
 	github.com/alexedwards/scs/v2 v2.9.0
 	github.com/avct/uasurfer v0.0.0-20251203101750-d127e02ee278
-	github.com/cert-manager/cert-manager v1.20.1
+	github.com/cert-manager/cert-manager v1.20.2
 	github.com/coreos/go-oidc/v3 v3.18.0
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/go-chi/cors v1.2.2
@@ -19,6 +19,7 @@ require (
 	github.com/redis/go-redis/v9 v9.18.0
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/mock v0.6.0
+	golang.org/x/crypto v0.49.0
 	golang.org/x/oauth2 v0.36.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.35.3
@@ -60,7 +61,6 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/crypto v0.49.0 // indirect
 	golang.org/x/net v0.52.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.43.0 // indirect

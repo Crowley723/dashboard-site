@@ -26,7 +26,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
               -X 'homelab-dashboard/internal/version.BuildTime=${BUILD_TIME}'" \
     -o dashboard-site ./main.go
 
-FROM alpine:latest@sha256:fa1b3b8cd12d2b2ded5ef366f99b5a7556884646af680404989d626535a3ac14 AS runtime
+FROM alpine:latest@sha256:a2d49ea686c2adfe3c992e47dc3b5e7fa6e6b5055609400dc2acaeb241c829f4 AS runtime
 RUN apk add --no-cache ca-certificates tzdata && \
     addgroup -g 1001 -S app && \
     adduser -u 1001 -S app -G app

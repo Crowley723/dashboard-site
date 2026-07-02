@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/alexedwards/scs/goredisstore v0.0.0-20251002162104-209de6e426de
 	github.com/alexedwards/scs/v2 v2.9.0
-	github.com/avct/uasurfer v0.0.0-20251203101750-d127e02ee278
+	github.com/avct/uasurfer v0.0.0-20260126094926-dace53404a8d
 	github.com/cert-manager/cert-manager v1.20.3
 	github.com/coreos/go-oidc/v3 v3.19.0
 	github.com/go-chi/chi/v5 v5.3.0

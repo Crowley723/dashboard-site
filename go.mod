@@ -1,6 +1,6 @@
 module homelab-dashboard
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/alexedwards/scs/goredisstore v0.0.0-20251002162104-209de6e426de
@@ -19,7 +19,7 @@ require (
 	github.com/redis/go-redis/v9 v9.22.0
 	github.com/stretchr/testify v1.12.1
 	go.uber.org/mock v0.6.0
-	golang.org/x/crypto v0.55.0
+	golang.org/x/crypto v0.56.0
 	golang.org/x/oauth2 v0.36.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.35.8
